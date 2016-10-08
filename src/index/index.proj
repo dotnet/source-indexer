@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" InitialTargets="EnsurePreconditions" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" TreatAsLocalProperty="WhatIf">
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
+  <PropertyGroup>
+    <WhatIf Condition="'$(WhatIf)' != 'true'">false</WhatIf>
+  </PropertyGroup>
+  <Import Project="$(MSBuildThisFileDirectory)repositories.props" />
+  
+  <ItemDefinitionGroup>
+    <Repository>
+      <LocalPath>$(RepositoryPath)%(Identity)/</LocalPath>
+      <ServerPath>%(Url)/tree/master/</ServerPath>
+    </Repository>
+  </ItemDefinitionGroup>
+  
+  <Target Name="EnsurePreconditions">
+    <Error Condition="'$(OS)' != 'Windows_NT'" Text="This tool can only be run on Windows_NT."/>
+  </Target>
+  
+  <Target Name="Clean">
+    <RemoveDir Directories="$(OutDir)"/>
+  </Target>
+  
+  <Target Name="PrepareOutput">
+    <MakeDir Condition="!Exists('$(OutDir)')" Directories="$(OutDir)"/>
+    <MakeDir Condition="!Exists('$(RepositoryPath)')" Directories="$(RepositoryPath)"/>
+  </Target>
+  
+  <Target Name="Clone" DependsOnTargets="PrepareOutput" Outputs="%(Repository.Identity)">
+    <PropertyGroup>
+      <CloneCommand>git clone %(Repository.Url).git --depth 1 %(LocalPath)</CloneCommand>
+    </PropertyGroup>
+    <Exec Condition="!Exists('%(Repository.LocalPath)')" Command="$(CloneCommand)" />
+    <Exec Command="git rev-parse HEAD 2>&amp;1" WorkingDirectory="%(Repository.LocalPath)" ConsoleToMSBuild="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="CommitHash"/>
+    </Exec>
+    <ItemGroup>
+      <ClonedRepository Include="@(Repository)">
+        <ServerPath>%(Url)/tree/$(CommitHash)/</ServerPath>
+      </ClonedRepository>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="SelectProjects" DependsOnTargets="Clone" Outputs="@(SourceProject)">
+    <SelectProjects Repositories="@(ClonedRepository)">
+      <Output TaskParameter="SelectedProjects" ItemName="SourceProject"/>
+    </SelectProjects>
+  </Target>
+  <UsingTask TaskName="SelectProjects" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.v4.0.dll">
+    <ParameterGroup>
+      <Repositories ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true"/>
+      <SelectedProjects ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true"/>
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System"/>
+      <Using Namespace="System.Collections.Generic"/>
+      <Using Namespace="System.IO"/>
+      <Using Namespace="System.Linq"/>
+      <Using Namespace="System.Reflection"/>
+      <Using Namespace="Microsoft.Build.Framework"/>
+      <Code>
+      <![CDATA[
+      var matcherType = Type.GetType("Microsoft.Build.Shared.FileMatcher, Microsoft.Build.Tasks.Core, Version=14.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a");
+      var getFilesFunction = matcherType.GetMethod("GetFiles", BindingFlags.NonPublic | BindingFlags.Static, null, CallingConventions.Any, new Type[]{typeof(string), typeof(string)}, new ParameterModifier[0]);
+      
+      var selectedProjects = new List<ITaskItem>();
+      foreach (var repository in Repositories)
+      {
+        var projects = repository.GetMetadata("Projects");
+        var localPath = repository.GetMetadata("LocalPath");
+        foreach (var projectItemSpec in projects.Split(new char[]{';'}, StringSplitOptions.RemoveEmptyEntries))
+        {
+          var trimmed = projectItemSpec.Trim();
+          if (!string.IsNullOrEmpty(trimmed))
+          {
+            var itemSpec = trimmed;
+            var files = (string[])getFilesFunction.Invoke(null, new object[] {localPath, itemSpec});
+            foreach (var file in files)
+            {
+              selectedProjects.Add(new TaskItem(localPath + file));
+            }
+          }
+        }
+      }
+      SelectedProjects = selectedProjects.OrderBy(i => i.GetMetadata("Identity")).ToArray();
+      Log.LogMessage("Selected Projects:");
+      foreach (var project in SelectedProjects)
+      {
+        Log.LogMessage(project.GetMetadata("FullPath"));
+      }
+      ]]>
+      </Code>
+    </Task>
+  </UsingTask>
+  
+  <Target Name="Validate" DependsOnTargets="SelectProjects">
+    <Error Condition="!Exists('%(SourceProject.Identity)')" Text="Expected File '%(SourceProject.FullPath)' does not exist." Code="SB001"/>
+  </Target>
+  
+  <Target Name="Prepare" DependsOnTargets="Validate" Outputs="%(ClonedRepository.Identity)">
+    <PropertyGroup>
+      <PrepareCommand>$([System.String]::Copy('%(ClonedRepository.PrepareCommand)').Trim())</PrepareCommand>
+    </PropertyGroup>
+    <Exec Command="cmd /c &quot;$(PrepareCommand)&quot;" WorkingDirectory="%(ClonedRepository.LocalPath)" />
+  </Target>
+
+  <Target Name="BuildGenerator">
+    <MSBuild Projects="$(SourcesDir)SourceBrowser/src/HtmlGenerator/HtmlGenerator.csproj" Targets="Build">
+      <Output TaskParameter="TargetOutputs" PropertyName="HtmlGeneratorExePath"/>
+    </MSBuild>
+  </Target>
+
+  <Target Name="Build" DependsOnTargets="BuildGenerator;Prepare">
+    <Error Condition="!Exists('$(HtmlGeneratorExePath)')" Text="Html generator executable not found."/>
+    <RemoveDuplicates Inputs="@(SourceProject)">
+      <Output TaskParameter="Filtered" ItemName="_FilteredProject"/>
+    </RemoveDuplicates>
+    <RemoveDir Directories="$(OutDir)index/"/>
+    <WriteLinesToFile Lines="@(_FilteredProject -> '%(FullPath)')" File="$(OutDir)index.list" Overwrite="true"/>
+    <PropertyGroup>
+      <SourceIndexCmd>$(HtmlGeneratorExePath)</SourceIndexCmd>
+      <SourceIndexCmd>$(SourceIndexCmd) /out:$(OutDir)index/</SourceIndexCmd>
+      <SourceIndexCmd>$(SourceIndexCmd) /in:$(OutDir)index.list</SourceIndexCmd>
+      <SourceIndexCmd>$(SourceIndexCmd) /p:SourceIndex=true</SourceIndexCmd>
+      <SourceIndexCmd>$(SourceIndexCmd)@(ClonedRepository -> ' /serverPath:"%(LocalPath)=%(ServerPath)"', '')</SourceIndexCmd>
+    </PropertyGroup>
+    <Exec Command="$(SourceIndexCmd)"/>
+  </Target>
+  
+  <Target Name="Rebuild" DependsOnTargets="Clean;Build"/>
+</Project>
