@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" InitialTargets="CheckForBuildTools" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);0433;1685</NoWarn>
+  </PropertyGroup>
+  <Target Name="FixProjectReferencesForSourceIndex" BeforeTargets="ResolveProjectReferences">
+    <ItemGroup>
+      <ProjectReference>
+        <UndefineProperties>%(UndefineProperties);CustomAfterBuildCommonTargets</UndefineProperties>
+      </ProjectReference>
+    </ItemGroup>
+  </Target>
+  <UsingTask TaskName="ResolveLivePackageReferences" AssemblyFile="$(SourceIndexerTasksAssembly)"/>
+  <Target Name="RewritePackageReferences" AfterTargets="ResolveNuGetPackages;FilterTargetingPackResolvedNugetPackages"
+          Condition="'$(IsReferenceAssembly)' != 'true'">
+    <ItemGroup>
+      <Reference Remove="@(_ReferenceFromPackage)"/>
+      <_ReferenceToResolve Include="@(_ReferenceFromPackage)" Exclude="@(PackageReferencesToRemove)"/>
+    </ItemGroup>
+    <ResolveLivePackageReferences
+      References="@(_ReferenceToResolve)"
+      AdditionalAssemblyReferences="mscorlib;System.Private.CoreLib"
+      LiveReferenceCacheFile="$(LiveReferenceCacheFile)">
+      <Output TaskParameter="ReferencePaths" ItemName="ReferencePath"/>
+    </ResolveLivePackageReferences>
+  </Target>
+</Project>
