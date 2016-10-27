@@ -11,13 +11,13 @@
       </Projects>
       <PrepareCommand>
         sync
-        build-managed -binaries
       </PrepareCommand>
     </Repository>
     <Repository Include="coreclr">
       <Url>https://github.com/dotnet/coreclr</Url>
       <Projects>
-        src/mscorlib/System.Private.CoreLib.csproj
+        src/mscorlib/System.Private.CoreLib.csproj;
+        src/mscorlib/facade/mscorlib.csproj;
       </Projects>
       <PrepareCommand>sync</PrepareCommand>
     </Repository>
