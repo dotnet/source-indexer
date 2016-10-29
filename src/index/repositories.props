@@ -38,7 +38,7 @@
         src/XMakeConversion/UnitTests/XMakeConversionUnitTests.csproj;
         src/XMakeTasks/XMakeTasksUnitTests/XMakeTasksUnitTests.csproj;
       </ExcludeProjects>
-      <PrepareCommand>set "VisualStudioVersion=14.0" %26%26 cibuild --target Desktop --build-only</PrepareCommand>
+      <PrepareCommand>set "MSBUILD_CUSTOM_PATH=C:\Program Files (x86)\MSBuild\14.0\Bin\MSBuild.exe" %26%26 set "VisualStudioVersion=14.0" %26%26 cibuild --target Desktop --build-only</PrepareCommand>
     </Repository>
   </ItemGroup>
 </Project>
