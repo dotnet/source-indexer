@@ -6,7 +6,7 @@ using System.Reflection;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 
-namespace ClassLibrary
+namespace Microsoft.SourceIndexer.Tasks
 {
     public class SelectProjects : Task
     {
@@ -30,29 +30,35 @@ namespace ClassLibrary
             }
         }
 
+        private static Type FileMatcher { get; } = Type.GetType("Microsoft.Build.Shared.FileMatcher, Microsoft.Build.Tasks.Core, Version=14.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a");
+
+        private static Func<string, string, string[]> GetFiles { get; } =
+            (Func<string, string, string[]>)FileMatcher.GetTypeInfo()
+                .GetMethod("GetFiles", BindingFlags.NonPublic | BindingFlags.Static, null,
+                    new[] {typeof(string), typeof(string)}, new ParameterModifier[0])
+                .CreateDelegate(typeof(Func<string, string, string[]>));
+
+        private IEnumerable<string> EvaluateItemInclude(string localPath, string include)
+        {
+            return include
+                .Split(new[] {';'}, StringSplitOptions.RemoveEmptyEntries)
+                .Select(p => p.Trim())
+                .Where(s => !string.IsNullOrEmpty(s))
+                .SelectMany(i => GetFiles(localPath, i))
+                .Select(relative => Path.GetFullPath(Path.Combine(localPath, relative)));
+        }
+
         private void ExecuteCore()
         {
-            var matcherType = Type.GetType("Microsoft.Build.Shared.FileMatcher, Microsoft.Build.Tasks.Core, Version=14.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a");
-            var getFilesFunction = matcherType.GetTypeInfo()
-                    .GetMethod("GetFiles", BindingFlags.NonPublic | BindingFlags.Static, null, new Type[]{typeof(string), typeof(string)}, new ParameterModifier[0]);
-
             var selectedProjects = new List<ITaskItem>();
             foreach (var repository in Repositories)
             {
-                var projects = repository.GetMetadata("Projects");
                 var localPath = repository.GetMetadata("LocalPath");
-                foreach (var projectItemSpec in projects.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
+                var projects = EvaluateItemInclude(localPath, repository.GetMetadata("Projects"));
+                var excludedProjects = EvaluateItemInclude(localPath, repository.GetMetadata("ExcludeProjects"));
+                foreach (var project in projects.Except(excludedProjects))
                 {
-                    var trimmed = projectItemSpec.Trim();
-                    if (!string.IsNullOrEmpty(trimmed))
-                    {
-                        var itemSpec = trimmed;
-                        var files = (string[])getFilesFunction.Invoke(null, new object[] {localPath, itemSpec});
-                        foreach (var file in files)
-                        {
-                        selectedProjects.Add(new TaskItem(localPath + file));
-                        }
-                    }
+                    selectedProjects.Add(new TaskItem(project));
                 }
             }
             SelectedProjects = selectedProjects.OrderBy(i => i.GetMetadata("Identity")).ToArray();

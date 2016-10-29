@@ -21,5 +21,24 @@
       </Projects>
       <PrepareCommand>sync</PrepareCommand>
     </Repository>
+    <Repository Include="msbuild">
+      <Url>https://github.com/Microsoft/msbuild</Url>
+      <Branch>xplat</Branch>
+      <Projects>
+        build/**/*.csproj;
+        build/**/*.vbproj;
+        src/**/*.csproj;
+        src/**/*.vbproj;
+        targets/**/*.csproj;
+        targets/**/*.vbproj;
+      </Projects>
+      <ExcludeProjects>
+        src/OrcasEngine/UnitTests/OrcasEngineUnitTests.csproj;
+        src/XMakeBuildEngine/ApexTests/ApexTests.csproj;
+        src/XMakeConversion/UnitTests/XMakeConversionUnitTests.csproj;
+        src/XMakeTasks/XMakeTasksUnitTests/XMakeTasksUnitTests.csproj;
+      </ExcludeProjects>
+      <PrepareCommand>set "VisualStudioVersion=14.0" %26%26 cibuild --target Desktop --build-only</PrepareCommand>
+    </Repository>
   </ItemGroup>
 </Project>
