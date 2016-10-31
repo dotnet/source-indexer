@@ -6,6 +6,10 @@
   </PropertyGroup>
   <Import Project="$(MSBuildThisFileDirectory)repositories.props" />
 
+  <ItemGroup>
+    <OverwriteFiles Include="$(MSBuildThisFileDirectory)/overwrite/**/*"/>
+  </ItemGroup>
+
   <ItemDefinitionGroup>
     <Repository>
       <Branch>master</Branch>
@@ -91,6 +95,7 @@
       <SourceIndexCmd>$(SourceIndexCmd)@(ClonedRepository -> ' /serverPath:"%(LocalPath)=%(ServerPath)"', '')</SourceIndexCmd>
     </PropertyGroup>
     <Exec Command="$(SourceIndexCmd)"/>
+    <Copy SourceFiles="@(OverwriteFiles)" DestinationFiles="@(OverwriteFiles -> '$(OutDir)index/%(RecursiveDir)%(Filename)%(Extension)')"/>
   </Target>
 
   <Target Name="Rebuild" DependsOnTargets="Clean;Build"/>
