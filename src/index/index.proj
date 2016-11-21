@@ -61,7 +61,7 @@
     <PropertyGroup>
       <PrepareCommand>$([System.String]::Copy('%(ClonedRepository.PrepareCommand)').Trim())</PrepareCommand>
     </PropertyGroup>
-    <Exec Command="cmd /c &quot;$(PrepareCommand)&quot;" WorkingDirectory="%(ClonedRepository.LocalPath)" IgnoreStandardErrorWarningFormat="true" LogStandardErrorAsError="false" IgnoreExitCode="true"/>
+    <Exec Command="cmd /c &quot;$(PrepareCommand)&quot;" WorkingDirectory="%(ClonedRepository.LocalPath)" ContinueOnError="true" IgnoreStandardErrorWarningFormat="true" LogStandardErrorAsError="false" IgnoreExitCode="true"/>
   </Target>
 
   <UsingTask TaskName="GenerateLiveReferenceCache" AssemblyFile="$(SourceIndexerTasksAssembly)"/>
