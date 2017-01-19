@@ -64,21 +64,13 @@
     <Exec Command="cmd /c &quot;$(PrepareCommand)&quot;" WorkingDirectory="%(ClonedRepository.LocalPath)" ContinueOnError="true" IgnoreStandardErrorWarningFormat="true" LogStandardErrorAsError="false" IgnoreExitCode="true"/>
   </Target>
 
-  <UsingTask TaskName="GenerateLiveReferenceCache" AssemblyFile="$(SourceIndexerTasksAssembly)"/>
-  <Target Name="CacheLiveReferencePaths" DependsOnTargets="Prepare">
-    <GenerateLiveReferenceCache
-      CandidateReferenceProjects="@(SourceProject)"
-      LiveReferenceCacheFile="$(OutDir)reference-cache.json"
-      />
-  </Target>
-
-  <Target Name="BuildGenerator">
+  <Target Name="BuildGenerator" Condition="!Exists('$(HtmlGeneratorExePath)')">
     <MSBuild Projects="$(SourcesDir)SourceBrowser/src/HtmlGenerator/HtmlGenerator.csproj" Targets="Build">
       <Output TaskParameter="TargetOutputs" PropertyName="HtmlGeneratorExePath"/>
     </MSBuild>
   </Target>
 
-  <Target Name="Build" DependsOnTargets="BuildGenerator;Prepare;CacheLiveReferencePaths">
+  <Target Name="Build" DependsOnTargets="BuildGenerator;Prepare">
     <Error Condition="!Exists('$(HtmlGeneratorExePath)')" Text="Html generator executable not found."/>
     <RemoveDuplicates Inputs="@(SourceProject)">
       <Output TaskParameter="Filtered" ItemName="_FilteredProject"/>
@@ -89,12 +81,9 @@
       <SourceIndexCmd>$(HtmlGeneratorExePath)</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /out:$(OutDir)index/</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /in:$(OutDir)index.list</SourceIndexCmd>
-      <SourceIndexCmd>$(SourceIndexCmd) /p:LiveReferenceCacheFile=$(OutDir)reference-cache.json</SourceIndexCmd>
-      <SourceIndexCmd>$(SourceIndexCmd) /p:SourceIndexerTasksAssembly=$(SourceIndexerTasksAssembly)</SourceIndexCmd>
-      <SourceIndexCmd>$(SourceIndexCmd) /p:CustomAfterBuildCommonTargets=$(MSBuildThisFileDirectory)/SourceIndex.targets</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd)@(ClonedRepository -> ' /serverPath:"%(LocalPath)=%(ServerPath)"', '')</SourceIndexCmd>
     </PropertyGroup>
-    <Exec Command="$(SourceIndexCmd)"/>
+    <Exec Command="$(SourceIndexCmd)" ContinueOnError="true" IgnoreStandardErrorWarningFormat="true" LogStandardErrorAsError="false"/>
     <Copy SourceFiles="@(OverwriteFiles)" DestinationFiles="@(OverwriteFiles -> '$(OutDir)index/%(RecursiveDir)%(Filename)%(Extension)')"/>
   </Target>
 
