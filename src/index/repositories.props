@@ -19,7 +19,7 @@
         src/mscorlib/System.Private.CoreLib.csproj;
         src/mscorlib/facade/mscorlib.csproj;
       </Projects>
-      <PrepareCommand>build</PrepareCommand>
+      <PrepareCommand>build skiptests skipnative</PrepareCommand>
     </Repository>
     <Repository Include="msbuild">
       <Url>https://github.com/Microsoft/msbuild</Url>
