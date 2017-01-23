@@ -40,5 +40,13 @@
       </ExcludeProjects>
       <PrepareCommand>set "MSBUILD_CUSTOM_PATH=C:\Program Files (x86)\MSBuild\14.0\Bin\MSBuild.exe" %26%26 set "VisualStudioVersion=14.0" %26%26 cibuild --target Desktop --build-only</PrepareCommand>
     </Repository>
+    <Repository Include="wcf">
+      <Url>https://github.com/dotnet/wcf</Url>
+      <Projects>
+        src/System.*/**/*.csproj;
+        src/System.*/**/*.vbproj;
+      </Projects>
+      <PrepareCommand>build-managed -SkipTests</PrepareCommand>
+    </Repository>
   </ItemGroup>
 </Project>
