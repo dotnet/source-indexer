@@ -22,7 +22,7 @@
     </Repository>
     <Repository Include="msbuild">
       <Url>https://github.com/Microsoft/msbuild</Url>
-      <Branch>xplat</Branch>
+      <Branch>master</Branch>
       <Projects>
         build/**/*.csproj;
         build/**/*.vbproj;
