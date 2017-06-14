@@ -17,7 +17,6 @@
       <Url>https://github.com/dotnet/coreclr</Url>
       <Projects>
         src/mscorlib/System.Private.CoreLib.csproj;
-        src/mscorlib/facade/mscorlib.csproj;
       </Projects>
       <PrepareCommand>build skiptests skipnative</PrepareCommand>
     </Repository>

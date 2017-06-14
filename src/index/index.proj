@@ -65,7 +65,7 @@
   </Target>
 
   <Target Name="BuildGenerator" Condition="!Exists('$(HtmlGeneratorExePath)')">
-    <MSBuild Projects="$(SourcesDir)SourceBrowser/src/HtmlGenerator/HtmlGenerator.csproj" Targets="Build">
+    <MSBuild Projects="$(SourcesDir)SourceBrowser/src/HtmlGenerator/HtmlGenerator.csproj" Targets="Restore;Build" Properties="SolutionDir=$(SourcesDir)SourceBrowser">
       <Output TaskParameter="TargetOutputs" PropertyName="HtmlGeneratorExePath"/>
     </MSBuild>
   </Target>
@@ -79,6 +79,7 @@
     <WriteLinesToFile Lines="@(_FilteredProject -> '%(FullPath)')" File="$(OutDir)index.list" Overwrite="true"/>
     <PropertyGroup>
       <SourceIndexCmd>$(HtmlGeneratorExePath)</SourceIndexCmd>
+      <SourceIndexCmd>$(SourceIndexCmd) /nobuiltinfederations</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /out:$(OutDir)index/</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /in:$(OutDir)index.list</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd)@(ClonedRepository -> ' /serverPath:"%(LocalPath)=%(ServerPath)"', '')</SourceIndexCmd>
