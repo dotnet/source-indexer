@@ -18,7 +18,10 @@
       <Projects>
         src/mscorlib/System.Private.CoreLib.csproj;
       </Projects>
-      <PrepareCommand>build skiptests skipnative</PrepareCommand>
+      <PrepareCommand>
+"C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\Tools\VsDevCmd.bat"
+build skiptests skipnative
+      </PrepareCommand>
     </Repository>
     <Repository Include="msbuild">
       <Url>https://github.com/Microsoft/msbuild</Url>
