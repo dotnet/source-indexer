@@ -10,6 +10,7 @@
         src/*/tests/*.vbproj;
       </Projects>
       <PrepareCommand>
+        "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\Tools\VsDevCmd.bat"
         build -SkipTests
       </PrepareCommand>
     </Repository>
@@ -19,13 +20,13 @@
         src/mscorlib/System.Private.CoreLib.csproj;
       </Projects>
       <PrepareCommand>
-"C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\Tools\VsDevCmd.bat"
-build skiptests skipnative
+        "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\Tools\VsDevCmd.bat"
+        build skiptests skipnative
       </PrepareCommand>
     </Repository>
     <Repository Include="msbuild">
       <Url>https://github.com/Microsoft/msbuild</Url>
-      <Branch>xplat</Branch>
+      <Branch>master</Branch>
       <Projects>
         build/**/*.csproj;
         build/**/*.vbproj;
@@ -40,7 +41,10 @@ build skiptests skipnative
         src/XMakeConversion/UnitTests/XMakeConversionUnitTests.csproj;
         src/XMakeTasks/XMakeTasksUnitTests/XMakeTasksUnitTests.csproj;
       </ExcludeProjects>
-      <PrepareCommand>set "MSBUILD_CUSTOM_PATH=C:\Program Files (x86)\MSBuild\14.0\Bin\MSBuild.exe" %26%26 set "VisualStudioVersion=14.0" %26%26 cibuild --target Desktop --build-only</PrepareCommand>
+      <PrepareCommand>
+        "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\Tools\VsDevCmd.bat"
+        cibuild --target CoreCLR --build-only
+      </PrepareCommand>
     </Repository>
     <Repository Include="wcf">
       <Url>https://github.com/dotnet/wcf</Url>
