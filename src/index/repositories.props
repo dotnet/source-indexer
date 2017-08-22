@@ -10,8 +10,7 @@
         src/*/tests/*.vbproj;
       </Projects>
       <PrepareCommand>
-        "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\Tools\VsDevCmd.bat"
-        build -SkipTests
+        "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\Tools\VsDevCmd.bat" &amp; build -SkipTests
       </PrepareCommand>
     </Repository>
     <Repository Include="coreclr">
@@ -20,8 +19,7 @@
         src/mscorlib/System.Private.CoreLib.csproj;
       </Projects>
       <PrepareCommand>
-        "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\Tools\VsDevCmd.bat"
-        build skiptests skipnative
+        "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\Tools\VsDevCmd.bat" &amp; build skiptests skipnative
       </PrepareCommand>
     </Repository>
     <Repository Include="msbuild">
@@ -42,8 +40,7 @@
         src/XMakeTasks/XMakeTasksUnitTests/XMakeTasksUnitTests.csproj;
       </ExcludeProjects>
       <PrepareCommand>
-        "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\Tools\VsDevCmd.bat"
-        cibuild --target CoreCLR --build-only
+        "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\Tools\VsDevCmd.bat" &amp; cibuild --target CoreCLR --build-only
       </PrepareCommand>
     </Repository>
     <Repository Include="wcf">
@@ -52,7 +49,9 @@
         src/System.*/**/*.csproj;
         src/System.*/**/*.vbproj;
       </Projects>
-      <PrepareCommand>build-managed -SkipTests</PrepareCommand>
+      <PrepareCommand>
+        "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\Tools\VsDevCmd.bat" &amp; build-managed -SkipTests
+      </PrepareCommand>
     </Repository>
   </ItemGroup>
 </Project>
