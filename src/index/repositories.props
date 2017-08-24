@@ -13,6 +13,15 @@
         "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\Tools\VsDevCmd.bat" &amp; build -SkipTests
       </PrepareCommand>
     </Repository>
+    <Repository Include="corefxlab">
+      <Url>https://github.com/dotnet/corefxlab</Url>
+      <Projects>
+        src/**/*.csproj;
+      </Projects>
+      <PrepareCommand>
+        "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\Tools\VsDevCmd.bat" &amp; build
+      </PrepareCommand>
+    </Repository>
     <Repository Include="coreclr">
       <Url>https://github.com/dotnet/coreclr</Url>
       <Projects>
