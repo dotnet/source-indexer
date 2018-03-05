@@ -34,6 +34,7 @@
     <Repository Include="msbuild">
       <Url>https://github.com/Microsoft/msbuild</Url>
       <Branch>master</Branch>
+      <OldCommit>91c86a746b312fce1aba31f8fb8540e949c11a01</OldCommit>
       <Projects>
         build/**/*.csproj;
         build/**/*.vbproj;

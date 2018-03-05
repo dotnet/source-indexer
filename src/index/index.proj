@@ -33,9 +33,16 @@
 
   <Target Name="Clone" DependsOnTargets="PrepareOutput" Outputs="%(Repository.Identity)">
     <PropertyGroup>
-      <CloneCommand>git clone %(Repository.Url).git --depth 1 -b %(Branch) --single-branch %(LocalPath)</CloneCommand>
+      <CloneCommand>git clone %(Repository.Url).git -b %(Branch) --single-branch</CloneCommand>
+      <CloneCommand Condition="'%(Repository.OldCommit)' == ''">$(CloneCommand) --depth 1</CloneCommand>
+      <CloneCommand>$(CloneCommand) %(Repository.LocalPath)</CloneCommand>
+
+      <CheckoutCommand Condition="'%(Repository.OldCommit)' != ''">git -C %(Repository.LocalPath) checkout %(Repository.OldCommit)</CheckoutCommand>
+
+      <CloneExists Condition="Exists('%(Repository.LocalPath)')">true</CloneExists>
     </PropertyGroup>
-    <Exec Condition="!Exists('%(Repository.LocalPath)')" Command="$(CloneCommand)" />
+    <Exec Condition="'$(CloneExists)' != 'true'" Command="$(CloneCommand)" />
+    <Exec Condition="'$(CloneExists)' != 'true' and  '$(CheckoutCommand)' != ''" Command="$(CheckoutCommand)" />
     <Exec Command="git rev-parse HEAD 2>&amp;1" WorkingDirectory="%(Repository.LocalPath)" ConsoleToMSBuild="true">
       <Output TaskParameter="ConsoleOutput" PropertyName="CommitHash"/>
     </Exec>
