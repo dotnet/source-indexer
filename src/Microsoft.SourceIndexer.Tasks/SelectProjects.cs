@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using Microsoft.Build.Framework;
+using Microsoft.Build.Tasks;
 using Microsoft.Build.Utilities;
 
 namespace Microsoft.SourceIndexer.Tasks
@@ -30,25 +30,24 @@ namespace Microsoft.SourceIndexer.Tasks
             }
         }
 
-        private static Type FileMatcher { get; } = Type.GetType("Microsoft.Build.Shared.FileMatcher, Microsoft.Build.Tasks.Core, Version=15.1.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a");
-
-        private static Func<string, string, string[]> GetFiles { get; } =
-            GetGetFilesFunction();
-
-        private static Func<string, string, string[]> GetGetFilesFunction()
+        private string[] GetFiles(string localPath, string glob)
         {
-            var func14 = FileMatcher.GetMethod("GetFiles", BindingFlags.NonPublic | BindingFlags.Static, null, new[] { typeof(string), typeof(string) }, new ParameterModifier[0]);
-            if (func14 != null)
+            var createItemTask = new CreateItem
             {
-                return (Func<string, string, string[]>)func14.CreateDelegate(typeof(Func<string, string, string[]>));
-            }
-            var func15 = FileMatcher.GetMethod("GetFiles", BindingFlags.NonPublic | BindingFlags.Static, null, new[] { typeof(string), typeof(string), typeof(IEnumerable<string>) }, new ParameterModifier[0]);
-            if (func15 != null)
+                BuildEngine = BuildEngine,
+                Include = new[]
+                {
+                    new TaskItem(Path.Combine(localPath, glob))
+                }
+            };
+
+            if (!createItemTask.Execute())
             {
-                var f = (Func<string, string, IEnumerable<string>, string[]>)func15.CreateDelegate(typeof(Func<string, string, IEnumerable<string>, string[]>));
-                return (a, b) => f(a, b, Enumerable.Empty<string>());
+                throw new Exception(
+                    $"Failed to create items with localPath '{localPath}', glob '{glob}'");
             }
-            throw new MissingMethodException("Could not find FileMatcher.GetFiles");
+
+            return createItemTask.Include.Select(item => item.ItemSpec).ToArray();
         }
 
 
