@@ -2,5 +2,6 @@
 {
   "files.exclude": {
     "bin": true
-  }
+  },
+  "csharp.suppressDotnetRestoreNotification": true
 }
