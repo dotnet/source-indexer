@@ -34,7 +34,7 @@
   <Target Name="Clone" DependsOnTargets="PrepareOutput" Outputs="%(Repository.Identity)">
     <PropertyGroup>
       <CloneCommand>git clone %(Repository.Url).git -b %(Branch) --single-branch</CloneCommand>
-      <CloneCommand Condition="'%(Repository.OldCommit)' == ''">$(CloneCommand) --depth 1</CloneCommand>
+      <CloneCommand Condition="'%(Repository.OldCommit)' == '' and '%(Repository.DeepClone)' != 'true'">$(CloneCommand) --depth 1</CloneCommand>
       <CloneCommand>$(CloneCommand) %(Repository.LocalPath)</CloneCommand>
 
       <CheckoutCommand Condition="'%(Repository.OldCommit)' != ''">git -C %(Repository.LocalPath) checkout %(Repository.OldCommit)</CheckoutCommand>

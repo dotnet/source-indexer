@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <VsDevCmd>pushd . &amp; "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\Tools\VsDevCmd.bat" &amp; popd</VsDevCmd>
+  </PropertyGroup>
   <ItemGroup>
     <Repository Include="corefx">
       <Url>https://github.com/dotnet/corefx</Url>
@@ -10,7 +13,7 @@
         src/*/tests/*.vbproj;
       </Projects>
       <PrepareCommand>
-        "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\Tools\VsDevCmd.bat" &amp; build -SkipTests
+        $(VsDevCmd) &amp; build-managed
       </PrepareCommand>
     </Repository>
     <Repository Include="corefxlab">
@@ -19,7 +22,7 @@
         src/**/*.csproj;
       </Projects>
       <PrepareCommand>
-        "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\Tools\VsDevCmd.bat" &amp; build
+        $(VsDevCmd) &amp; build
       </PrepareCommand>
     </Repository>
     <Repository Include="coreclr">
@@ -28,13 +31,13 @@
         src/mscorlib/System.Private.CoreLib.csproj;
       </Projects>
       <PrepareCommand>
-        "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\Tools\VsDevCmd.bat" &amp; build skiptests skipnative
+        $(VsDevCmd) &amp; run build -Project=build.proj
       </PrepareCommand>
     </Repository>
     <Repository Include="msbuild">
       <Url>https://github.com/Microsoft/msbuild</Url>
       <Branch>master</Branch>
-      <OldCommit>91c86a746b312fce1aba31f8fb8540e949c11a01</OldCommit>
+      <DeepClone>true</DeepClone>
       <Projects>
         build/**/*.csproj;
         build/**/*.vbproj;
@@ -50,7 +53,7 @@
         src/XMakeTasks/XMakeTasksUnitTests/XMakeTasksUnitTests.csproj;
       </ExcludeProjects>
       <PrepareCommand>
-        "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\Tools\VsDevCmd.bat" &amp; cibuild --target CoreCLR --build-only
+        $(VsDevCmd) &amp; build -hostType Core -skipTests -bootstrapOnly
       </PrepareCommand>
     </Repository>
     <Repository Include="wcf">
