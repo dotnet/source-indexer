@@ -57,7 +57,7 @@
         src/System.*/**/*.vbproj;
       </Projects>
       <PrepareCommand>
-        "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\Tools\VsDevCmd.bat" &amp; build-managed -SkipTests
+        $(VsDevCmd) &amp; build-managed -SkipTests
       </PrepareCommand>
     </Repository>
   </ItemGroup>
