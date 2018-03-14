@@ -39,18 +39,12 @@
       <Branch>master</Branch>
       <DeepClone>true</DeepClone>
       <Projects>
-        build/**/*.csproj;
-        build/**/*.vbproj;
         src/**/*.csproj;
         src/**/*.vbproj;
-        targets/**/*.csproj;
-        targets/**/*.vbproj;
       </Projects>
       <ExcludeProjects>
-        src/OrcasEngine/UnitTests/OrcasEngineUnitTests.csproj;
-        src/XMakeBuildEngine/ApexTests/ApexTests.csproj;
-        src/XMakeConversion/UnitTests/XMakeConversionUnitTests.csproj;
-        src/XMakeTasks/XMakeTasksUnitTests/XMakeTasksUnitTests.csproj;
+        src/Deprecated/**/*.csproj;
+        src/Deprecated/**/*.vbproj;
       </ExcludeProjects>
       <PrepareCommand>
         $(VsDevCmd) &amp; build -hostType Core -skipTests -bootstrapOnly
