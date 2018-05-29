@@ -28,7 +28,7 @@
     <Repository Include="coreclr">
       <Url>https://github.com/dotnet/coreclr</Url>
       <Projects>
-        src/mscorlib/System.Private.CoreLib.csproj;
+        src/System.Private.CoreLib/System.Private.CoreLib.csproj;
       </Projects>
       <PrepareCommand>
         $(VsDevCmd) &amp; run build -Project=build.proj
