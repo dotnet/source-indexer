@@ -9,8 +9,6 @@
       <Projects>
         src/*/src/*.csproj;
         src/*/src/*.vbproj;
-        src/*/tests/*.csproj;
-        src/*/tests/*.vbproj;
       </Projects>
       <PrepareCommand>
         $(VsDevCmd) &amp; build -SkipTests
