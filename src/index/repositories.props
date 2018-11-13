@@ -13,7 +13,7 @@
         src/*/tests/*.vbproj;
       </Projects>
       <PrepareCommand>
-        $(VsDevCmd) &amp; build-managed
+        $(VsDevCmd) &amp; build -SkipTests
       </PrepareCommand>
     </Repository>
     <Repository Include="corefxlab">
