@@ -9,11 +9,9 @@
       <Projects>
         src/*/src/*.csproj;
         src/*/src/*.vbproj;
-        src/*/tests/*.csproj;
-        src/*/tests/*.vbproj;
       </Projects>
       <PrepareCommand>
-        $(VsDevCmd) &amp; build-managed
+        $(VsDevCmd) &amp; build -SkipTests
       </PrepareCommand>
     </Repository>
     <Repository Include="corefxlab">
@@ -31,7 +29,7 @@
         src/System.Private.CoreLib/System.Private.CoreLib.csproj;
       </Projects>
       <PrepareCommand>
-        $(VsDevCmd) &amp; run build -Project=build.proj
+        $(VsDevCmd) &amp; build -skiptests -skipnative -windowsmscorlib
       </PrepareCommand>
     </Repository>
     <Repository Include="msbuild">
@@ -47,7 +45,7 @@
         src/Deprecated/**/*.vbproj;
       </ExcludeProjects>
       <PrepareCommand>
-        $(VsDevCmd) &amp; build -hostType Core -skipTests -bootstrapOnly
+        $(VsDevCmd) &amp; build -hostType Core
       </PrepareCommand>
     </Repository>
     <Repository Include="machinelearning">
