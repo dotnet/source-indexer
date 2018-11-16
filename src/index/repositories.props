@@ -11,7 +11,7 @@
         src/*/src/*.vbproj;
       </Projects>
       <PrepareCommand>
-        $(VsDevCmd) &amp; build -SkipTests
+        $(VsDevCmd) &amp; build -SkipTests /p:buildnative=false
       </PrepareCommand>
     </Repository>
     <Repository Include="corefxlab">
