@@ -14,6 +14,24 @@
         $(VsDevCmd) &amp; build -SkipTests /p:buildnative=false -- /p:BuildPackages=false
       </PrepareCommand>
     </Repository>
+    <Repository Include="winforms">
+      <Url>https://github.com/dotnet/winforms</Url>
+      <Projects>
+        src/*/src/*.csproj;
+      </Projects>
+      <PrepareCommand>
+        $(VsDevCmd) &amp; build
+      </PrepareCommand>
+    </Repository>
+    <Repository Include="wpf">
+      <Url>https://github.com/dotnet/wpf</Url>
+      <Projects>
+        src/Microsoft.DotNet.Wpf/src/*/*.csproj
+      </Projects>
+      <PrepareCommand>
+        $(VsDevCmd) &amp; build
+      </PrepareCommand>
+    </Repository>
     <Repository Include="corefxlab">
       <Url>https://github.com/dotnet/corefxlab</Url>
       <Projects>
