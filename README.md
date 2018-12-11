@@ -9,6 +9,8 @@ This repo contains the code for building http://source.dot.net
 To clone and build locally (Windows only):
 1. `git clone --recursive https://github.com/dotnet/source-indexer.git`
 2. `cd source-indexer\src\SourceBrowser`
-3. `dotnet restore`
-4. `cd ..\..`
-5. `msbuild build.proj`
+3. `git fetch --all`
+4. `git checkout source-indexer`
+5. `dotnet restore`
+6. `cd ..\..`
+7. `msbuild build.proj`
