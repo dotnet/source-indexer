@@ -50,6 +50,15 @@
         $(VsDevCmd) &amp; build -skiptests -skipnative -windowsmscorlib
       </PrepareCommand>
     </Repository>
+    <Repository Include="iot">
+      <Url>https://github.com/dotnet/iot</Url>
+      <Projects>
+        src/**.csproj;
+      </Projects>
+      <PrepareCommand>
+        $(VsDevCmd) &amp; build
+      </PrepareCommand>
+    </Repository>
     <Repository Include="msbuild">
       <Url>https://github.com/Microsoft/msbuild</Url>
       <Branch>master</Branch>
