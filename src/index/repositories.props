@@ -19,6 +19,9 @@
       <Projects>
         src/*/src/*.csproj;
       </Projects>
+      <ExcludeProjects>
+        ref/**/*.csproj;
+      </ExcludeProjects>
       <PrepareCommand>
         $(VsDevCmd) &amp; build
       </PrepareCommand>
