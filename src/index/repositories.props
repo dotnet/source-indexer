@@ -20,7 +20,7 @@
         src/*/src/*.csproj;
       </Projects>
       <ExcludeProjects>
-        ref/**/*.csproj;
+        src/*/ref/*.csproj;
       </ExcludeProjects>
       <PrepareCommand>
         $(VsDevCmd) &amp; build
