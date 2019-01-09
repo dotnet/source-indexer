@@ -86,6 +86,7 @@
     <WriteLinesToFile Lines="@(_FilteredProject -> '%(FullPath)')" File="$(OutDir)index.list" Overwrite="true"/>
     <PropertyGroup>
       <SourceIndexCmd>$(HtmlGeneratorExePath)</SourceIndexCmd>
+      <SourceIndexCmd>$(SourceIndexCmd) /donotincludereferencedprojects</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /nobuiltinfederations</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /noplugins</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /out:$(OutDir)index/</SourceIndexCmd>
