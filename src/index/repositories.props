@@ -107,5 +107,14 @@
         .\restore.cmd -nobuildnodejs
       </PrepareCommand>
     </Repository>
+    <Repository Include="dotnet-extensions">
+      <Url>https://github.com/aspnet/extensions</Url>
+      <Projects>
+        src/**/src/**/*.csproj;
+      </Projects>
+      <PrepareCommand>
+        .\restore.cmd -nobuildnodejs
+      </PrepareCommand>
+    </Repository>
   </ItemGroup>
 </Project>
