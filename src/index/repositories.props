@@ -98,5 +98,14 @@
         $(VsDevCmd) &amp; build-managed -SkipTests
       </PrepareCommand>
     </Repository>
+    <Repository Include="aspnetcore">
+      <Url>https://github.com/aspnet/aspnetcore</Url>
+      <Projects>
+        src/**/src/**/*.csproj;
+      </Projects>
+      <PrepareCommand>
+        .\restore.cmd -nobuildnodejs
+      </PrepareCommand>
+    </Repository>
   </ItemGroup>
 </Project>
