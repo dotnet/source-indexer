@@ -11,7 +11,7 @@
         src/*/src/*.vbproj;
       </Projects>
       <PrepareCommand>
-        $(VsDevCmd) &amp; build /p:BuildNative=false -binarylog
+        $(VsDevCmd) &amp; build /p:BuildNative=false /p:BuildPackages=false -binarylog
       </PrepareCommand>
     </Repository>
     <Repository Include="winforms">
