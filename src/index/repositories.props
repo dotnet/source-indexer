@@ -113,7 +113,7 @@
         src/**/src/**/*.csproj;
       </Projects>
       <PrepareCommand>
-        .\restore.cmd -nobuildnodejs
+        .\restore.cmd
       </PrepareCommand>
     </Repository>
   </ItemGroup>
