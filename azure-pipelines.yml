@@ -1,0 +1,120 @@
+schedules:
+- cron: 0 10 * * *
+  displayName: Every day at 10:00 UTC
+  branches:
+    include:
+    - master
+  always: true
+
+
+jobs:
+- job: BuildIndex
+  displayName: Build Source Index
+
+  pool:
+    name: NetCoreInternal-Pool
+    queue: BuildPool.Windows.10.Amd64.VS2019
+
+  timeoutInMinutes: 960
+
+  steps:
+  - checkout: self
+    clean: true
+    submodules: true
+
+  - task: DeleteFiles@1
+    displayName: Delete files from bin
+    inputs:
+      SourceFolder: bin
+      Contents: '**/*'
+
+
+  - task: UseDotNet@2
+    displayName: Use .Net Core sdk 2.1.403
+    inputs:
+      version: 2.1.403
+
+  - task: NuGetToolInstaller@0
+    displayName: Use NuGet 4.4.1
+    inputs:
+      versionSpec: 4.4.1
+
+  - task: NuGetCommand@2
+    displayName: NuGet restore **/*.sln
+    inputs:
+      feedsToUse: config
+
+  - task: VSBuild@1
+    displayName: Clone All Repositories
+    inputs:
+      solution: build.proj
+      msbuildArgs: /t:Clone
+      msbuildArchitecture: x64
+
+  - powershell: |
+     $installScript = Join-Path $env:TEMP dotnet-install.ps1
+     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+     Invoke-WebRequest https://dot.net/v1/dotnet-install.ps1 -UseBasicParsing -OutFile $installScript
+
+     $installDir = "$(Agent.ToolsDirectory)/dotnet"
+
+     ls -Recurse -Include global.json | Get-Content -Raw | ConvertFrom-Json | %{ if ($_.tools.dotnet) {$_.tools.dotnet} else {$_.sdk.version} } | Sort-Object | Get-Unique | %{
+       Write-Host "Installing .NET CLI version $_"
+       & $installScript -Version $_ -InstallDir $installDir
+     }
+    displayName: 'Install Required Versions of .NET Core'
+
+  - task: VSBuild@1
+    displayName: Build source index
+    inputs:
+      solution: build.proj
+      msbuildArgs: /t:Build
+      msbuildArchitecture: x64
+
+  - task: ArchiveFiles@2
+    displayName: Archive website
+    inputs:
+      rootFolderOrFile: bin/index/
+      includeRootFolder: false
+      archiveFile: bin/index.zip
+
+  - task: AzureRmWebAppDeployment@4
+    displayName: 'Azure App Service Deploy: netsourceindex'
+    inputs:
+      azureSubscription: DncEng-VSTS
+      WebAppName: netsourceindex
+      ResourceGroupName: source.dot.net
+      deployToSlotOrASE: true
+      SlotName: staging
+      Package: bin/index.zip
+      UseWebDeploy: true
+      DeploymentType: zipDeploy
+      TakeAppOfflineFlag: true
+    enabled: false # disabled because it OOMs when trying to deploy
+
+  - powershell: |
+     $version = "2.0.73"
+     $package = Join-Path $env:TEMP azure-cli.zip
+     $installDir = "$(Agent.ToolsDirectory)/azure-cli/$version"
+     $ProgressPreference = "SilentlyContinue"
+
+     Write-Host "Testing $installDir/wbin/az.cmd"
+     if (-not (Test-Path "$installDir/wbin/az.cmd")) {
+      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+      Write-Host "downloading azure cli version $version to $package"
+      Invoke-WebRequest "https://netcorenativeassets.blob.core.windows.net/resource-packages/external/windows/azure-cli/azure-cli-$version.zip" -UseBasicParsing -OutFile $package
+
+      Write-Host "Unpacking azure-cli into $installDir"
+      Expand-Archive -LiteralPath $package -DestinationPath $installDir
+     }
+
+     Write-Host "##vso[task.prependpath]$installDir/wbin/"
+
+    displayName: 'Install Az CLI 2.0.73'
+
+  - task: AzureCLI@1
+    displayName: Azure CLI
+    inputs:
+      azureSubscription: DncEng-VSTS
+      scriptLocation: inlineScript
+      inlineScript: 'az webapp deployment source config-zip --resource-group source.dot.net --name netsourceindex --slot staging --src bin/index.zip --timeout 18000'
