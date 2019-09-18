@@ -2,7 +2,7 @@
 This repo contains the code for building http://source.dot.net
 
 ## Build Status
-[![Build status](https://dev.azure.com/mseng/Tools/_apis/build/status/.NET%20Core%20Source%20Index)](https://dev.azure.com/mseng/Tools/_build/latest?definitionId=5341)
+[![Build Status](https://dev.azure.com/dnceng/internal/_apis/build/status/dotnet-source-indexer/dotnet-source-indexer%20CI?branchName=master)](https://dev.azure.com/dnceng/internal/_build/latest?definitionId=612&branchName=master)
 
 ## Building
 
