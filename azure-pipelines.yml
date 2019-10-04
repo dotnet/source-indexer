@@ -28,21 +28,17 @@ jobs:
       SourceFolder: bin
       Contents: '**/*'
 
-
   - task: UseDotNet@2
-    displayName: Use .Net Core sdk 2.1.403
+    displayName: Use .Net Core sdk 3.0.100
     inputs:
-      version: 2.1.403
+      version: 3.0.100
 
-  - task: NuGetToolInstaller@0
-    displayName: Use NuGet 4.4.1
+  - task: DotNetCoreCLI@2
     inputs:
-      versionSpec: 4.4.1
-
-  - task: NuGetCommand@2
-    displayName: NuGet restore **/*.sln
-    inputs:
-      feedsToUse: config
+      command: custom
+      custom: restore
+      projects: |
+        **\*.sln
 
   - task: VSBuild@1
     displayName: Clone All Repositories
@@ -52,15 +48,19 @@ jobs:
       msbuildArchitecture: x64
 
   - powershell: |
+     Stop-Process -Name "dotnet"
      $installScript = Join-Path $env:TEMP dotnet-install.ps1
      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
      Invoke-WebRequest https://dot.net/v1/dotnet-install.ps1 -UseBasicParsing -OutFile $installScript
 
      $installDir = "$(Agent.ToolsDirectory)/dotnet"
 
-     ls -Recurse -Include global.json | Get-Content -Raw | ConvertFrom-Json | %{ if ($_.tools.dotnet) {$_.tools.dotnet} else {$_.sdk.version} } | Sort-Object | Get-Unique | %{
-       Write-Host "Installing .NET CLI version $_"
-       & $installScript -Version $_ -InstallDir $installDir
+     ls -Recurse -Include global.json | %{
+       $v = $_ | Get-Content -Raw | ConvertFrom-Json | %{ if ($_.tools.dotnet) {$_.tools.dotnet} else {$_.sdk.version} }
+       if ($v -and (-not $v.EndsWith('-*'))) {
+        Write-Host "Installing .NET CLI version $v from $_"
+        & $installScript -Version $v -InstallDir $installDir
+       }
      }
     displayName: 'Install Required Versions of .NET Core'
 

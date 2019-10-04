@@ -68,6 +68,7 @@
     <PropertyGroup>
       <PrepareCommand>$([System.String]::Copy('%(ClonedRepository.PrepareCommand)').Trim())</PrepareCommand>
     </PropertyGroup>
+    <Message Importance="High" Text="Preparing Repository %(ClonedRepository.Identity)"/>
     <Exec Command="cmd /c &quot;$(PrepareCommand)&quot;" WorkingDirectory="%(ClonedRepository.LocalPath)" ContinueOnError="true" IgnoreStandardErrorWarningFormat="true" LogStandardErrorAsError="false" IgnoreExitCode="true"/>
   </Target>
 
