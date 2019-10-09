@@ -71,69 +71,106 @@ jobs:
       msbuildArgs: /t:Build
       msbuildArchitecture: x64
 
-  - task: ArchiveFiles@2
-    displayName: Archive website
+  - powershell: |
+      deployment/install-tool.ps1 -Name 'azure-cli' -Version 2.0.73 -TestPath '/wbin/az.cmd' -BinPath '/wbin/'
+    displayName: 'Install Az CLI 2.0.73'
+
+  - powershell: |
+      deployment/install-tool.ps1 -Name 'azcopy' -Version 10.2.1
+    displayName: 'Install AzCopy 10.2.1'
+
+  - task: CopyFiles@2
     inputs:
-      rootFolderOrFile: bin/index/
-      includeRootFolder: false
-      archiveFile: bin/index.zip
+      sourceFolder: bin/index/
+      contents: |
+        **
+        !index/**
+      targetFolder: bin/index-stage/
+      cleanTargetFolder: true
+
+  - powershell: deployment/normalize-case.ps1 -Root bin/index/index/
+    displayName: Normalize Case Of Index Files
+
+  - task: AzureCLI@2
+    displayName: Upload Index to Azure Storage
+    inputs:
+      azureSubscription: DncEng-VSTS
+      scriptLocation: inlineScript
+      scriptType: ps
+      inlineScript: >
+        deployment/upload-index-to-container.ps1
+        -StorageAccountName netsourceindex
+        -IndexSource bin/index/index/
+        -OutFile bin/index.url
 
   - task: AzureRmWebAppDeployment@4
     displayName: 'Azure App Service Deploy: netsourceindex'
     inputs:
+      ConnectionType: AzureRM
       azureSubscription: DncEng-VSTS
+      appType: webApp
       WebAppName: netsourceindex
       ResourceGroupName: source.dot.net
       deployToSlotOrASE: true
       SlotName: staging
-      Package: bin/index.zip
-      UseWebDeploy: true
-      DeploymentType: zipDeploy
-      TakeAppOfflineFlag: true
-    enabled: false # disabled because it OOMs when trying to deploy
+      packageForLinux: bin/index-stage/
+      enableCustomDeployment: true
+      DeploymentType: webDeploy
+      RemoveAdditionalFilesFlag: true
 
-  - powershell: |
-     $version = "2.0.73"
-     $package = Join-Path $env:TEMP azure-cli.zip
-     $installDir = "$(Agent.ToolsDirectory)/azure-cli/$version"
-     $ProgressPreference = "SilentlyContinue"
-
-     Write-Host "Testing $installDir/wbin/az.cmd"
-     if (-not (Test-Path "$installDir/wbin/az.cmd")) {
-      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-      Write-Host "downloading azure cli version $version to $package"
-      Invoke-WebRequest "https://netcorenativeassets.blob.core.windows.net/resource-packages/external/windows/azure-cli/azure-cli-$version.zip" -UseBasicParsing -OutFile $package
-
-      Write-Host "Unpacking azure-cli into $installDir"
-      Expand-Archive -LiteralPath $package -DestinationPath $installDir
-     }
-
-     Write-Host "##vso[task.prependpath]$installDir/wbin/"
-
-    displayName: 'Install Az CLI 2.0.73'
-
-  - task: AzureCLI@1
-    displayName: Zip Deploy Website to Staging Slot
+  - task: AzureCLI@2
+    displayName: Deploy Storage Proxy Url to WebApp
     inputs:
       azureSubscription: DncEng-VSTS
       scriptLocation: inlineScript
-      inlineScript:  >
-        az webapp deployment source config-zip
-        --resource-group source.dot.net
-        --name netsourceindex
-        --slot staging
-        --src bin/index.zip
-        --timeout 18000
+      scriptType: ps
+      inlineScript: >
+        deployment/deploy-storage-proxy.ps1
+        -ProxyUrlFile bin/index.url
+        -ResourceGroup source.dot.net
+        -WebappName netsourceindex
+        -Slot staging
 
-  - task: AzureCLI@1
+  - task: AzureCLI@2
+    displayName: Restart WebApp
+    inputs:
+      azureSubscription: DncEng-VSTS
+      scriptLocation: inlineScript
+      scriptType: ps
+      inlineScript: >
+        az webapp restart --name netsourceindex --slot staging --resource-group source.dot.net
+
+  - powershell: |
+      Start-Sleep 60
+      $statusCode = Invoke-WebRequest https://netsourceindex-staging.azurewebsites.net -UseBasicParsing | select -ExpandProperty StatusCode
+      if ($statusCode -ne 200) {
+        Write-Host "##vso[task.logissue type=error;]Deployed website returned undexpected status code $statusCode"
+      }
+    displayName: Test Deployed WebApp
+
+  - task: AzureCLI@2
     displayName: Swap Staging Slot into Production
     inputs:
       azureSubscription: DncEng-VSTS
       scriptLocation: inlineScript
+      scriptType: ps
       inlineScript:  >
         az webapp deployment slot swap
         --resource-group source.dot.net
         --name netsourceindex
         --slot staging
         --target-slot production
+
+  - task: AzureCLI@2
+    displayName: Cleanup Old Storage Containers
+    inputs:
+      azureSubscription: DncEng-VSTS
+      scriptLocation: inlineScript
+      scriptType: ps
+      inlineScript:  >
+        deployment/cleanup-old-containers.ps1
+        -ResourceGroup source.dot.net
+        -WebappName netsourceindex
+        -StorageAccountName netsourceindex
+
 
