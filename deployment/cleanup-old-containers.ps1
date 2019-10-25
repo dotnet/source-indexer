@@ -79,7 +79,7 @@ $toDelete | %{
   } else {
     Write-Host "Container $_ has TTL $ttl, deleting..."
     {
-      az storage container delete --name $ContainerName --account-name $StorageAccountName --account-key $StorageAccountKey --auth-mode key
+      az storage container delete --name $_ --account-name $StorageAccountName --account-key $StorageAccountKey --auth-mode key
     } | Check-Failure
     Write-Host "Container $_ deleted."
   }
