@@ -31,18 +31,37 @@
     <MakeDir Condition="!Exists('$(RepositoryPath)')" Directories="$(RepositoryPath)"/>
   </Target>
 
-  <Target Name="Clone" DependsOnTargets="PrepareOutput" Outputs="%(Repository.Identity)">
+  <Target Name="CloneRepository" Outputs="%(Repository.Identity)">
     <PropertyGroup>
-      <CloneCommand>git clone %(Repository.Url).git -b %(Branch) --single-branch</CloneCommand>
-      <CloneCommand Condition="'%(Repository.OldCommit)' == '' and '%(Repository.DeepClone)' != 'true'">$(CloneCommand) --depth 1</CloneCommand>
-      <CloneCommand>$(CloneCommand) "%(Repository.LocalPath)"</CloneCommand>
-
-      <CheckoutCommand Condition="'%(Repository.OldCommit)' != ''">git -C %(Repository.LocalPath) checkout %(Repository.OldCommit)</CheckoutCommand>
-
+      <CloneSparse>false</CloneSparse>
+      <CloneSparse Condition="'%(Repository.SparseCheckout)' != ''">true</CloneSparse>
+      <CloneExists>false</CloneExists>
       <CloneExists Condition="Exists('%(Repository.LocalPath)')">true</CloneExists>
     </PropertyGroup>
-    <Exec Condition="'$(CloneExists)' != 'true'" Command="$(CloneCommand)" />
-    <Exec Condition="'$(CloneExists)' != 'true' and  '$(CheckoutCommand)' != ''" Command="$(CheckoutCommand)" />
+    <MakeDir Condition="!$(CloneExists)"
+             Directories="%(Repository.LocalPath)"/>
+    <Exec Condition="!$(CloneExists)"
+          Command="git init"
+          WorkingDirectory="%(Repository.LocalPath)" />
+    <Exec Condition="!$(CloneExists) AND $(CloneSparse)"
+          Command="git config core.sparsecheckout true"
+          WorkingDirectory="%(Repository.LocalPath)" />
+    <WriteLinesToFile
+          Condition="!$(CloneExists) AND $(CloneSparse)"
+          File="$([MSBuild]::NormalizePath('%(Repository.LocalPath)', '.git/info/sparse-checkout'))"
+          Lines="%(Repository.SparseCheckout)"/>
+    <Exec Condition="!$(CloneExists)"
+          Command="git remote add origin %(Repository.Url).git"
+          WorkingDirectory="%(Repository.LocalPath)" />
+    <Exec Condition="!$(CloneExists)"
+          Command="git pull origin %(Repository.Branch)"
+          WorkingDirectory="%(Repository.LocalPath)" />
+  </Target>
+
+  <Target Name="CheckoutSources" DependsOnTargets="CloneRepository" Outputs="%(Repository.Identity)">
+    <Exec Command="git checkout %(Repository.OldCommit)" WorkingDirectory="%(Repository.LocalPath)" Condition="'%(Repository.OldCommit)' != ''" />
+    <Exec Command="git checkout HEAD" WorkingDirectory="%(Repository.LocalPath)" Condition="'%(Repository.OldCommit)' == ''" />
+
     <Exec Command="git rev-parse HEAD 2>&amp;1" WorkingDirectory="%(Repository.LocalPath)" ConsoleToMSBuild="true">
       <Output TaskParameter="ConsoleOutput" PropertyName="CommitHash"/>
     </Exec>
@@ -51,6 +70,9 @@
         <ServerPath>%(Url)/tree/$(CommitHash)/</ServerPath>
       </ClonedRepository>
     </ItemGroup>
+  </Target>
+
+  <Target Name="Clone" DependsOnTargets="CloneRepository;CheckoutSources">
   </Target>
 
   <UsingTask TaskName="SelectProjects" AssemblyFile="$(SourceIndexerTasksAssembly)"/>

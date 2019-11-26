@@ -8,6 +8,26 @@
         src/libraries/*/src/*.csproj;
         src/libraries/*/src/*.vbproj;
       </Projects>
+      <SparseCheckout>
+!src/installer/*
+!*.ilproj
+!*.il
+!*.c
+!*.h
+!*.h.in
+!*.cpp
+!*.hpp
+!*.inl
+!*.asm
+!*.S
+!*.inc
+!*.rc
+!docs/*
+!CMakeLists.txt
+!*.cmake
+!*.lst
+/*
+      </SparseCheckout>
       <PrepareCommand>
         src\coreclr\build.cmd -skiptests -skipnative -windowsmscorlib &amp; libraries.cmd /p:BuildNative=false /p:BuildPackages=false -binarylog
       </PrepareCommand>
