@@ -1,14 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Repository Include="corefx">
-      <Url>https://github.com/dotnet/corefx</Url>
+    <Repository Include="runtime">
+      <Url>https://github.com/dotnet/runtime</Url>
       <Projects>
-        src/*/src/*.csproj;
-        src/*/src/*.vbproj;
+        src/coreclr/src/System.Private.CoreLib/System.Private.CoreLib.csproj;
+        src/libraries/*/src/*.csproj;
+        src/libraries/*/src/*.vbproj;
       </Projects>
       <PrepareCommand>
-        build /p:BuildNative=false /p:BuildPackages=false -binarylog
+        src\coreclr\build.cmd -skiptests -skipnative -windowsmscorlib &amp; libraries.cmd /p:BuildNative=false /p:BuildPackages=false -binarylog
       </PrepareCommand>
     </Repository>
     <Repository Include="winforms">
@@ -39,15 +40,6 @@
       </Projects>
       <PrepareCommand>
         build -SkipTests "true"
-      </PrepareCommand>
-    </Repository>
-    <Repository Include="coreclr">
-      <Url>https://github.com/dotnet/coreclr</Url>
-      <Projects>
-        src/System.Private.CoreLib/System.Private.CoreLib.csproj;
-      </Projects>
-      <PrepareCommand>
-        build -skiptests -skipnative -windowsmscorlib
       </PrepareCommand>
     </Repository>
     <Repository Include="iot">
