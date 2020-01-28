@@ -106,7 +106,7 @@
       </PrepareCommand>
     </Repository>
     <Repository Include="aspnetcore">
-      <Url>https://github.com/aspnet/aspnetcore</Url>
+      <Url>https://github.com/dotnet/aspnetcore</Url>
       <Projects>
         src/**/src/**/*.csproj;
       </Projects>
@@ -114,8 +114,8 @@
         restore.cmd -nobuildnodejs
       </PrepareCommand>
     </Repository>
-    <Repository Include="aspnet-extensions">
-      <Url>https://github.com/aspnet/extensions</Url>
+    <Repository Include="dotnet-extensions">
+      <Url>https://github.com/dotnet/extensions</Url>
       <Projects>
         src/**/src/**/*.csproj;
       </Projects>
