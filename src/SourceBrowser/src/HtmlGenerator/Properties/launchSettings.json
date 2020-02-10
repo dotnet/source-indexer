@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "HtmlGenerator": {
+      "commandName": "Project",
+      "commandLineArgs": "$(SolutionDir)TestCode\\TestSolution.sln /out:$(SolutionDir)src\\SourceIndexServer\\index"
+    }
+  }
+}

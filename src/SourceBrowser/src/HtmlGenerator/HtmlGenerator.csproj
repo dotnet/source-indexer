@@ -1,0 +1,86 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>HtmlGenerator</AssemblyName>
+    <TargetFramework>net472</TargetFramework>
+    <RootNamespace>Microsoft.SourceBrowser.HtmlGenerator</RootNamespace>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+  </PropertyGroup>
+  <PropertyGroup>
+    <NuGetPackageId>SourceBrowser</NuGetPackageId>
+    <NuSpecFile>$(MSBuildProjectDirectory)\$(NuGetPackageId).nuspec</NuSpecFile>
+    <NuGetVersion>1.0.24</NuGetVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="..\..\lib\Microsoft.CodeAnalysis.Workspaces.Desktop.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <NuGetInput Include="$(MSBuildThisFile)" />
+    <NuGetInput Include="$(NuSpecFile)" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Web\index\AffiliateLinks.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="TypeScriptSupport\analyzer.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="TypeScriptSupport\lib.d.ts">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="ExceptionAnalysis.Diagnostics" Version="1.0.0.39796" />
+    <PackageReference Include="ManagedEsent" Version="1.9.4" />
+    <PackageReference Include="Microsoft.Build" Version="16.3.0" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.Build.Framework" Version="16.3.0" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.Build.Locator" Version="1.2.6" />
+    <PackageReference Include="Microsoft.Build.Tasks.Core" Version="16.3.0" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="16.3.0" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.CodeAnalysis" Version="3.3.1" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="2.9.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="3.3.1" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="3.3.1" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Features" Version="3.3.1" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="3.3.1" />
+    <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic" Version="3.3.1" />
+    <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic.Features" Version="3.3.1" />
+    <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic.Workspaces" Version="3.3.1" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="3.3.1" />
+    <PackageReference Include="GuiLabs.Language.Xml" Version="1.2.27" />
+    <PackageReference Include="Microsoft.VisualStudio.Language.Intellisense" Version="16.1.89" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.1" />
+    <PackageReference Include="System.Threading.Tasks.Dataflow" Version="4.9.0" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0-beta-62925-02" PrivateAssets="All" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\BuildLogParser\BuildLogParser.csproj" />
+    <ProjectReference Include="..\Common\Common.csproj" />
+    <ProjectReference Include="..\MEF\MEF.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System.Configuration" />
+  </ItemGroup>
+  <Target Name="PublishWebsite" AfterTargets="CoreBuild" BeforeTargets="BuildNuGet">
+    <MSBuild Targets="Publish" Projects="$(MSBuildThisFileDirectory)..\SourceIndexServer\SourceIndexServer.csproj" Properties="PublishDir=$(TargetDir)\Web;Configuration=Release" RemoveProperties="TargetFramework" />
+  </Target>
+
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+
+  <PropertyGroup>
+    <NupkgFilePath>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)$(OutDir)$(NuGetPackageId).$(NuGetVersion).nupkg'))</NupkgFilePath>
+  </PropertyGroup>
+  <Target Name="BuildNuGet" AfterTargets="CoreBuild" Condition="Exists('$(NuSpecFile)')" DependsOnTargets="CopyFilesToOutputDirectory" Inputs="@(NuGetInput)" Outputs="$(NupkgFilePath)">
+    <PropertyGroup>
+      <NuGetOutputRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)$(OutDir.TrimEnd('\'))'))</NuGetOutputRoot>
+      <NuGetExePath>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..'))</NuGetExePath>
+    </PropertyGroup>
+    <DownloadFile Condition="!Exists('$(NuGetExe)\NuGet.exe')" SourceUrl="https://dist.nuget.org/win-x86-commandline/latest/nuget.exe" SkipUnchangedFiles="true" DestinationFolder="$(NuGetExePath)" />
+    <Exec Command="&quot;$(NuGetExePath)\NuGet.exe&quot; Pack $(NuGetPackageId).nuspec -NoPackageAnalysis -BasePath &quot;$(NuGetOutputRoot)&quot; -OutputDirectory &quot;$(NuGetOutputRoot)&quot; -prop currentVersion=$(NuGetVersion)" />
+  </Target>
+</Project>
