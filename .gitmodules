@@ -1,3 +1,0 @@
-[submodule "src/SourceBrowser"]
-	path = src/SourceBrowser
-	url = https://github.com/dotnet/SourceBrowser.git
