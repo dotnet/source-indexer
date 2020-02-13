@@ -118,6 +118,7 @@
       <SourceIndexCmd>$(SourceIndexCmd) /p:RunApiCompat=false</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /p:BuildOS=Linux</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /p:OSGroup=Linux</SourceIndexCmd>
+      <SourceIndexCmd>$(SourceIndexCmd) /p:LargeAddressAware=false</SourceIndexCmd>
     </PropertyGroup>
     <Exec Command="$(SourceIndexCmd)" LogStandardErrorAsError="false"/>
     <Copy SourceFiles="@(OverwriteFiles)" DestinationFiles="@(OverwriteFiles -> '$(OutDir)index/%(RecursiveDir)%(Filename)%(Extension)')"/>

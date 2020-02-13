@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -438,6 +439,14 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     var workspace = CreateWorkspace(properties);
                     workspace.WorkspaceFailed += WorkspaceFailed;
                     solution = workspace.OpenProjectAsync(solutionFilePath).GetAwaiter().GetResult().Solution;
+                    var projects = solution.Projects.Where(p => string.Equals(p.FilePath, solutionFilePath, StringComparison.OrdinalIgnoreCase));
+                    var keepProject = projects.Where(p => File.Exists(p.OutputFilePath)).FirstOrDefault() ?? projects.First();
+                    var projectsToRemove = projects.Where(p => p.Id != keepProject.Id);
+                    foreach (var projectToRemove in projectsToRemove)
+                    {
+                        solution = solution.RemoveProject(projectToRemove.Id);
+                    }
+
                     solution = DeduplicateProjectReferences(solution);
                     if (doNotIncludeReferencedProjects)
                     {
