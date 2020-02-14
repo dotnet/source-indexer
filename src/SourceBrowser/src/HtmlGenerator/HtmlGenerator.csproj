@@ -52,7 +52,6 @@
     <PackageReference Include="Microsoft.VisualStudio.Language.Intellisense" Version="16.1.89" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.1" />
     <PackageReference Include="System.Threading.Tasks.Dataflow" Version="4.9.0" />
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0-beta-62925-02" PrivateAssets="All" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\BuildLogParser\BuildLogParser.csproj" />
