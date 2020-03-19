@@ -28,7 +28,7 @@
 /*
       </SparseCheckout>
       <PrepareCommand>
-        src\coreclr\build.cmd -skiptests -skipnative -linuxmscorlib &amp;&amp; libraries.cmd /p:BuildNative=false /p:BuildPackages=false -binarylog -os Linux
+        build.cmd -subsetcategory coreclr-libraries -subset corelib-all /p:BuildNative=false /p:BuildPackages=false -binarylog -os Linux
       </PrepareCommand>
     </Repository>
     <Repository Include="winforms">
