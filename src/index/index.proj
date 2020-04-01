@@ -116,7 +116,7 @@
       <SourceIndexCmd>$(SourceIndexCmd) /in:"$(OutDir)index.list"</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd)@(ClonedRepository -> ' /serverPath:"%(LocalPath)=%(ServerPath)"', '')</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /p:RunApiCompat=false</SourceIndexCmd>
-      <SourceIndexCmd>$(SourceIndexCmd) /p:BuildOS=Linux</SourceIndexCmd>
+      <SourceIndexCmd>$(SourceIndexCmd) /p:TargetOS=Linux</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /p:OSGroup=Linux</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /p:LargeAddressAware=false</SourceIndexCmd>
     </PropertyGroup>
