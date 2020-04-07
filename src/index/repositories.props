@@ -28,7 +28,7 @@
 /*
       </SparseCheckout>
       <PrepareCommand>
-        build.cmd -subsetcategory coreclr-libraries -subset corelib-all /p:BuildNative=false /p:BuildPackages=false -binarylog -os Linux
+        build.cmd -subset clr.corelib+libs.depprojs+libs.ref+libs.src -binarylog -os Linux
       </PrepareCommand>
     </Repository>
     <Repository Include="winforms">
