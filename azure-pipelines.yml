@@ -29,9 +29,19 @@ jobs:
       Contents: '**/*'
 
   - task: UseDotNet@2
-    displayName: Use .Net Core sdk 3.0.100
+    displayName: Use .Net Core sdk 3.1.201
     inputs:
-      version: 3.0.100
+      version: 3.1.201
+
+  - task: UseDotNet@2
+    displayName: Use .Net Core sdk 2.1.805
+    inputs:
+      version: 2.1.805
+  
+  - script: |
+      dotnet tool restore
+      dotnet script deployment/AllowPrereleaseSdks.csx
+    displayName: Check Allow Prerelease Sdks
 
   - task: DotNetCoreCLI@2
     inputs:
