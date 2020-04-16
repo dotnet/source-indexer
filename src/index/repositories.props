@@ -52,58 +52,6 @@
         build
       </PrepareCommand>
     </Repository>
-    <Repository Include="corefxlab">
-      <Url>https://github.com/dotnet/corefxlab</Url>
-      <Projects>
-        src/**/*.csproj;
-      </Projects>
-      <PrepareCommand>
-        build -SkipTests "true"
-      </PrepareCommand>
-    </Repository>
-    <Repository Include="iot">
-      <Url>https://github.com/dotnet/iot</Url>
-      <Projects>
-        src/**/*.csproj;
-      </Projects>
-      <PrepareCommand>
-        build
-      </PrepareCommand>
-    </Repository>
-    <Repository Include="msbuild">
-      <Url>https://github.com/Microsoft/msbuild</Url>
-      <Branch>master</Branch>
-      <DeepClone>true</DeepClone>
-      <Projects>
-        src/**/*.csproj;
-      </Projects>
-      <ExcludeProjects>
-        src/Deprecated/**/*.csproj;
-        src/*UnitTests*/**/*.csproj;
-        src/Samples/**/*.csproj;
-      </ExcludeProjects>
-      <PrepareCommand>
-        powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "eng/common/build.ps1 -restore"
-      </PrepareCommand>
-    </Repository>
-    <Repository Include="machinelearning">
-      <Url>https://github.com/dotnet/machinelearning</Url>
-      <Projects>
-        src/**/*.csproj;
-      </Projects>
-      <PrepareCommand>
-        build -- /t:RestoreProjects
-      </PrepareCommand>
-    </Repository>
-    <Repository Include="wcf">
-      <Url>https://github.com/dotnet/wcf</Url>
-      <Projects>
-        src/System.*/src/*.csproj;
-      </Projects>
-      <PrepareCommand>
-        powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "eng/common/build.ps1 -restore"
-      </PrepareCommand>
-    </Repository>
     <Repository Include="aspnetcore">
       <Url>https://github.com/dotnet/aspnetcore</Url>
       <Projects>
