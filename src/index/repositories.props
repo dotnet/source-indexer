@@ -52,15 +52,6 @@
         build
       </PrepareCommand>
     </Repository>
-    <Repository Include="machinelearning">
-      <Url>https://github.com/dotnet/machinelearning</Url>
-      <Projects>
-        src/**/*.csproj;
-      </Projects>
-      <PrepareCommand>
-        build -- /t:RestoreProjects
-      </PrepareCommand>
-    </Repository>
     <Repository Include="aspnetcore">
       <Url>https://github.com/dotnet/aspnetcore</Url>
       <Projects>
