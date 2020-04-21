@@ -57,19 +57,25 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     continue;
                 }
 
-                var thisAssemblyName = Path.GetFileNameWithoutExtension(assemblyFile);
-                using (var peReader = new PEReader(File.ReadAllBytes(assemblyFile).ToImmutableArray()))
+                foreach (Tuple<string, string, string> tuple in ReadTypeForwardsFromAssembly(assemblyFile))
+                    yield return tuple;
+            }
+        }
+
+        public static IEnumerable<Tuple<string, string, string>> ReadTypeForwardsFromAssembly(string assemblyFile)
+        {
+            var thisAssemblyName = Path.GetFileNameWithoutExtension(assemblyFile);
+            using (var peReader = new PEReader(File.ReadAllBytes(assemblyFile).ToImmutableArray()))
+            {
+                var reader = peReader.GetMetadataReader();
+                foreach (var exportedTypeHandle in reader.ExportedTypes)
                 {
-                    var reader = peReader.GetMetadataReader();
-                    foreach (var exportedTypeHandle in reader.ExportedTypes)
+                    var exportedType = reader.GetExportedType(exportedTypeHandle);
+                    var result = ProcessExportedType(exportedType, reader, thisAssemblyName);
+                    if (result != null)
                     {
-                        var exportedType = reader.GetExportedType(exportedTypeHandle);
-                        var result = ProcessExportedType(exportedType, reader, thisAssemblyName);
-                        if (result != null)
-                        {
-                            Log.Write(result.ToString());
-                            yield return result;
-                        }
+                        Log.Write(result.ToString());
+                        yield return result;
                     }
                 }
             }

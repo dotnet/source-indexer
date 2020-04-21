@@ -48,7 +48,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             IReadOnlyDictionary<string, string> serverPathMappings = null,
             HashSet<string> processedAssemblyList = null,
             HashSet<string> assemblyNames = null,
-            Folder<ProjectSkeleton> solutionExplorerRoot = null)
+            Folder<ProjectSkeleton> solutionExplorerRoot = null,
+            Dictionary<(string, string), string> typeForwards = null)
         {
             try
             {
@@ -68,7 +69,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                         invocation.SolutionRoot,
                         Paths.SolutionDestinationFolder,
                         invocation.ServerPath,
-                        invocation.NetworkShare);
+                        invocation.NetworkShare,
+                        typeForwards);
                     solutionGenerator.ServerPathMappings = serverPathMappings;
                     solutionGenerator.GlobalAssemblyList = assemblyNames;
                     solutionGenerator.Generate(processedAssemblyList, solutionExplorerRoot);
@@ -78,7 +80,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     Log.Write(invocation.OutputAssemblyPath, ConsoleColor.Magenta);
                     var solutionGenerator = new SolutionGenerator(
                         invocation.OutputAssemblyPath,
-                        Paths.SolutionDestinationFolder);
+                        Paths.SolutionDestinationFolder,
+                        typeForwards: typeForwards);
                     solutionGenerator.Generate();
                 }
             }

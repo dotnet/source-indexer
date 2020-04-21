@@ -9,6 +9,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Build.Locator;
 using Microsoft.CodeAnalysis;
+using Microsoft.SourceBrowser.BuildLogParser;
 using Microsoft.SourceBrowser.Common;
 
 namespace Microsoft.SourceBrowser.HtmlGenerator
@@ -307,8 +308,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             var domain = AppDomain.CreateDomain("TypeForwards");
             foreach (var path in solutionFilePaths)
             {
-                if (path.EndsWith(".binlog", StringComparison.OrdinalIgnoreCase) ||
-                    path.EndsWith(".buildlog", StringComparison.OrdinalIgnoreCase) ||
+                if (
                     path.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) ||
                     path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
                     )
@@ -344,7 +344,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                                 serverPathMappings,
                                 processedAssemblyList,
                                 assemblyNames,
-                                mergedSolutionExplorerRoot);
+                                mergedSolutionExplorerRoot,
+                                typeForwards);
                         }
                         
                         continue;
@@ -373,11 +374,36 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
         private static void GetTypeForwards(string path, IReadOnlyDictionary<string, string> properties, Dictionary<(string, string), string> typeForwards, AppDomain domain)
         {
-            var obj = (TypeForwardReader)domain.CreateInstanceFromAndUnwrap(Assembly.GetEntryAssembly().CodeBase, "Microsoft.SourceBrowser.HtmlGenerator.TypeForwardReader");
-            var forwards = obj.GetTypeForwards(path, properties);
-            foreach (var forward in forwards)
+            if (path.EndsWith(".binlog", StringComparison.Ordinal) ||
+                path.EndsWith(".buildlog", StringComparison.Ordinal))
             {
-                typeForwards[ValueTuple.Create(forward.Item1, forward.Item2)] = forward.Item3;
+                var invocations = BinLogCompilerInvocationsReader.ExtractInvocations(path);
+                var processed = new HashSet<string>();
+                foreach (var invocation in invocations)
+                {
+                    if (!string.IsNullOrEmpty(invocation.OutputAssemblyPath) &&
+                        File.Exists(invocation.OutputAssemblyPath) &&
+                        processed.Add(invocation.OutputAssemblyPath))
+                    {
+                        var forwards = TypeForwardReader.ReadTypeForwardsFromAssembly(invocation.OutputAssemblyPath);
+                        foreach (var forward in forwards)
+                        {
+                            typeForwards[ValueTuple.Create(forward.Item1, forward.Item2)] = forward.Item3;
+                        }
+                    }
+                }
+
+                return;
+            }
+
+            {
+                var obj = (TypeForwardReader) domain.CreateInstanceFromAndUnwrap(Assembly.GetEntryAssembly().CodeBase,
+                    "Microsoft.SourceBrowser.HtmlGenerator.TypeForwardReader");
+                var forwards = obj.GetTypeForwards(path, properties);
+                foreach (var forward in forwards)
+                {
+                    typeForwards[ValueTuple.Create(forward.Item1, forward.Item2)] = forward.Item3;
+                }
             }
         }
 
