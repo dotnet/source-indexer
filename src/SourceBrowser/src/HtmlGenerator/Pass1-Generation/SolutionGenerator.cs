@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -19,7 +18,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         public string SolutionDestinationFolder { get; private set; }
         public string ProjectFilePath { get; private set; }
         public string ServerPath { get; set; }
-        public IReadOnlyDictionary<string, string> ServerPathMappings { get; }
+        public IReadOnlyDictionary<string, string> ServerPathMappings { get; set; }
         public string NetworkShare { get; private set; }
         private Federation Federation { get; set; }
         public IEnumerable<string> PluginBlacklist { get; private set; }
@@ -55,7 +54,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             this.Federation = federation ?? new Federation();
             this.PluginBlacklist = pluginBlacklist ?? Enumerable.Empty<string>();
             this.Properties = properties;
-            this.TypeForwards = typeForwards;
+            this.TypeForwards = typeForwards ?? ImmutableDictionary<ValueTuple<string, string>, string>.Empty;
 
             if (LoadPlugins)
             {
@@ -63,10 +62,15 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             }
         }
 
-        public static bool LoadPlugins { get; set; } = true;
+        public static bool LoadPlugins { get; set; } = false;
 
         private void SetupPluginAggregator()
         {
+            if (!LoadPlugins)
+            {
+                return;
+            }
+
             var settings = System.Configuration.ConfigurationManager.AppSettings;
             var configs = settings
                 .AllKeys
@@ -92,7 +96,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             string solutionSourceFolder,
             string solutionDestinationFolder,
             string serverPath,
-            string networkShare)
+            string networkShare,
+            IReadOnlyDictionary<ValueTuple<string, string>, string> typeForwards = null)
         {
             this.Properties = ImmutableDictionary<string, string>.Empty;
             this.ProjectFilePath = projectFilePath;
@@ -103,6 +108,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             this.SolutionDestinationFolder = solutionDestinationFolder;
             this.ServerPath = serverPath;
             this.NetworkShare = networkShare;
+            this.TypeForwards = typeForwards ?? ImmutableDictionary<ValueTuple<string, string>, string>.Empty;
             string projectSourceFolder = Path.GetDirectoryName(projectFilePath);
             SetupPluginAggregator();
 
@@ -439,14 +445,6 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     var workspace = CreateWorkspace(properties);
                     workspace.WorkspaceFailed += WorkspaceFailed;
                     solution = workspace.OpenProjectAsync(solutionFilePath).GetAwaiter().GetResult().Solution;
-                    var projects = solution.Projects.Where(p => string.Equals(p.FilePath, solutionFilePath, StringComparison.OrdinalIgnoreCase));
-                    var keepProject = projects.Where(p => File.Exists(p.OutputFilePath)).FirstOrDefault() ?? projects.First();
-                    var projectsToRemove = projects.Where(p => p.Id != keepProject.Id);
-                    foreach (var projectToRemove in projectsToRemove)
-                    {
-                        solution = solution.RemoveProject(projectToRemove.Id);
-                    }
-
                     solution = DeduplicateProjectReferences(solution);
                     if (doNotIncludeReferencedProjects)
                     {
@@ -523,12 +521,6 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
         public void AddTypeScriptFile(string filePath)
         {
-            if (!File.Exists(filePath))
-            {
-                return;
-            }
-
-            filePath = Path.GetFullPath(filePath);
             this.typeScriptFiles.Add(filePath);
         }
 

@@ -1,125 +1,71 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ArcadeBuildCmd>
+      powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "eng/common/build.ps1 -restore -build -binarylog -ci"
+    </ArcadeBuildCmd>
+  </PropertyGroup>
   <ItemGroup>
     <Repository Include="runtime">
       <Url>https://github.com/dotnet/runtime</Url>
-      <Projects>
-        src/coreclr/src/System.Private.CoreLib/System.Private.CoreLib.csproj;
-        src/libraries/*/src/*.csproj;
-        src/libraries/*/src/*.vbproj;
-      </Projects>
-      <SparseCheckout>
-!src/installer/*
-!*.ilproj
-!*.il
-!*.c
-!*.h.in
-!*.cpp
-!*.hpp
-!*.inl
-!*.asm
-!*.S
-!*.inc
-!*.rc
-!docs/*
-!CMakeLists.txt
-!*.cmake
-!*.lst
-/*
-      </SparseCheckout>
       <PrepareCommand>
-        build.cmd -subset clr.corelib+libs.depprojs+libs.ref+libs.src -binarylog -os Linux
+        build.cmd -subset clr.corelib+libs.depprojs+libs.ref+libs.src -binarylog -os Linux -ci /p:ILLinkTrimAssembly=false
       </PrepareCommand>
     </Repository>
     <Repository Include="winforms">
       <Url>https://github.com/dotnet/winforms</Url>
-      <Projects>
-        src/*/src/*.csproj;
-      </Projects>
-      <ExcludeProjects>
-        src/*/ref/*.csproj;
-      </ExcludeProjects>
       <PrepareCommand>
-        build
+        $(ArcadeBuildCmd)
       </PrepareCommand>
     </Repository>
     <Repository Include="wpf">
       <Url>https://github.com/dotnet/wpf</Url>
-      <Projects>
-        src/Microsoft.DotNet.Wpf/src/*/*.csproj
-      </Projects>
       <PrepareCommand>
-        build
+        $(ArcadeBuildCmd)
       </PrepareCommand>
     </Repository>
     <Repository Include="corefxlab">
       <Url>https://github.com/dotnet/corefxlab</Url>
-      <Projects>
-        src/**/*.csproj;
-      </Projects>
       <PrepareCommand>
-        build -SkipTests "true"
+        $(ArcadeBuildCmd)
       </PrepareCommand>
     </Repository>
     <Repository Include="iot">
       <Url>https://github.com/dotnet/iot</Url>
-      <Projects>
-        src/**/*.csproj;
-      </Projects>
       <PrepareCommand>
-        build
+        $(ArcadeBuildCmd)
       </PrepareCommand>
     </Repository>
     <Repository Include="msbuild">
       <Url>https://github.com/Microsoft/msbuild</Url>
       <Branch>master</Branch>
       <DeepClone>true</DeepClone>
-      <Projects>
-        src/**/*.csproj;
-      </Projects>
-      <ExcludeProjects>
-        src/Deprecated/**/*.csproj;
-        src/*UnitTests*/**/*.csproj;
-        src/Samples/**/*.csproj;
-      </ExcludeProjects>
       <PrepareCommand>
-        powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "eng/common/build.ps1 -restore"
+        $(ArcadeBuildCmd)
       </PrepareCommand>
     </Repository>
     <Repository Include="machinelearning">
       <Url>https://github.com/dotnet/machinelearning</Url>
-      <Projects>
-        src/**/*.csproj;
-      </Projects>
       <PrepareCommand>
-        build -- /t:RestoreProjects
+        $(ArcadeBuildCmd)
       </PrepareCommand>
     </Repository>
     <Repository Include="wcf">
       <Url>https://github.com/dotnet/wcf</Url>
-      <Projects>
-        src/System.*/src/*.csproj;
-      </Projects>
       <PrepareCommand>
-        powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "eng/common/build.ps1 -restore"
+        $(ArcadeBuildCmd)
       </PrepareCommand>
     </Repository>
     <Repository Include="aspnetcore">
       <Url>https://github.com/dotnet/aspnetcore</Url>
-      <Projects>
-        src/**/src/**/*.csproj;
-      </Projects>
       <PrepareCommand>
-        restore.cmd -nobuildnodejs
+        $(ArcadeBuildCmd)
       </PrepareCommand>
     </Repository>
     <Repository Include="dotnet-extensions">
       <Url>https://github.com/dotnet/extensions</Url>
-      <Projects>
-        src/**/src/**/*.csproj;
-      </Projects>
       <PrepareCommand>
-        restore.cmd
+        $(ArcadeBuildCmd)
       </PrepareCommand>
     </Repository>
   </ItemGroup>

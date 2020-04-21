@@ -75,23 +75,18 @@
   <Target Name="Clone" DependsOnTargets="CloneRepository;CheckoutSources">
   </Target>
 
-  <UsingTask TaskName="SelectProjects" AssemblyFile="$(SourceIndexerTasksAssembly)"/>
-  <Target Name="SelectProjects" DependsOnTargets="Clone" Outputs="@(SourceProject)">
-    <SelectProjects Repositories="@(ClonedRepository)">
-      <Output TaskParameter="SelectedProjects" ItemName="SourceProject"/>
-    </SelectProjects>
-  </Target>
-
-  <Target Name="Validate" DependsOnTargets="SelectProjects">
-    <Error Condition="!Exists('%(SourceProject.Identity)')" Text="Expected File '%(SourceProject.FullPath)' does not exist." Code="SB001"/>
-  </Target>
-
-  <Target Name="Prepare" DependsOnTargets="Validate" Outputs="%(ClonedRepository.Identity)">
+  <Target Name="Prepare" DependsOnTargets="Clone" Outputs="%(ClonedRepository.Identity)">
     <PropertyGroup>
       <PrepareCommand>$([System.String]::Copy('%(ClonedRepository.PrepareCommand)').Trim())</PrepareCommand>
     </PropertyGroup>
     <Message Importance="High" Text="Preparing Repository %(ClonedRepository.Identity)"/>
     <Exec Command="cmd /c &quot;$(PrepareCommand)&quot;" WorkingDirectory="%(ClonedRepository.LocalPath)" ContinueOnError="true" IgnoreStandardErrorWarningFormat="true" LogStandardErrorAsError="false" IgnoreExitCode="true"/>
+  </Target>
+
+  <Target Name="FindBinlogs" Outputs="%(ClonedRepository.Identity)">
+    <ItemGroup>
+      <BinlogToIndex Include="%(ClonedRepository.LocalPath)\**\*.binlog"/>
+    </ItemGroup>
   </Target>
 
   <Target Name="BuildGenerator" Condition="!Exists('$(HtmlGeneratorExePath)')">
@@ -100,13 +95,13 @@
     </MSBuild>
   </Target>
 
-  <Target Name="Build" DependsOnTargets="BuildGenerator;Prepare">
+  <Target Name="Build" DependsOnTargets="BuildGenerator;Prepare;FindBinlogs">
     <Error Condition="!Exists('$(HtmlGeneratorExePath)')" Text="Html generator executable not found."/>
-    <RemoveDuplicates Inputs="@(SourceProject)">
-      <Output TaskParameter="Filtered" ItemName="_FilteredProject"/>
+    <RemoveDuplicates Inputs="@(BinlogToIndex)">
+      <Output TaskParameter="Filtered" ItemName="_FilteredBinlog"/>
     </RemoveDuplicates>
     <RemoveDir Directories="$(OutDir)index/"/>
-    <WriteLinesToFile Lines="@(_FilteredProject -> '%(FullPath)')" File="$(OutDir)index.list" Overwrite="true"/>
+    <WriteLinesToFile Lines="@(_FilteredBinlog -> '%(FullPath)')" File="$(OutDir)index.list" Overwrite="true"/>
     <PropertyGroup>
       <SourceIndexCmd>"$(HtmlGeneratorExePath)"</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /donotincludereferencedprojects</SourceIndexCmd>
@@ -115,10 +110,6 @@
       <SourceIndexCmd>$(SourceIndexCmd) /out:"$(OutDir)index/"</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /in:"$(OutDir)index.list"</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd)@(ClonedRepository -> ' /serverPath:"%(LocalPath)=%(ServerPath)"', '')</SourceIndexCmd>
-      <SourceIndexCmd>$(SourceIndexCmd) /p:RunApiCompat=false</SourceIndexCmd>
-      <SourceIndexCmd>$(SourceIndexCmd) /p:TargetOS=Linux</SourceIndexCmd>
-      <SourceIndexCmd>$(SourceIndexCmd) /p:OSGroup=Linux</SourceIndexCmd>
-      <SourceIndexCmd>$(SourceIndexCmd) /p:LargeAddressAware=false</SourceIndexCmd>
     </PropertyGroup>
     <Exec Command="$(SourceIndexCmd)" LogStandardErrorAsError="false"/>
     <Copy SourceFiles="@(OverwriteFiles)" DestinationFiles="@(OverwriteFiles -> '$(OutDir)index/%(RecursiveDir)%(Filename)%(Extension)')"/>
