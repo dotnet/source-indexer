@@ -38,7 +38,7 @@
       <CloneExists>false</CloneExists>
       <CloneExists Condition="Exists('%(Repository.LocalPath)')">true</CloneExists>
       <CheckoutSubmodules>false</CheckoutSubmodules>
-      <CheckoutSubmodules Condition="'$(Repository.CheckoutSubmodules)' == 'true'">true</CheckoutSubmodules>
+      <CheckoutSubmodules Condition="'%(Repository.CheckoutSubmodules)' == 'true'">true</CheckoutSubmodules>
     </PropertyGroup>
     <MakeDir Condition="!$(CloneExists)"
              Directories="%(Repository.LocalPath)"/>
