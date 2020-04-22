@@ -59,7 +59,7 @@
     <Repository Include="aspnetcore">
       <Url>https://github.com/dotnet/aspnetcore</Url>
       <PrepareCommand>
-        $(ArcadeBuildCmd)
+        powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "eng/common/build.ps1 -restore -build -binarylog -ci /p:BuildManaged=true"
       </PrepareCommand>
     </Repository>
     <Repository Include="dotnet-extensions">
