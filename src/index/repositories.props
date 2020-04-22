@@ -58,8 +58,9 @@
     </Repository>
     <Repository Include="aspnetcore">
       <Url>https://github.com/dotnet/aspnetcore</Url>
+      <CheckoutSubmodules>true</CheckoutSubmodules>
       <PrepareCommand>
-        powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "eng/common/build.ps1 -restore -build -binarylog -ci /p:BuildManaged=true"
+        powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "eng/common/build.ps1 -restore -build -binarylog -ci /p:BuildManaged=true /p:BuildNodeJS=false"
       </PrepareCommand>
     </Repository>
     <Repository Include="dotnet-extensions">
