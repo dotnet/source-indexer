@@ -151,7 +151,6 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
         public static string TrimCompilerExeFromCommandLine(string commandLine, CompilerKind language)
         {
-
             var stringsToTrim = new[]
             {
                 "csc.exe ",
@@ -170,21 +169,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 }
             }
 
-            var i1 = commandLine.IndexOf("dotnet.exe", StringComparison.Ordinal);
-            var i2 = commandLine.IndexOf(" exec ", StringComparison.Ordinal);
-            var i3 = commandLine.IndexOf("csc.dll", StringComparison.Ordinal);
-            if (i3 == -1)
+            string TrimHere(int i)
             {
-                i3 = commandLine.IndexOf("vbc.dll", StringComparison.Ordinal);
-            }
-
-            if (i1 != -1 &&
-                i2 != -1 &&
-                i3 != -1 &&
-                i1 < i2 &&
-                i2 < i3)
-            {
-                var i = i3 + "csc.dll".Length;
                 if (commandLine[i] == '"')
                 {
                     i++;
@@ -196,6 +182,43 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 }
 
                 return commandLine.Substring(i);
+            }
+
+            {
+                // Trim dotnet cli csc of vbc invocation
+
+                var i1 = commandLine.IndexOf("dotnet.exe", StringComparison.OrdinalIgnoreCase);
+                var i2 = commandLine.IndexOf(" exec ", StringComparison.OrdinalIgnoreCase);
+                var i3 = commandLine.IndexOf("csc.dll", StringComparison.OrdinalIgnoreCase);
+                if (i3 == -1)
+                {
+                    i3 = commandLine.IndexOf("vbc.dll", StringComparison.OrdinalIgnoreCase);
+                }
+
+                if (i1 != -1 &&
+                    i2 != -1 &&
+                    i3 != -1 &&
+                    i1 < i2 &&
+                    i2 < i3)
+                {
+                    return TrimHere(i3 + "csc.dll".Length);
+                }
+            }
+
+            {
+                // Trim full path csc.exe or vbc.exe invocation
+
+                var i1 = commandLine.IndexOf("csc.exe", StringComparison.OrdinalIgnoreCase);
+                if (i1 == -1)
+                {
+                    i1 = commandLine.IndexOf("vbc.exe", StringComparison.OrdinalIgnoreCase);
+                }
+
+                if (i1 != -1)
+                {
+                    return TrimHere(i1 + "csc.exe".Length);
+                }
+
             }
 
             return commandLine;

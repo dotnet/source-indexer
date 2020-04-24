@@ -183,4 +183,7 @@ jobs:
         -WebappName netsourceindex
         -StorageAccountName netsourceindex
 
+  - publish: bin/repo
+    artifact: repo-logs
+
 

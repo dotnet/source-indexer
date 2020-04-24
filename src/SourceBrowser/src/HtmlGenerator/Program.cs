@@ -338,6 +338,12 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                                 Log.Write($"Skipping Ref Assembly project {invocation.ProjectFilePath}");
                                 continue;
                             }
+
+                            if (Path.GetFileName(Path.GetDirectoryName(invocation.ProjectDirectory)) == "cycle-breakers")
+                            {
+                                Log.Write($"Skipping Wpf Cycle-Breaker project {invocation.ProjectFilePath}");
+                                continue;
+                            }
                             Log.Write($"Indexing Project: {invocation.ProjectFilePath}");
                             GenerateFromBuildLog.GenerateInvocation(
                                 invocation,
