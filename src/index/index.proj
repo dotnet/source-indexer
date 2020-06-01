@@ -45,6 +45,9 @@
     <Exec Condition="!$(CloneExists)"
           Command="git init"
           WorkingDirectory="%(Repository.LocalPath)" />
+    <Exec Condition="!$(CloneExists)"
+          Command="git config core.longpaths true"
+          WorkingDirectory="%(Repository.LocalPath)" />
     <Exec Condition="!$(CloneExists) AND $(CloneSparse)"
           Command="git config core.sparsecheckout true"
           WorkingDirectory="%(Repository.LocalPath)" />
