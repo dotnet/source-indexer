@@ -82,8 +82,8 @@ jobs:
       msbuildArchitecture: x64
 
   - powershell: |
-      deployment/install-tool.ps1 -Name 'azure-cli' -Version 2.0.73 -TestPath '/wbin/az.cmd' -BinPath '/wbin/'
-    displayName: 'Install Az CLI 2.0.73'
+      deployment/install-tool.ps1 -Name 'azure-cli' -Version 2.8.0 -TestPath '/wbin/az.cmd' -BinPath '/wbin/'
+    displayName: 'Install Az CLI 2.8.0'
 
   - powershell: |
       deployment/install-tool.ps1 -Name 'azcopy' -Version 10.2.1
