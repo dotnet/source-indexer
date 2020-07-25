@@ -9,7 +9,7 @@
     <Repository Include="runtime">
       <Url>https://github.com/dotnet/runtime</Url>
       <PrepareCommand>
-        build.cmd -subset clr.corelib+libs.depprojs+libs.ref+libs.src -binarylog -os Linux -ci /p:ILLinkTrimAssembly=false
+        build.cmd -subset libs.ref+libs.src -binarylog -os Linux -ci /p:ILLinkTrimAssembly=false
       </PrepareCommand>
     </Repository>
     <Repository Include="winforms">
