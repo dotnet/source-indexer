@@ -69,5 +69,11 @@
         $(ArcadeBuildCmd)
       </PrepareCommand>
     </Repository>
+    <Repository Include="performance">
+      <Url>https://github.com/dotnet/performance</Url>
+      <PrepareCommand>
+        $(ArcadeBuildCmd) -projects src\benchmarks\micro\MicroBenchmarks.sln
+      </PrepareCommand>
+    </Repository>
   </ItemGroup>
 </Project>
