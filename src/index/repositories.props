@@ -37,7 +37,7 @@
       </PrepareCommand>
     </Repository>
     <Repository Include="msbuild">
-      <Url>https://github.com/Microsoft/msbuild</Url>
+      <Url>https://github.com/dotnet/msbuild</Url>
       <Branch>master</Branch>
       <DeepClone>true</DeepClone>
       <PrepareCommand>
