@@ -37,7 +37,7 @@ jobs:
     displayName: Use .Net Core sdk 2.1.805
     inputs:
       version: 2.1.805
-  
+
   - script: |
       dotnet tool restore
       dotnet script deployment/AllowPrereleaseSdks.csx
@@ -67,7 +67,7 @@ jobs:
 
      ls -Recurse -Include global.json | %{
        $v = $_ | Get-Content -Raw | ConvertFrom-Json | %{ if ($_.tools.dotnet) {$_.tools.dotnet} else {$_.sdk.version} }
-       $isSensibleVersion = $v.Split('.')[0] -as [int] -le 6
+       $isSensibleVersion = $v.Split('.')[0] -as [int] -le 30
        Write-Host "Installing .NET CLI version $v from $_"
        try
        {
