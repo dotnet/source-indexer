@@ -58,27 +58,38 @@ jobs:
       msbuildArchitecture: x64
 
   - powershell: |
-     Stop-Process -Name "dotnet"
-     $installScript = Join-Path $env:TEMP dotnet-install.ps1
-     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-     Invoke-WebRequest https://dot.net/v1/dotnet-install.ps1 -UseBasicParsing -OutFile $installScript
+      Stop-Process -Name "dotnet"
+      $installScript = Join-Path $env:TEMP dotnet-install.ps1
+      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+      Invoke-WebRequest https://dot.net/v1/dotnet-install.ps1 -UseBasicParsing -OutFile $installScript
 
-     $installDir = "$(Agent.ToolsDirectory)/dotnet"
+      $installDir = "$(Agent.ToolsDirectory)/dotnet"
 
-     ls -Recurse -Include global.json | %{
-       $v = $_ | Get-Content -Raw | ConvertFrom-Json | %{ if ($_.tools.dotnet) {$_.tools.dotnet} else {$_.sdk.version} }
-       $isSensibleVersion = $v.Split('.')[0] -as [int] -le 30
-       Write-Host "Installing .NET CLI version $v from $_"
-       try
-       {
-         & $installScript -Version $v -InstallDir $installDir -NoPath
+      ls -Recurse -Include global.json | %{
+        Write-Host "Processing $_"
+        $v = $_ | Get-Content -Raw | ConvertFrom-Json | %{ if ($_.tools.dotnet) {$_.tools.dotnet} else {$_.sdk.version} }
+        if (-not $v)
+        {
+          Write-Host "No version found in $_"
+          return
+        }
+        $isSensibleVersion = $v.Split('.')[0] -as [int] -le 30
+        if (-not $isSensibleVersion)
+        {
+          Write-Host "Skipping bogus version $v"
+          return
+        }
+
+        Write-Host "Installing .NET CLI version $v"
+        try
+        {
+          & $installScript -Version $v -InstallDir $installDir -NoPath
+        }
+        catch
+        {
+          throw "Unable to install Version $v"
+        }
        }
-       catch
-       {
-         Write-Host "Unable to install Version $v"
-         if ($isSensibleVersion) throw
-       }
-      }
     displayName: 'Install Required Versions of .NET Core'
 
   - task: VSBuild@1
