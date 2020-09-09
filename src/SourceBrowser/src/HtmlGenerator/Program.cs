@@ -158,6 +158,12 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     continue;
                 }
 
+                if (arg == "/excludetests")
+                {
+                    SolutionGenerator.ExcludeTests = true;
+                    continue;
+                }
+
                 try
                 {
                     AddProject(projects, arg);
@@ -262,7 +268,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 + "[/in:<filecontaingprojectlist>] "
                 + "[/nobuiltinfederations] "
                 + "[/offlinefederation:server=assemblyListFile] "
-                + "[/assemblylist]" +
+                + "[/assemblylist]"
+                + "[/excludetests]" +
                 "" +
                 "Plugins are now off by default.");
         }

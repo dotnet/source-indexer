@@ -13,6 +13,10 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
         public static IEnumerable<AssemblyInfo> ReadAssemblies(IFileSystem fs)
         {
             var assemblyInfoFile = Constants.MasterAssemblyMap + ".txt";
+            if (!fs.FileExists(assemblyInfoFile))
+            {
+                return Array.Empty<AssemblyInfo>();
+            }
 
             var result = fs.ReadLines(assemblyInfoFile)
                 .Select(l => new AssemblyInfo(l));
@@ -22,6 +26,11 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
         public static IEnumerable<string> ReadProjects(IFileSystem fs)
         {
             var projectInfoFile = Constants.MasterProjectMap + ".txt";
+            if (!fs.FileExists(projectInfoFile))
+            {
+                return Array.Empty<string>();
+            }
+
             var result = fs.ReadLines(projectInfoFile);
             return result;
         }

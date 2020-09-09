@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.SourceBrowser.Common;
 using Microsoft.SourceBrowser.SourceIndexServer;
 using Microsoft.SourceBrowser.SourceIndexServer.Models;
@@ -64,7 +65,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator.Tests
         {
             List<AssemblyInfo> assemblies = new List<AssemblyInfo>();
             List<string> projects = new List<string>();
-            IndexLoader.ReadProjectInfo(GetRootPath(), assemblies, projects, new Dictionary<string, int>());
+            var fs = new StaticFileSystem(GetRootPath());
+            IndexLoader.ReadProjectInfo(fs, assemblies, projects, new Dictionary<string, int>());
             var assemblyNames = assemblies.Select(p => p.AssemblyName);
             Assert.AreEqual(assemblyNames.Count(), assemblyNames.Distinct(StringComparer.OrdinalIgnoreCase).Count());
         }

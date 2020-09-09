@@ -206,14 +206,15 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
             ref double progress)
         {
             var masterIndexFile = "DeclaredSymbols.txt";
-            if (!fs.FileExists("DeclaredSymbols.txt"))
+            var huffmanFile = "Huffman.txt";
+            if (!fs.FileExists(masterIndexFile) || !fs.FileExists(huffmanFile))
             {
                 return;
             }
 
             using (Measure.Time("Read huffman tables"))
             {
-                using (var stream = fs.OpenSequentialReadStream("Huffman.txt"))
+                using (var stream = fs.OpenSequentialReadStream(huffmanFile))
                 {
                     huffman = Huffman.Read(stream);
                 }
