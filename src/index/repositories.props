@@ -2,14 +2,14 @@
 <Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <ArcadeBuildCmd>
-      powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "eng/common/build.ps1 -restore -build -binarylog -ci"
+      powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "eng/common/build.ps1 -restore -build -binarylog -nodeReuse:$false"
     </ArcadeBuildCmd>
   </PropertyGroup>
   <ItemGroup>
     <Repository Include="runtime">
       <Url>https://github.com/dotnet/runtime</Url>
       <PrepareCommand>
-        build.cmd -subset libs.ref+libs.src -binarylog -os Linux -ci /p:ILLinkTrimAssembly=false
+        build.cmd -subset libs.ref+libs.src -binarylog -os Linux -nodeReuse:0 /p:ILLinkTrimAssembly=false
       </PrepareCommand>
     </Repository>
     <Repository Include="winforms">
