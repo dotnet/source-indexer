@@ -1,10 +1,11 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Microsoft.SourceBrowser.Common
 {
@@ -17,6 +18,7 @@ namespace Microsoft.SourceBrowser.Common
         private static string errorLogFilePath = Path.GetFullPath(ErrorLogFile);
         private static string messageLogFilePath = Path.GetFullPath(MessageLogFile);
 
+        private static TaskCompletionSource<object> completedTask = new TaskCompletionSource<object>();
         private static readonly Subject<IMessage> Messages = new Subject<IMessage>();
 
         private static void OnNext(IMessage msg)
@@ -45,8 +47,14 @@ namespace Microsoft.SourceBrowser.Common
             Messages.ObserveOn(new NewThreadScheduler(ThreadFactory)).Subscribe(OnNext, OnCompleted);
         }
 
+        public static Task WaitForCompletion()
+        {
+            return completedTask.Task;
+        }
+
         private static void OnCompleted()
         {
+            completedTask.SetResult(null);
         }
 
         public static void Exception(Exception e, string message, bool isSevere = true)

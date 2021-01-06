@@ -1,52 +1,12 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <MinimumVisualStudioVersion>14.0</MinimumVisualStudioVersion>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{5D86D28A-FEB9-4561-8EA8-D3C3BB409FB3}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <RootNamespace>Microsoft.SourceIndexer.Tasks</RootNamespace>
-    <AssemblyName>Microsoft.SourceIndexer.Tasks</AssemblyName>
-    <DefaultLanguage>en-US</DefaultLanguage>
-    <FileAlignment>512</FileAlignment>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
-    <NuGetTargetMoniker>.NETFramework,Version=v4.5</NuGetTargetMoniker>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
+    <TargetFramework>net472</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="project.json" />
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.7.0" />
+    <PackageReference Include="Microsoft.Build.Framework" Version="16.8.0" />
+    <PackageReference Include="Microsoft.Build.Tasks.Core" Version="16.8.0" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="16.8.0" />
+    <PackageReference Include="SharpZipLib" Version="1.3.1" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="Extensions.cs" />
-    <Compile Include="SelectProjects.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <Reference Include="Microsoft.Build" />
-    <Reference Include="Microsoft.Build.Conversion.v4.0" />
-    <Reference Include="Microsoft.Build.Engine" />
-    <Reference Include="Microsoft.Build.Framework" />
-    <Reference Include="Microsoft.Build.Tasks.v4.0" />
-    <Reference Include="Microsoft.Build.Utilities.v4.0" />
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-  </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.Targets" />
 </Project>

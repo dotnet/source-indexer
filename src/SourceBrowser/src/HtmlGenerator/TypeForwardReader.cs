@@ -1,4 +1,4 @@
-﻿using Microsoft.Build.Evaluation;
+using Microsoft.Build.Evaluation;
 using Microsoft.Build.Execution;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.MSBuild;
@@ -20,15 +20,20 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
     {
         public IEnumerable<Tuple<string, string, string>> GetTypeForwards(string path, IReadOnlyDictionary<string, string> properties)
         {
+            IEnumerable<Tuple<string, string, string>> result;
             try
             {
-                return GetTypeForwardsImpl(path, properties).ToList();
+                result = GetTypeForwardsImpl(path, properties).ToList();
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
-                return Array.Empty<Tuple<string, string, string>>();
+                result = Array.Empty<Tuple<string, string, string>>();
             }
+
+            Log.Close();
+            Log.WaitForCompletion().Wait();
+            return result;
         }
 
         private IEnumerable<Tuple<string, string, string>> GetTypeForwardsImpl(string path, IReadOnlyDictionary<string, string> properties)

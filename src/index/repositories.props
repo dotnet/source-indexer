@@ -6,12 +6,14 @@
     </ArcadeBuildCmd>
   </PropertyGroup>
   <ItemGroup>
-    <Repository Include="runtime">
+    <RepositoryV2 Include="arcade">
+      <RepoName>dotnet-arcade</RepoName>
+      <Url>https://github.com/dotnet/arcade</Url>
+    </RepositoryV2>
+    <RepositoryV2 Include="runtime">
+      <RepoName>dotnet-runtime</RepoName>
       <Url>https://github.com/dotnet/runtime</Url>
-      <PrepareCommand>
-        build.cmd -subset libs.ref+libs.src -binarylog -os Linux -nodeReuse:0 /p:ILLinkTrimAssembly=false
-      </PrepareCommand>
-    </Repository>
+    </RepositoryV2>
     <Repository Include="winforms">
       <Url>https://github.com/dotnet/winforms</Url>
       <PrepareCommand>
