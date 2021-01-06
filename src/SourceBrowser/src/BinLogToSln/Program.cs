@@ -47,6 +47,9 @@ namespace BinLogToSln
             {
                 Fatal("Missing argument -o");
             }
+
+            solutionName = solutionName.Replace('/', '-').Replace('\\', '-');
+
             string repoDir = Repository.Discover(repoRoot);
             if (string.IsNullOrEmpty(repoDir))
             {
