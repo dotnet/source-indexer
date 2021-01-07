@@ -49,7 +49,7 @@ namespace Microsoft.SourceIndexer.Tasks
 
             BlobClient blobClient = containerClient.GetBlobClient(newest.Name);
             var loggableUrl = new UriBuilder(blobClient.Uri) {Fragment = "", Query = ""};
-            Log.LogMessage($"Extracting {blobClient.Uri} to {OutputDirectory}");
+            Log.LogMessage($"Extracting {loggableUrl} to {OutputDirectory}");
             using Stream fileStream = blobClient.OpenRead();
             using var input = new GZipInputStream(fileStream);
             using var archive = TarArchive.CreateInputTarArchive(input, Encoding.UTF8);
