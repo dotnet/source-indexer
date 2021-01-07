@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <AssemblyName>BinLogParser</AssemblyName>
+    <RootNamespace>Microsoft.SourceBrowser.BinLogParser</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <NuGetVersionRoslyn>3.9.0-2.final</NuGetVersionRoslyn>
+  </PropertyGroup>
+
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="$(NuGetVersionRoslyn)" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="$(NuGetVersionRoslyn)" />
+    <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic" Version="$(NuGetVersionRoslyn)" />
+    <PackageReference Include="MSBuild.StructuredLogger" Version="2.1.215" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <ProjectReference Include="..\Common\Common.csproj" />
+  </ItemGroup>
+
+</Project>

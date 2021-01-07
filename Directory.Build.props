@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup>
+    <VersionSuffix>$(BUILD_BUILDNUMBER)</VersionSuffix>
+    <VersionSuffix Condition="'$(VersionSuffix)' == ''">dev</VersionSuffix>
+
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+</Project>

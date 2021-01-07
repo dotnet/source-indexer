@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="14.0" DefaultTargets="Build" InitialTargets="EnsurePreconditions" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" TreatAsLocalProperty="WhatIf">
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
+
+  <UsingTask TaskName="DownloadStage1Index" AssemblyFile="$(SourceIndexerTasksAssembly)"/>
+
   <PropertyGroup>
     <WhatIf Condition="'$(WhatIf)' != 'true'">false</WhatIf>
   </PropertyGroup>
@@ -16,6 +19,11 @@
       <LocalPath>$(RepositoryPath)%(Identity)/</LocalPath>
       <ServerPath>%(Url)/tree/%(Branch)/</ServerPath>
     </Repository>
+
+    <RepositoryV2>
+      <LocalPath>$(RepositoryPath)%(Identity)/src/</LocalPath>
+      <ExtractPath>$(RepositoryPath)%(Identity)/</ExtractPath>
+    </RepositoryV2>
   </ItemDefinitionGroup>
 
   <Target Name="EnsurePreconditions">
@@ -80,10 +88,26 @@
     </ItemGroup>
   </Target>
 
-  <Target Name="Clone" DependsOnTargets="CloneRepository;CheckoutSources">
+  <Target Name="DownloadRepositoryV2" Outputs="%(RepositoryV2.Identity)">
+    <DownloadStage1Index
+      BlobContainerSasUrl="$(source-dot-net-stage1-blob-container-url)"
+      RepoName="%(RepositoryV2.RepoName)"
+      OutputDirectory="%(RepositoryV2.ExtractPath)"/>
+
+    <ReadLinesFromFile File="%(RepositoryV2.ExtractPath)hash">
+      <Output TaskParameter="Lines" PropertyName="CommitHash"/>
+    </ReadLinesFromFile>
+    <ItemGroup>
+      <ClonedRepositoryV2 Include="@(RepositoryV2)">
+        <ServerPath>%(Url)/tree/$(CommitHash)/</ServerPath>
+      </ClonedRepositoryV2>
+    </ItemGroup>
   </Target>
 
-  <Target Name="Prepare" DependsOnTargets="Clone" Outputs="%(ClonedRepository.Identity)">
+  <Target Name="Clone" DependsOnTargets="CloneRepository;CheckoutSources;DownloadRepositoryV2">
+  </Target>
+
+  <Target Name="PrepareV1" DependsOnTargets="Clone" Outputs="%(ClonedRepository.Identity)">
     <PropertyGroup>
       <PrepareCommand>$([System.String]::Copy('%(ClonedRepository.PrepareCommand)').Trim())</PrepareCommand>
     </PropertyGroup>
@@ -91,9 +115,21 @@
     <Exec Command="cmd /c &quot;$(PrepareCommand)&quot;" WorkingDirectory="%(ClonedRepository.LocalPath)" ContinueOnError="true" IgnoreStandardErrorWarningFormat="true" LogStandardErrorAsError="false" IgnoreExitCode="true"/>
   </Target>
 
+  <Target Name="PrepareV2" DependsOnTargets="Clone" Outputs="%(ClonedRepositoryV2.Identity)">
+  </Target>
+
+  <Target Name="Prepare" DependsOnTargets="PrepareV1;PrepareV2">
+  </Target>
+
   <Target Name="FindBinlogs" Outputs="%(ClonedRepository.Identity)">
     <ItemGroup>
       <BinlogToIndex Include="%(ClonedRepository.LocalPath)\**\*.binlog"/>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="FindSolutions" Outputs="%(ClonedRepositoryV2.Identity)">
+    <ItemGroup>
+      <SolutionToIndex Include="%(ClonedRepositoryV2.ExtractPath)\**\*.sln"/>
     </ItemGroup>
   </Target>
 
@@ -103,13 +139,17 @@
     </MSBuild>
   </Target>
 
-  <Target Name="Build" DependsOnTargets="BuildGenerator;Prepare;FindBinlogs">
+  <Target Name="Build" DependsOnTargets="BuildGenerator;Prepare;FindBinlogs;FindSolutions">
     <Error Condition="!Exists('$(HtmlGeneratorExePath)')" Text="Html generator executable not found."/>
     <RemoveDuplicates Inputs="@(BinlogToIndex)">
       <Output TaskParameter="Filtered" ItemName="_FilteredBinlog"/>
     </RemoveDuplicates>
+    <RemoveDuplicates Inputs="@(SolutionToIndex)">
+      <Output TaskParameter="Filtered" ItemName="_FilteredSolution"/>
+    </RemoveDuplicates>
     <RemoveDir Directories="$(OutDir)index/"/>
     <WriteLinesToFile Lines="@(_FilteredBinlog -> '%(FullPath)')" File="$(OutDir)index.list" Overwrite="true"/>
+    <WriteLinesToFile Lines="@(_FilteredSolution -> '%(FullPath)')" File="$(OutDir)index.list" Overwrite="false"/>
     <PropertyGroup>
       <SourceIndexCmd>"$(HtmlGeneratorExePath)"</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /donotincludereferencedprojects</SourceIndexCmd>
@@ -118,6 +158,7 @@
       <SourceIndexCmd>$(SourceIndexCmd) /out:"$(OutDir)index/"</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /in:"$(OutDir)index.list"</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd)@(ClonedRepository -> ' /serverPath:"%(LocalPath)=%(ServerPath)"', '')</SourceIndexCmd>
+      <SourceIndexCmd>$(SourceIndexCmd)@(ClonedRepositoryV2 -> ' /serverPath:"%(LocalPath)=%(ServerPath)"', '')</SourceIndexCmd>
     </PropertyGroup>
     <Exec Command="$(SourceIndexCmd)" LogStandardErrorAsError="false"/>
     <Copy SourceFiles="@(OverwriteFiles)" DestinationFiles="@(OverwriteFiles -> '$(OutDir)index/%(RecursiveDir)%(Filename)%(Extension)')"/>

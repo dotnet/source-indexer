@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -549,20 +549,20 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             }
 
             type = (ITypeSymbol)GetTypeFromSymbol(symbol);
-            var forwardKey = ValueTuple.Create(type.ContainingAssembly.Name, (type?.OriginalDefinition ?? type).GetDocumentationCommentId());
-            string forwardedToAssembly;
-            if (projectGenerator.SolutionGenerator.TypeForwards.TryGetValue(forwardKey, out forwardedToAssembly))
+            string containingAssembly = type.ContainingAssembly.Name;
+            string typeDocId = (type?.OriginalDefinition ?? type).GetDocumentationCommentId();
+            while (projectGenerator.SolutionGenerator.TypeForwards.TryGetValue((containingAssembly, typeDocId), out var newAssembly))
             {
                 lock (projectGenerator.ForwardedReferenceAssemblies)
                 {
                     projectGenerator.ForwardedReferenceAssemblies.Add(
-                        type.ContainingAssembly.Name + "->" + forwardedToAssembly);
+                        containingAssembly + "->" + newAssembly);
                 }
-                return forwardedToAssembly;
+
+                containingAssembly = newAssembly;
             }
 
-            var assembly = SymbolIdService.GetAssemblyId(symbol.ContainingAssembly);
-            return assembly;
+            return containingAssembly;
         }
 
         private static ISymbol GetTypeFromSymbol(ISymbol symbol)

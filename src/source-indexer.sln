@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30503.244
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Microsoft.SourceIndexer.Tasks", "Microsoft.SourceIndexer.Tasks\Microsoft.SourceIndexer.Tasks.csproj", "{5D86D28A-FEB9-4561-8EA8-D3C3BB409FB3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UploadIndexStage1", "UploadIndexStage1\UploadIndexStage1.csproj", "{72B1789D-B80E-4073-BDB4-672E3E2E45DA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,8 +17,15 @@ Global
 		{5D86D28A-FEB9-4561-8EA8-D3C3BB409FB3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5D86D28A-FEB9-4561-8EA8-D3C3BB409FB3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5D86D28A-FEB9-4561-8EA8-D3C3BB409FB3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{72B1789D-B80E-4073-BDB4-672E3E2E45DA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{72B1789D-B80E-4073-BDB4-672E3E2E45DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{72B1789D-B80E-4073-BDB4-672E3E2E45DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{72B1789D-B80E-4073-BDB4-672E3E2E45DA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {CBA6774C-91B0-4634-94B4-B6C12A4519C8}
 	EndGlobalSection
 EndGlobal

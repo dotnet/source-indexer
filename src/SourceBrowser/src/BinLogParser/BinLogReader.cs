@@ -2,13 +2,10 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using Microsoft.Build.Framework;
 using Microsoft.CodeAnalysis;
-using Microsoft.SourceBrowser.Common;
-using CompilerInvocation = Microsoft.SourceBrowser.HtmlGenerator.GenerateFromBuildLog.CompilerInvocation;
 
-namespace Microsoft.SourceBrowser.HtmlGenerator
+namespace Microsoft.SourceBrowser.BinLogParser
 {
     public enum CompilerKind
     {
