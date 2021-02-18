@@ -19,6 +19,7 @@
       <PrepareCommand>
         $(ArcadeBuildCmd)
       </PrepareCommand>
+      <Branch>main</Branch>
     </Repository>
     <Repository Include="wpf">
       <Url>https://github.com/dotnet/wpf</Url>
@@ -37,6 +38,7 @@
       <PrepareCommand>
         $(ArcadeBuildCmd)
       </PrepareCommand>
+      <Branch>main</Branch>
     </Repository>
     <Repository Include="msbuild">
       <Url>https://github.com/dotnet/msbuild</Url>
@@ -57,6 +59,7 @@
       <PrepareCommand>
         $(ArcadeBuildCmd)
       </PrepareCommand>
+      <Branch>main</Branch>
     </Repository>
     <Repository Include="aspnetcore">
       <Url>https://github.com/dotnet/aspnetcore</Url>
@@ -64,6 +67,7 @@
       <PrepareCommand>
         build.cmd -BinaryLog -BuildManaged -NoBuildNative -NoBuildNodeJS -NoBuildJava
       </PrepareCommand>
+      <Branch>main</Branch>
     </Repository>
     <Repository Include="dotnet-extensions">
       <Url>https://github.com/dotnet/extensions</Url>
