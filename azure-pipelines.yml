@@ -72,7 +72,7 @@ jobs:
     displayName: Clone All Repositories
     inputs:
       solution: build.proj
-      msbuildArgs: /t:Clone
+      msbuildArgs: /t:Clone /v:m /bl:$(Build.ArtifactStagingDirectory)/logs/clone.binlog
       msbuildArchitecture: x64
     env:
       source-dot-net-stage1-blob-container-url: $(source-dot-net-stage1-blob-container-url)
@@ -116,7 +116,7 @@ jobs:
     displayName: Build source index
     inputs:
       solution: build.proj
-      msbuildArgs: /t:Build
+      msbuildArgs: /t:Build /v:m /bl:$(Build.ArtifactStagingDirectory)/logs/build.binlog
       msbuildArchitecture: x64
     env:
       source-dot-net-stage1-blob-container-url: $(source-dot-net-stage1-blob-container-url)
@@ -225,3 +225,6 @@ jobs:
 
   - publish: bin/repo
     artifact: repo-logs
+
+  - publish: $(Build.ArtifactStagingDirectory)/logs
+    artifact: logs
