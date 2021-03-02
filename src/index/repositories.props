@@ -67,7 +67,7 @@
       <Url>https://github.com/dotnet/aspnetcore</Url>
       <CheckoutSubmodules>true</CheckoutSubmodules>
       <PrepareCommand>
-        build.cmd -BinaryLog -BuildManaged -NoBuildNative -NoBuildNodeJS -NoBuildJava
+        eng/build.cmd -BinaryLog -BuildManaged -NoBuildNative -NoBuildNodeJS -NoBuildJava
       </PrepareCommand>
       <Branch>main</Branch>
     </Repository>
