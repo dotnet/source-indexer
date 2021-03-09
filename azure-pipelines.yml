@@ -223,10 +223,10 @@ jobs:
         -WebappName netsourceindex
         -StorageAccountName netsourceindex
 
-  - publish: bin/repo
-    artifact: repo-logs
-    condition: always()
-
   - publish: $(Build.ArtifactStagingDirectory)/logs
     artifact: logs
+    condition: always()
+
+  - publish: bin/repo
+    artifact: repo-logs
     condition: always()
