@@ -551,12 +551,19 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             type = (ITypeSymbol)GetTypeFromSymbol(symbol);
             string containingAssembly = type.ContainingAssembly.Name;
             string typeDocId = (type?.OriginalDefinition ?? type).GetDocumentationCommentId();
+            var seenAssemblies = new HashSet<string>();
             while (projectGenerator.SolutionGenerator.TypeForwards.TryGetValue((containingAssembly, typeDocId), out var newAssembly))
             {
+                bool loop = !seenAssemblies.Add(newAssembly);
                 lock (projectGenerator.ForwardedReferenceAssemblies)
                 {
                     projectGenerator.ForwardedReferenceAssemblies.Add(
-                        containingAssembly + "->" + newAssembly);
+                        $"{containingAssembly}->{newAssembly}{(loop ? " (cycle)": "")}");
+                }
+
+                if (loop)
+                {
+                    break;
                 }
 
                 containingAssembly = newAssembly;
