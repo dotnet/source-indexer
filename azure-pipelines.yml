@@ -3,7 +3,7 @@ schedules:
   displayName: Every day at 10:00 UTC
   branches:
     include:
-    - master
+    - main
   always: true
 
 
@@ -60,7 +60,7 @@ jobs:
         src\source-indexer.sln
         src\SourceBrowser\SourceBrowser.sln
       arguments: '/p:PackageOutputPath=$(Build.ArtifactStagingDirectory)/packages'
-  
+
   - task: NuGetCommand@2
     inputs:
       command: 'push'

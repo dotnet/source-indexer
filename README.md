@@ -2,10 +2,10 @@
 This repo contains the code for building http://source.dot.net
 
 ## Build Status
-[![Build Status](https://dev.azure.com/dnceng/internal/_apis/build/status/dotnet-source-indexer/dotnet-source-indexer%20CI?branchName=master)](https://dev.azure.com/dnceng/internal/_build/latest?definitionId=612&branchName=master)
+[![Build Status](https://dev.azure.com/dnceng/internal/_apis/build/status/dotnet-source-indexer/dotnet-source-indexer%20CI?branchName=main)](https://dev.azure.com/dnceng/internal/_build/latest?definitionId=612&branchName=main)
 
 ## What Is It?
-This repo uses https://github.com/KirillOsenkov/SourceBrowser (with a few additions here https://github.com/dotnet/SourceBrowser/tree/source-indexer) to index the dotnet sources and produce a navigatable and searchable website containing the full source code. This includes code from the runtime, winforms, wpf, aspnetcore, and msbuild, among others. For a full list see here https://github.com/dotnet/source-indexer/blob/master/src/index/repositories.props.
+This repo uses https://github.com/KirillOsenkov/SourceBrowser (with a few additions here https://github.com/dotnet/SourceBrowser/tree/source-indexer) to index the dotnet sources and produce a navigatable and searchable website containing the full source code. This includes code from the runtime, winforms, wpf, aspnetcore, and msbuild, among others. For a full list see here https://github.com/dotnet/source-indexer/blob/main/src/index/repositories.props.
 
 ## Build Prerequsites
 The build requires .net core 3.1.201 and Visual Studio 2019 to build.
