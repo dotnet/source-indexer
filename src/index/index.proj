@@ -15,12 +15,13 @@
 
   <ItemDefinitionGroup>
     <Repository>
-      <Branch>master</Branch>
+      <Branch>main</Branch>
       <LocalPath>$(RepositoryPath)%(Identity)/</LocalPath>
       <ServerPath>%(Url)/tree/%(Branch)/</ServerPath>
     </Repository>
 
     <RepositoryV2>
+        <Branch>main</Branch>
       <LocalPath>$(RepositoryPath)%(Identity)/src/</LocalPath>
       <ExtractPath>$(RepositoryPath)%(Identity)/</ExtractPath>
     </RepositoryV2>

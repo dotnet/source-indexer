@@ -29,12 +29,6 @@
         $(ArcadeBuildCmd)
       </PrepareCommand>
     </Repository>
-    <Repository Include="corefxlab">
-      <Url>https://github.com/dotnet/corefxlab</Url>
-      <PrepareCommand>
-        $(ArcadeBuildCmd)
-      </PrepareCommand>
-    </Repository>
     <Repository Include="iot">
       <Url>https://github.com/dotnet/iot</Url>
       <PrepareCommand>
@@ -70,12 +64,6 @@
         eng/build.cmd -BinaryLog -BuildManaged -NoBuildNative -NoBuildNodeJS -NoBuildJava
       </PrepareCommand>
       <Branch>main</Branch>
-    </Repository>
-    <Repository Include="dotnet-extensions">
-      <Url>https://github.com/dotnet/extensions</Url>
-      <PrepareCommand>
-        $(ArcadeBuildCmd)
-      </PrepareCommand>
     </Repository>
     <Repository Include="performance">
       <Url>https://github.com/dotnet/performance</Url>
