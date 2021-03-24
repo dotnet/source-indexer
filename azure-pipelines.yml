@@ -3,7 +3,7 @@ schedules:
   displayName: Every day at 10:00 UTC
   branches:
     include:
-    - master
+    - main
   always: true
 
 
