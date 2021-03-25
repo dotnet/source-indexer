@@ -60,7 +60,7 @@ jobs:
         src\source-indexer.sln
         src\SourceBrowser\SourceBrowser.sln
       arguments: '/p:PackageOutputPath=$(Build.ArtifactStagingDirectory)/packages'
-  
+
   - task: NuGetCommand@2
     inputs:
       command: 'push'

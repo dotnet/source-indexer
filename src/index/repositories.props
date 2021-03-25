@@ -30,6 +30,7 @@
       </PrepareCommand>
     </Repository>
     <Repository Include="corefxlab">
+      <Branch>archive</Branch>
       <Url>https://github.com/dotnet/corefxlab</Url>
       <PrepareCommand>
         $(ArcadeBuildCmd)
@@ -44,7 +45,7 @@
     </Repository>
     <Repository Include="msbuild">
       <Url>https://github.com/dotnet/msbuild</Url>
-      <Branch>master</Branch>
+      <Branch>main</Branch>
       <DeepClone>true</DeepClone>
       <PrepareCommand>
         $(ArcadeBuildCmd)
@@ -72,6 +73,7 @@
       <Branch>main</Branch>
     </Repository>
     <Repository Include="dotnet-extensions">
+      <Branch>archive</Branch>
       <Url>https://github.com/dotnet/extensions</Url>
       <PrepareCommand>
         $(ArcadeBuildCmd)
