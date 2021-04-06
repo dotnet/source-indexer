@@ -29,12 +29,6 @@
         $(ArcadeBuildCmd)
       </PrepareCommand>
     </Repository>
-    <Repository Include="corefxlab">
-      <Url>https://github.com/dotnet/corefxlab</Url>
-      <PrepareCommand>
-        $(ArcadeBuildCmd)
-      </PrepareCommand>
-    </Repository>
     <Repository Include="iot">
       <Url>https://github.com/dotnet/iot</Url>
       <PrepareCommand>
