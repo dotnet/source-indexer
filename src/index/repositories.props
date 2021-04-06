@@ -44,7 +44,7 @@
     </Repository>
     <Repository Include="msbuild">
       <Url>https://github.com/dotnet/msbuild</Url>
-      <Branch>master</Branch>
+      <Branch>main</Branch>
       <DeepClone>true</DeepClone>
       <PrepareCommand>
         $(ArcadeBuildCmd)

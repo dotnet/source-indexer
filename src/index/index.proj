@@ -15,7 +15,7 @@
 
   <ItemDefinitionGroup>
     <Repository>
-      <Branch>master</Branch>
+      <Branch>main</Branch>
       <LocalPath>$(RepositoryPath)%(Identity)/</LocalPath>
       <ServerPath>%(Url)/tree/%(Branch)/</ServerPath>
     </Repository>
