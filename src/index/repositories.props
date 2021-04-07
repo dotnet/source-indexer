@@ -65,12 +65,6 @@
       </PrepareCommand>
       <Branch>main</Branch>
     </Repository>
-    <Repository Include="dotnet-extensions">
-      <Url>https://github.com/dotnet/extensions</Url>
-      <PrepareCommand>
-        $(ArcadeBuildCmd)
-      </PrepareCommand>
-    </Repository>
     <Repository Include="performance">
       <Url>https://github.com/dotnet/performance</Url>
       <PrepareCommand>
