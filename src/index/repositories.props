@@ -71,5 +71,11 @@
         $(ArcadeBuildCmd) -projects src\benchmarks\micro\MicroBenchmarks.sln
       </PrepareCommand>
     </Repository>
+    <Repository Include="sdk">
+      <Url>https://github.com/dotnet/sdk</Url>
+      <PrepareCommand>
+        $(ArcadeBuildCmd) -projects src\benchmarks\micro\MicroBenchmarks.sln
+      </PrepareCommand>
+    </Repository>
   </ItemGroup>
 </Project>
