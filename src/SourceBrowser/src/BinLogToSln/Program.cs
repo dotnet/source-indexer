@@ -237,16 +237,9 @@ namespace BinLogToSln
             sln.WriteLine("MinimumVisualStudioVersion = 10.0.40219.1");
         }
 
-        private static BigInteger currentGuid = 0;
         private static string GetProjectGuid()
         {
-            if (currentGuid.IsZero)
-            {
-                currentGuid = new BigInteger(Guid.NewGuid().ToByteArray());
-            }
-
-            currentGuid += 1;
-            return new Guid(currentGuid.ToByteArray()).ToString("B");
+            return Guid.NewGuid().ToString("B");
         }
 
         private static string CSharpProjectTypeGuid = "{9A19103F-16F7-4668-BE54-9A1E7A4F7556}";
