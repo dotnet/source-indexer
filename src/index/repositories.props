@@ -14,15 +14,13 @@
       <RepoName>dotnet-runtime</RepoName>
       <Url>https://github.com/dotnet/runtime</Url>
     </RepositoryV2>
-    <!-- The Indexer is currently stack overflowing while trying to process some winforms projects
-         this should be switched to the RepositoryV2 so that doesn't happen. -->
-    <!-- <Repository Include="winforms">
+    <Repository Include="winforms">
       <Url>https://github.com/dotnet/winforms</Url>
       <PrepareCommand>
         $(ArcadeBuildCmd)
       </PrepareCommand>
       <Branch>main</Branch>
-    </Repository> -->
+    </Repository>
     <Repository Include="wpf">
       <Url>https://github.com/dotnet/wpf</Url>
       <PrepareCommand>
