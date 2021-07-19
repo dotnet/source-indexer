@@ -5,8 +5,6 @@ VisualStudioVersion = 16.0.30503.244
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HtmlGenerator", "src\HtmlGenerator\HtmlGenerator.csproj", "{3CB763A5-A0C0-46B0-AEF5-020E731253C2}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildLogParser", "src\BuildLogParser\BuildLogParser.csproj", "{57002F26-8D15-4CF7-A53D-61AE8CC5E836}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Common", "src\Common\Common.csproj", "{F13CD277-E86B-4BC6-9E93-39ED055A46DB}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GitGlyph", "src\GitGlyph\GitGlyph.csproj", "{810A96AB-58EB-4403-9A1E-964F85958E62}"
@@ -23,6 +21,12 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BinLogParser", "src\BinLogP
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BinLogToSln", "src\BinLogToSln\BinLogToSln.csproj", "{E73D1784-F1BC-4F01-B68E-03623CFBFB8E}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{C0B9CC1C-1EF1-4086-9532-E8679CBA4E62}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		src\Directory.Build.props = src\Directory.Build.props
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,10 +37,6 @@ Global
 		{3CB763A5-A0C0-46B0-AEF5-020E731253C2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3CB763A5-A0C0-46B0-AEF5-020E731253C2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3CB763A5-A0C0-46B0-AEF5-020E731253C2}.Release|Any CPU.Build.0 = Release|Any CPU
-		{57002F26-8D15-4CF7-A53D-61AE8CC5E836}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{57002F26-8D15-4CF7-A53D-61AE8CC5E836}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{57002F26-8D15-4CF7-A53D-61AE8CC5E836}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{57002F26-8D15-4CF7-A53D-61AE8CC5E836}.Release|Any CPU.Build.0 = Release|Any CPU
 		{F13CD277-E86B-4BC6-9E93-39ED055A46DB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{F13CD277-E86B-4BC6-9E93-39ED055A46DB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F13CD277-E86B-4BC6-9E93-39ED055A46DB}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -74,6 +74,6 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {AEF73422-12DC-438A-BB7C-A7652A235284}
+		SolutionGuid = {29F20132-2B2E-4FAE-86AF-812EE1C3363F}
 	EndGlobalSection
 EndGlobal

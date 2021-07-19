@@ -19,9 +19,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         public string SolutionSourceFolder { get; private set; }
         public string SolutionDestinationFolder { get; private set; }
         public string ProjectFilePath { get; private set; }
-        public string ServerPath { get; set; }
         public IReadOnlyDictionary<string, string> ServerPathMappings { get; set; }
-        public string NetworkShare { get; private set; }
         private Federation Federation { get; set; }
         public IEnumerable<string> PluginBlacklist { get; private set; }
         private readonly HashSet<string> typeScriptFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -39,7 +37,6 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         public SolutionGenerator(
             string solutionFilePath,
             string solutionDestinationFolder,
-            string serverPath = null,
             ImmutableDictionary<string, string> properties = null,
             Federation federation = null,
             IReadOnlyDictionary<string, string> serverPathMappings = null,
@@ -50,7 +47,6 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             this.SolutionSourceFolder = Path.GetDirectoryName(solutionFilePath);
             this.SolutionDestinationFolder = solutionDestinationFolder;
             this.ProjectFilePath = solutionFilePath;
-            this.ServerPath = serverPath;
             ServerPathMappings = serverPathMappings;
             this.solution = CreateSolution(solutionFilePath, properties, doNotIncludeReferencedProjects);
             this.Federation = federation ?? new Federation();
@@ -64,8 +60,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             }
         }
 
-        public static bool LoadPlugins { get; set; } = false;
-        public static bool ExcludeTests { get; set; } = false;
+        public static bool LoadPlugins { get; set; }
+        public static bool ExcludeTests { get; set; }
 
         private void SetupPluginAggregator()
         {
@@ -98,8 +94,6 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             string outputAssemblyPath,
             string solutionSourceFolder,
             string solutionDestinationFolder,
-            string serverPath,
-            string networkShare,
             IReadOnlyDictionary<ValueTuple<string, string>, string> typeForwards = null)
         {
             this.Properties = ImmutableDictionary<string, string>.Empty;
@@ -109,8 +103,6 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 LanguageNames.VisualBasic : LanguageNames.CSharp;
             this.SolutionSourceFolder = solutionSourceFolder;
             this.SolutionDestinationFolder = solutionDestinationFolder;
-            this.ServerPath = serverPath;
-            this.NetworkShare = networkShare;
             this.TypeForwards = typeForwards ?? ImmutableDictionary<ValueTuple<string, string>, string>.Empty;
             string projectSourceFolder = Path.GetDirectoryName(projectFilePath);
             SetupPluginAggregator();
@@ -535,12 +527,12 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         private static void WorkspaceFailed(object sender, WorkspaceDiagnosticEventArgs e)
         {
             var message = e.Diagnostic.Message;
-            if (message.StartsWith("Could not find file") || message.StartsWith("Could not find a part of the path"))
+            if (message.StartsWith("Could not find file", StringComparison.Ordinal) || message.StartsWith("Could not find a part of the path", StringComparison.Ordinal))
             {
                 return;
             }
 
-            if (message.StartsWith("The imported project "))
+            if (message.StartsWith("The imported project ", StringComparison.Ordinal))
             {
                 return;
             }

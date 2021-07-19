@@ -15,8 +15,6 @@ namespace Microsoft.SourceBrowser.BinLogParser
         public string ProjectDirectory => ProjectFilePath == null ? "" : Path.GetDirectoryName(ProjectFilePath);
         public string OutputAssemblyPath { get; set; }
         public string CommandLineArguments { get; set; }
-        public string ServerPath { get; set; }
-        public string NetworkShare { get; set; }
         public string SolutionRoot { get; set; }
         public IEnumerable<string> TypeScriptFiles { get; set; }
 
