@@ -55,14 +55,10 @@
       </PrepareCommand>
       <Branch>main</Branch>
     </Repository>
-    <Repository Include="aspnetcore">
+    <RepositoryV2 Include="aspnetcore">
+      <RepoName>dotnet-aspnetcore</RepoName>
       <Url>https://github.com/dotnet/aspnetcore</Url>
-      <CheckoutSubmodules>true</CheckoutSubmodules>
-      <PrepareCommand>
-        .\eng\build.cmd -BinaryLog -BuildManaged -NoBuildNative -NoBuildNodeJS -NoBuildJava
-      </PrepareCommand>
-      <Branch>main</Branch>
-    </Repository>
+    </RepositoryV2>
     <Repository Include="performance">
       <Url>https://github.com/dotnet/performance</Url>
       <PrepareCommand>
