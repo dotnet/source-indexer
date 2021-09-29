@@ -12,8 +12,8 @@ jobs:
   displayName: Build Source Index
 
   pool:
-    name: NetCoreInternal-Pool
-    queue: BuildPool.Windows.10.Amd64.VS2019
+    name: NetCore1ESPool-Internal
+    demands: ImageOverride -equals Build.Windows.10.Amd64.VS2019
 
   timeoutInMinutes: 360
 
