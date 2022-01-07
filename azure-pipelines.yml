@@ -107,7 +107,14 @@ jobs:
         }
         catch
         {
-          throw "Unable to install Version $v"
+          try
+          {
+            & $installScript -Version $v -InstallDir $installDir -NoPath -AzureFeed https://dotnetbuilds.azureedge.net/public
+          }
+          catch
+          {
+            throw "Unable to install Version $v"
+          }
         }
        }
     displayName: 'Install Required Versions of .NET Core'
