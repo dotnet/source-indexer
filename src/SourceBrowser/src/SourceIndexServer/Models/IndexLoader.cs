@@ -72,6 +72,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
                         index.projects,
                         ref index.huffman,
                         ref index.progress);
+                    index.PopulateSymbolsById();
                 }
 
                 ReadGuids(fs, index.guids);
