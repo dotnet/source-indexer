@@ -73,6 +73,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         {
             var url = GetAssemblyUrl(server);
 
+            ServicePointManager.CheckCertificateRevocationList = true;
             var assemblyList = new WebClient().DownloadString(url);
             var assemblyNames = GetAssemblyNames(assemblyList);
 

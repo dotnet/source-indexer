@@ -76,7 +76,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
             }
         }
 
-        private static readonly HttpClient s_client = new HttpClient();
+        private static readonly HttpClient s_client = new HttpClient(new HttpClientHandler() { CheckCertificateRevocationList = true });
 
         private static async Task<bool> UrlExistsAsync(string proxyRequestUrl)
         {
