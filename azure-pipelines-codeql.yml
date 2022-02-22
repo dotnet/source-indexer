@@ -54,16 +54,16 @@ stages:
           -WorkingDirectory $(Build.SourcesDirectory) `
           -SourceCodeDirectory $(Build.SourcesDirectory)\src `
           -OutputPath $(Build.SourcesDirectory)\.gdn\r\semmle-configure.gdnconfig
-      displayName: 'CodeQL: Create Typescript configuration'
+      displayName: 'CodeQL: Create configuration'
 
     - pwsh: |
         . $(Build.SourcesDirectory)\eng\CodeQL.ps1
         Invoke-GdnSemmle -GuardianCliLocation $(GuardianCliLocation) `
           -LoggerLevel 'Standard' `
           -WorkingDirectory $(Build.SourcesDirectory) `
-          -ConfigurationPath $(Build.SourcesDirectory)\.gdn\r\semmle-configure.gdnconfig
+          -ConfigurationPath $(Build.SourcesDirectory)\.gdn\r\semmle-configure.gdnconfig `
           -BuildCommand 'dotnet build $(Build.SourcesDirectory)\src\source-indexer.sln # dotnet build $(Build.SourcesDirectory)\src\SourceBrowser\SourceBrowser.sln'
-      displayName: 'CodeQL: Typescript'
+      displayName: 'CodeQL: C#'
 
     - pwsh: |
         . $(Build.SourcesDirectory)\eng\CodeQL.ps1
