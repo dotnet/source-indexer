@@ -9,8 +9,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator.Tests
         public void TestHash()
         {
             var symbolId = "T:Microsoft.CodeAnalysis.CSharp.Symbols.SourceNamedTypeSymbol";
-            var bytes = Paths.GetMD5Hash(symbolId, 16);
-            Assert.AreEqual("a7aec3faae7fe65b", bytes);
+            var bytes = Paths.GetSHA2Hash(symbolId, 16);
+            Assert.AreEqual("e057f27c02e5f77e", bytes);
         }
     }
 }
