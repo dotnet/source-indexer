@@ -268,22 +268,22 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             return result;
         }
 
-        public static string GetSHA2Hash(string input, int digits)
+        public static string GetMD5Hash(string input, int digits)
         {
-            using (var sha2 = SHA256.Create())
+            using (var md5 = MD5.Create())
             {
                 var bytes = Encoding.UTF8.GetBytes(input);
-                var hashBytes = sha2.ComputeHash(bytes);
+                var hashBytes = md5.ComputeHash(bytes);
                 return Serialization.ByteArrayToHexString(hashBytes, digits);
             }
         }
 
-        public static ulong GetSHA2HashULong(string input, int digits)
+        public static ulong GetMD5HashULong(string input, int digits)
         {
-            using (var sha2 = SHA256.Create())
+            using (var md5 = MD5.Create())
             {
                 var bytes = Encoding.UTF8.GetBytes(input);
-                var hashBytes = sha2.ComputeHash(bytes);
+                var hashBytes = md5.ComputeHash(bytes);
                 return BitConverter.ToUInt64(hashBytes, 0);
             }
         }

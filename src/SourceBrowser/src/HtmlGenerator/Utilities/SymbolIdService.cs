@@ -93,9 +93,9 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             return result;
         }
 
-        public static string GetId(string result) => Paths.GetSHA2Hash(result, 16);
+        public static string GetId(string result) => Paths.GetMD5Hash(result, 16);
 
-        public static ulong GetIdULong(string content) => Paths.GetSHA2HashULong(content, 16);
+        public static ulong GetIdULong(string content) => Paths.GetMD5HashULong(content, 16);
 
         public static string GetId(Document document)
         {

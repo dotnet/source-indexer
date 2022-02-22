@@ -10,8 +10,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator.Tests
         {
             for (int i = 0; i < 1000; i++)
             {
-                var originalStringId = Paths.GetSHA2Hash(i.ToString(), 16);
-                var id = Paths.GetSHA2HashULong(i.ToString(), 16);
+                var originalStringId = Paths.GetMD5Hash(i.ToString(), 16);
+                var id = Paths.GetMD5HashULong(i.ToString(), 16);
                 var stringId = Serialization.ULongToHexString(id);
                 Assert.AreEqual(originalStringId, stringId);
                 Assert.AreEqual(16, stringId.Length);
