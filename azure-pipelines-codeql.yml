@@ -1,0 +1,96 @@
+variables:
+  - name: _TeamName
+    value: DotNetCore
+  - group: SDL_Settings
+
+trigger: none
+
+schedules:
+  - cron: 0 12 * * 1
+    displayName: Weekly Monday CodeQL/Semmle run
+    branches:
+      include:
+      - main
+    always: true
+
+stages:
+- stage: CodeQL
+  displayName: CodeQL
+
+  jobs:
+  - job: codeql_windows
+    displayName: CodeQL (Windows)
+    pool:
+      name: NetCore1ESPool-Internal
+      demands: ImageOverride -equals build.windows.10.amd64.vs2019
+
+    steps:
+    - task: NuGetToolInstaller@1
+      displayName: 'Install NuGet'
+    
+    - task: NuGetAuthenticate@0
+      displayName: 'Authenticate NuGet'
+      inputs:
+        nuGetServiceConnections: GuardianConnect
+
+    - pwsh: |
+        . $(Build.SourcesDirectory)\eng\CodeQL.ps1
+        $guardianCliLocation = Install-Gdn -Path $(Build.SourcesDirectory)\.artifacts
+        Write-Host "##vso[task.setvariable variable=GuardianCliLocation]$guardianCliLocation"
+      displayName: Install Guardian
+
+    - pwsh: |
+        . $(Build.SourcesDirectory)\eng\CodeQL.ps1
+        Initialize-Gdn -GuardianCliLocation $(GuardianCliLocation) `
+          -WorkingDirectory $(Build.SourcesDirectory) `
+          -LoggerLevel 'Standard'
+      displayName: 'CodeQL: Initialize'
+
+    - pwsh: |
+        . $(Build.SourcesDirectory)\eng\CodeQL.ps1
+        New-GdnSemmelConfig -GuardianCliLocation $(GuardianCliLocation) `
+          -LoggerLevel 'Standard' `
+          -Language 'csharp' `
+          -WorkingDirectory $(Build.SourcesDirectory) `
+          -SourceCodeDirectory $(Build.SourcesDirectory)\src `
+          -OutputPath $(Build.SourcesDirectory)\.gdn\r\semmle-configure.gdnconfig `
+          -BuildCommand 'dotnet build $(Build.SourcesDirectory)\src\source-indexer.sln # dotnet build $(Build.SourcesDirectory)\src\SourceBrowser\SourceBrowser.sln'
+      displayName: 'CodeQL: Create configuration'
+
+    - pwsh: |
+        . $(Build.SourcesDirectory)\eng\CodeQL.ps1
+        Invoke-GdnSemmle -GuardianCliLocation $(GuardianCliLocation) `
+          -LoggerLevel 'Standard' `
+          -WorkingDirectory $(Build.SourcesDirectory) `
+          -ConfigurationPath $(Build.SourcesDirectory)\.gdn\r\semmle-configure.gdnconfig
+      displayName: 'CodeQL: C#'
+
+    - pwsh: |
+        . $(Build.SourcesDirectory)\eng\CodeQL.ps1
+        Publish-GdnArtifacts -GuardianCliLocation $(GuardianCliLocation) `
+          -LoggerLevel 'Standard' `
+          -WorkingDirectory $(Build.SourcesDirectory)
+      displayName: Publish results artifact
+
+    - pwsh: |
+        . $(Build.SourcesDirectory)\eng\CodeQL.ps1
+        Publish-GdnTsa -GuardianCliLocation $(GuardianCliLocation) `
+          -WorkingDirectory $(Build.SourcesDirectory) `
+          -LoggerLevel 'Standard' `
+          -TsaRepositoryName "source-indexer" `
+          -TsaCodebaseName "source-indexer" `
+          -TsaCodebaseAdmin $(_TsaCodebaseAdmin) `
+          -TsaNotificationEmail $(_TsaNotificationEmail) `
+          -TsaInstanceUrl $(_TsaInstanceURL) `
+          -TsaProjectName $(_TsaProjectName) `
+          -TsaBugAreaPath $(_TsaBugAreaPath) `
+          -TsaIterationPath $(_TsaIterationPath) `
+          -TsaPublish $true
+      displayName: Publish results to TSA
+
+    - pwsh: |
+        . $(Build.SourcesDirectory)\eng\CodeQL.ps1
+        Invoke-GdnBuildBreak -GuardianCliLocation $(GuardianCliLocation) `
+          -LoggerLevel 'Standard' `
+          -WorkingDirectory $(Build.SourcesDirectory)
+      displayName: Break on failures
