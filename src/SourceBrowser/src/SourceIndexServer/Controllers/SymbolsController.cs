@@ -118,7 +118,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Controllers
 
         public static ulong GetMD5HashULong(string input, int digits)
         {
-            using (var md5 = MD5.Create())
+            using (var md5 = MD5.Create()) // lgtm [cs/weak-crypto] Not used for crypto
             {
                 var bytes = Encoding.UTF8.GetBytes(input);
                 var hashBytes = md5.ComputeHash(bytes);
