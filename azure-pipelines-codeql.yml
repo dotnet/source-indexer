@@ -50,24 +50,19 @@ stages:
         . $(Build.SourcesDirectory)\eng\CodeQL.ps1
         New-GdnSemmelConfig -GuardianCliLocation $(GuardianCliLocation) `
           -LoggerLevel 'Standard' `
-          -Language 'javascript' `
+          -Language 'csharp' `
           -WorkingDirectory $(Build.SourcesDirectory) `
           -SourceCodeDirectory $(Build.SourcesDirectory)\src `
-          -OutputPath $(Build.SourcesDirectory)\.gdn\r\semmle-javascript-configure.gdnconfig `
-          -AdditionalSemmleParameters @("Typescript < $true")
+          -OutputPath $(Build.SourcesDirectory)\.gdn\r\semmle-configure.gdnconfig
       displayName: 'CodeQL: Create Typescript configuration'
-
-    - task: NodeTool@0
-      displayName: Use Node 10
-      inputs:
-        versionSpec: "10.x"
 
     - pwsh: |
         . $(Build.SourcesDirectory)\eng\CodeQL.ps1
         Invoke-GdnSemmle -GuardianCliLocation $(GuardianCliLocation) `
           -LoggerLevel 'Standard' `
           -WorkingDirectory $(Build.SourcesDirectory) `
-          -ConfigurationPath $(Build.SourcesDirectory)\.gdn\r\semmle-javascript-configure.gdnconfig
+          -ConfigurationPath $(Build.SourcesDirectory)\.gdn\r\semmle-configure.gdnconfig
+          -BuildCommand 'dotnet build $(Build.SourcesDirectory)\src\source-indexer.sln # dotnet build $(Build.SourcesDirectory)\src\SourceBrowser\SourceBrowser.sln'
       displayName: 'CodeQL: Typescript'
 
     - pwsh: |
