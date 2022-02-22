@@ -53,7 +53,8 @@ stages:
           -Language 'csharp' `
           -WorkingDirectory $(Build.SourcesDirectory) `
           -SourceCodeDirectory $(Build.SourcesDirectory)\src `
-          -OutputPath $(Build.SourcesDirectory)\.gdn\r\semmle-configure.gdnconfig
+          -OutputPath $(Build.SourcesDirectory)\.gdn\r\semmle-configure.gdnconfig `
+          -BuildCommand 'dotnet build $(Build.SourcesDirectory)\src\source-indexer.sln # dotnet build $(Build.SourcesDirectory)\src\SourceBrowser\SourceBrowser.sln'
       displayName: 'CodeQL: Create configuration'
 
     - pwsh: |
@@ -61,8 +62,7 @@ stages:
         Invoke-GdnSemmle -GuardianCliLocation $(GuardianCliLocation) `
           -LoggerLevel 'Standard' `
           -WorkingDirectory $(Build.SourcesDirectory) `
-          -ConfigurationPath $(Build.SourcesDirectory)\.gdn\r\semmle-configure.gdnconfig `
-          -BuildCommand 'dotnet build $(Build.SourcesDirectory)\src\source-indexer.sln # dotnet build $(Build.SourcesDirectory)\src\SourceBrowser\SourceBrowser.sln'
+          -ConfigurationPath $(Build.SourcesDirectory)\.gdn\r\semmle-configure.gdnconfig
       displayName: 'CodeQL: C#'
 
     - pwsh: |
