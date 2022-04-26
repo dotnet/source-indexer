@@ -21,12 +21,10 @@
       </PrepareCommand>
       <Branch>main</Branch>
     </Repository>
-    <Repository Include="wpf">
+    <RepositoryV2 Include="wpf">
+      <RepoName>dotnet-wpf</RepoName>
       <Url>https://github.com/dotnet/wpf</Url>
-      <PrepareCommand>
-        $(ArcadeBuildCmd)
-      </PrepareCommand>
-    </Repository>
+    </RepositoryV2>
     <Repository Include="iot">
       <Url>https://github.com/dotnet/iot</Url>
       <PrepareCommand>
