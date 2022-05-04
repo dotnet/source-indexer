@@ -364,7 +364,7 @@ Enter a type or member name or <a href=""/#q=assembly%20"" target=""_top"" class
 
         private static string partialTypeDisambiguationFileTemplate = @"<!DOCTYPE html>
 <html><head><link rel=""stylesheet"" href=""{0}"">
-</head><body><div class=""partialTypeHeader"">Partial Type</div>
+</head><body><h2 class=""partialTypeHeader"">Partial Type</h2>
 {1}
 </body></html>";
 
