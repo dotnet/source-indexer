@@ -90,7 +90,6 @@
 
   <Target Name="DownloadRepositoryV2" Outputs="%(RepositoryV2.Identity)">
     <DownloadStage1Index
-      BlobContainerSasUrl="$(source-dot-net-stage1-blob-container-url)"
       RepoName="%(RepositoryV2.RepoName)"
       OutputDirectory="%(RepositoryV2.ExtractPath)"/>
 

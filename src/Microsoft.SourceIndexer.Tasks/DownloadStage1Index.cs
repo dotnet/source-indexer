@@ -14,7 +14,6 @@ namespace Microsoft.SourceIndexer.Tasks
 {
     public class DownloadStage1Index : Task
     {
-        [Required]
         public string BlobContainerSasUrl { get; set; }
 
         [Required]
@@ -38,6 +37,11 @@ namespace Microsoft.SourceIndexer.Tasks
 
         private void ExecuteCore()
         {
+            if (string.IsNullOrEmpty(BlobContainerSasUrl))
+            {
+                BlobContainerSasUrl = Environment.GetEnvironmentVariable("source-dot-net-stage1-blob-container-url");
+            }
+
             var containerClient = new BlobContainerClient(new Uri(BlobContainerSasUrl));
             Pageable<BlobItem> blobs = containerClient.GetBlobs(prefix: RepoName + "/");
             BlobItem newest = blobs.OrderByDescending(b => b.Name).FirstOrDefault();
