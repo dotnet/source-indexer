@@ -47,6 +47,7 @@ jobs:
     displayName: Check Allow Prerelease Sdks
 
   - task: DotNetCoreCLI@2
+    displayName: dotnet restore
     inputs:
       command: custom
       custom: restore
@@ -54,6 +55,7 @@ jobs:
         **\*.sln
 
   - task: DotNetCoreCLI@2
+    displayName: dotnet build
     inputs:
       command: 'build'
       projects: |
@@ -62,6 +64,7 @@ jobs:
       arguments: '/p:PackageOutputPath=$(Build.ArtifactStagingDirectory)/packages'
   
   - task: NuGetCommand@2
+    displayName: NuGet push
     inputs:
       command: 'push'
       packagesToPush: '$(Build.ArtifactStagingDirectory)/packages/*.nupkg'
