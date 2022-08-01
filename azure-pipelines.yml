@@ -64,8 +64,6 @@ jobs:
       arguments: '/p:PackageOutputPath=$(Build.ArtifactStagingDirectory)/packages'
   
   - task: ComponentGovernanceComponentDetection@0
-    inputs:
-      ignoreDirectories: bin/repo
 
   - task: NuGetCommand@2
     displayName: NuGet push
