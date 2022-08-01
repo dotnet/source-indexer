@@ -240,3 +240,7 @@ jobs:
   - publish: bin/repo
     artifact: repo-logs
     condition: always()
+
+  - task: ComponentGovernanceComponentDetection@0
+    inputs:
+      ignoreDirectories: bin/repo
