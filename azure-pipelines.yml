@@ -6,6 +6,10 @@ schedules:
     - main
   always: true
 
+pr:
+  branches:
+    include:
+    - main
 
 jobs:
 - job: BuildIndex
@@ -62,178 +66,180 @@ jobs:
         src\source-indexer.sln
         src\SourceBrowser\SourceBrowser.sln
       arguments: '/p:PackageOutputPath=$(Build.ArtifactStagingDirectory)/packages'
-  
-  - task: ComponentGovernanceComponentDetection@0
 
-  - task: NuGetCommand@2
-    displayName: NuGet push
-    inputs:
-      command: 'push'
-      packagesToPush: '$(Build.ArtifactStagingDirectory)/packages/*.nupkg'
-      nuGetFeedType: 'internal'
-      publishVstsFeed: '9ee6d478-d288-47f7-aacc-f6e6d082ae6d/d1622942-d16f-48e5-bc83-96f4539e7601'
+  - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
 
-  - task: VSBuild@1
-    displayName: Clone All Repositories
-    inputs:
-      solution: build.proj
-      msbuildArgs: /t:Clone /v:q /bl:$(Build.ArtifactStagingDirectory)/logs/clone.binlog
-      msbuildArchitecture: x64
-    env:
-      source-dot-net-stage1-blob-container-url: $(source-dot-net-stage1-blob-container-url)
+    - task: ComponentGovernanceComponentDetection@0
 
-  - powershell: |
-      Stop-Process -Name "dotnet"
-      $installScript = Join-Path $env:TEMP dotnet-install.ps1
-      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-      Invoke-WebRequest https://dot.net/v1/dotnet-install.ps1 -UseBasicParsing -OutFile $installScript
+    - task: NuGetCommand@2
+      displayName: NuGet push
+      inputs:
+        command: 'push'
+        packagesToPush: '$(Build.ArtifactStagingDirectory)/packages/*.nupkg'
+        nuGetFeedType: 'internal'
+        publishVstsFeed: '9ee6d478-d288-47f7-aacc-f6e6d082ae6d/d1622942-d16f-48e5-bc83-96f4539e7601'
 
-      $installDir = "$(Agent.ToolsDirectory)/dotnet"
+    - task: VSBuild@1
+      displayName: Clone All Repositories
+      inputs:
+        solution: build.proj
+        msbuildArgs: /t:Clone /v:q /bl:$(Build.ArtifactStagingDirectory)/logs/clone.binlog
+        msbuildArchitecture: x64
+      env:
+        source-dot-net-stage1-blob-container-url: $(source-dot-net-stage1-blob-container-url)
 
-      ls -Recurse -Include global.json | %{
-        Write-Host "Processing $_"
-        $v = $_ | Get-Content -Raw | ConvertFrom-Json | %{ if ($_.tools.dotnet) {$_.tools.dotnet} else {$_.sdk.version} }
-        if (-not $v)
-        {
-          Write-Host "No version found in $_"
-          return
-        }
-        $isSensibleVersion = $v.Split('.')[0] -as [int] -le 30
-        if (-not $isSensibleVersion)
-        {
-          Write-Host "Skipping bogus version $v"
-          return
-        }
+    - powershell: |
+        Stop-Process -Name "dotnet"
+        $installScript = Join-Path $env:TEMP dotnet-install.ps1
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest https://dot.net/v1/dotnet-install.ps1 -UseBasicParsing -OutFile $installScript
 
-        Write-Host "Installing .NET CLI version $v"
-        try
-        {
-          & $installScript -Version $v -InstallDir $installDir -NoPath
-        }
-        catch
-        {
+        $installDir = "$(Agent.ToolsDirectory)/dotnet"
+
+        ls -Recurse -Include global.json | %{
+          Write-Host "Processing $_"
+          $v = $_ | Get-Content -Raw | ConvertFrom-Json | %{ if ($_.tools.dotnet) {$_.tools.dotnet} else {$_.sdk.version} }
+          if (-not $v)
+          {
+            Write-Host "No version found in $_"
+            return
+          }
+          $isSensibleVersion = $v.Split('.')[0] -as [int] -le 30
+          if (-not $isSensibleVersion)
+          {
+            Write-Host "Skipping bogus version $v"
+            return
+          }
+
+          Write-Host "Installing .NET CLI version $v"
           try
           {
-            & $installScript -Version $v -InstallDir $installDir -NoPath -AzureFeed https://dotnetbuilds.azureedge.net/public
+            & $installScript -Version $v -InstallDir $installDir -NoPath
           }
           catch
           {
-            throw "Unable to install Version $v"
+            try
+            {
+              & $installScript -Version $v -InstallDir $installDir -NoPath -AzureFeed https://dotnetbuilds.azureedge.net/public
+            }
+            catch
+            {
+              throw "Unable to install Version $v"
+            }
           }
         }
-       }
-    displayName: 'Install Required Versions of .NET Core'
+      displayName: 'Install Required Versions of .NET Core'
 
-  - task: VSBuild@1
-    displayName: Build source index
-    inputs:
-      solution: build.proj
-      msbuildArgs: /t:Build /v:q /bl:$(Build.ArtifactStagingDirectory)/logs/build.binlog
-      msbuildArchitecture: x64
-    env:
-      source-dot-net-stage1-blob-container-url: $(source-dot-net-stage1-blob-container-url)
+    - task: VSBuild@1
+      displayName: Build source index
+      inputs:
+        solution: build.proj
+        msbuildArgs: /t:Build /v:q /bl:$(Build.ArtifactStagingDirectory)/logs/build.binlog
+        msbuildArchitecture: x64
+      env:
+        source-dot-net-stage1-blob-container-url: $(source-dot-net-stage1-blob-container-url)
 
-  - powershell: |
-      deployment/install-tool.ps1 -Name 'azure-cli' -Version 2.8.0 -TestPath '/wbin/az.cmd' -BinPath '/wbin/'
-    displayName: 'Install Az CLI 2.8.0'
+    - powershell: |
+        deployment/install-tool.ps1 -Name 'azure-cli' -Version 2.8.0 -TestPath '/wbin/az.cmd' -BinPath '/wbin/'
+      displayName: 'Install Az CLI 2.8.0'
 
-  - powershell: |
-      deployment/install-tool.ps1 -Name 'azcopy' -Version 10.2.1
-    displayName: 'Install AzCopy 10.2.1'
+    - powershell: |
+        deployment/install-tool.ps1 -Name 'azcopy' -Version 10.2.1
+      displayName: 'Install AzCopy 10.2.1'
 
-  - task: CopyFiles@2
-    inputs:
-      sourceFolder: bin/index/
-      contents: |
-        **
-        !index/**
-      targetFolder: bin/index-stage/
-      cleanTargetFolder: true
+    - task: CopyFiles@2
+      inputs:
+        sourceFolder: bin/index/
+        contents: |
+          **
+          !index/**
+        targetFolder: bin/index-stage/
+        cleanTargetFolder: true
 
-  - powershell: deployment/normalize-case.ps1 -Root bin/index/index/
-    displayName: Normalize Case Of Index Files
+    - powershell: deployment/normalize-case.ps1 -Root bin/index/index/
+      displayName: Normalize Case Of Index Files
 
-  - task: AzureCLI@2
-    displayName: Upload Index to Azure Storage
-    inputs:
-      azureSubscription: DncEng-VSTS
-      scriptLocation: inlineScript
-      scriptType: ps
-      inlineScript: >
-        deployment/upload-index-to-container.ps1
-        -StorageAccountName netsourceindex
-        -IndexSource bin/index/index/
-        -OutFile bin/index.url
+    - task: AzureCLI@2
+      displayName: Upload Index to Azure Storage
+      inputs:
+        azureSubscription: DncEng-VSTS
+        scriptLocation: inlineScript
+        scriptType: ps
+        inlineScript: >
+          deployment/upload-index-to-container.ps1
+          -StorageAccountName netsourceindex
+          -IndexSource bin/index/index/
+          -OutFile bin/index.url
 
-  - task: AzureRmWebAppDeployment@4
-    displayName: 'Azure App Service Deploy: netsourceindex'
-    inputs:
-      ConnectionType: AzureRM
-      azureSubscription: DncEng-VSTS
-      appType: webApp
-      WebAppName: netsourceindex
-      ResourceGroupName: source.dot.net
-      deployToSlotOrASE: true
-      SlotName: staging
-      packageForLinux: bin/index-stage/
-      enableCustomDeployment: true
-      DeploymentType: webDeploy
-      RemoveAdditionalFilesFlag: true
+    - task: AzureRmWebAppDeployment@4
+      displayName: 'Azure App Service Deploy: netsourceindex'
+      inputs:
+        ConnectionType: AzureRM
+        azureSubscription: DncEng-VSTS
+        appType: webApp
+        WebAppName: netsourceindex
+        ResourceGroupName: source.dot.net
+        deployToSlotOrASE: true
+        SlotName: staging
+        packageForLinux: bin/index-stage/
+        enableCustomDeployment: true
+        DeploymentType: webDeploy
+        RemoveAdditionalFilesFlag: true
 
-  - task: AzureCLI@2
-    displayName: Deploy Storage Proxy Url to WebApp
-    inputs:
-      azureSubscription: DncEng-VSTS
-      scriptLocation: inlineScript
-      scriptType: ps
-      inlineScript: >
-        deployment/deploy-storage-proxy.ps1
-        -ProxyUrlFile bin/index.url
-        -ResourceGroup source.dot.net
-        -WebappName netsourceindex
-        -Slot staging
+    - task: AzureCLI@2
+      displayName: Deploy Storage Proxy Url to WebApp
+      inputs:
+        azureSubscription: DncEng-VSTS
+        scriptLocation: inlineScript
+        scriptType: ps
+        inlineScript: >
+          deployment/deploy-storage-proxy.ps1
+          -ProxyUrlFile bin/index.url
+          -ResourceGroup source.dot.net
+          -WebappName netsourceindex
+          -Slot staging
 
-  - task: AzureCLI@2
-    displayName: Restart WebApp
-    inputs:
-      azureSubscription: DncEng-VSTS
-      scriptLocation: inlineScript
-      scriptType: ps
-      inlineScript: >
-        az webapp restart --name netsourceindex --slot staging --resource-group source.dot.net
+    - task: AzureCLI@2
+      displayName: Restart WebApp
+      inputs:
+        azureSubscription: DncEng-VSTS
+        scriptLocation: inlineScript
+        scriptType: ps
+        inlineScript: >
+          az webapp restart --name netsourceindex --slot staging --resource-group source.dot.net
 
-  - powershell: |
-      Start-Sleep 60
-      $statusCode = Invoke-WebRequest https://netsourceindex-staging.azurewebsites.net -UseBasicParsing | select -ExpandProperty StatusCode
-      if ($statusCode -ne 200) {
-        Write-Host "##vso[task.logissue type=error;]Deployed website returned undexpected status code $statusCode"
-      }
-    displayName: Test Deployed WebApp
+    - powershell: |
+        Start-Sleep 60
+        $statusCode = Invoke-WebRequest https://netsourceindex-staging.azurewebsites.net -UseBasicParsing | select -ExpandProperty StatusCode
+        if ($statusCode -ne 200) {
+          Write-Host "##vso[task.logissue type=error;]Deployed website returned undexpected status code $statusCode"
+        }
+      displayName: Test Deployed WebApp
 
-  - task: AzureCLI@2
-    displayName: Swap Staging Slot into Production
-    inputs:
-      azureSubscription: DncEng-VSTS
-      scriptLocation: inlineScript
-      scriptType: ps
-      inlineScript:  >
-        az webapp deployment slot swap
-        --resource-group source.dot.net
-        --name netsourceindex
-        --slot staging
-        --target-slot production
+    - task: AzureCLI@2
+      displayName: Swap Staging Slot into Production
+      inputs:
+        azureSubscription: DncEng-VSTS
+        scriptLocation: inlineScript
+        scriptType: ps
+        inlineScript:  >
+          az webapp deployment slot swap
+          --resource-group source.dot.net
+          --name netsourceindex
+          --slot staging
+          --target-slot production
 
-  - task: AzureCLI@2
-    displayName: Cleanup Old Storage Containers
-    inputs:
-      azureSubscription: DncEng-VSTS
-      scriptLocation: inlineScript
-      scriptType: ps
-      inlineScript:  >
-        deployment/cleanup-old-containers.ps1
-        -ResourceGroup source.dot.net
-        -WebappName netsourceindex
-        -StorageAccountName netsourceindex
+    - task: AzureCLI@2
+      displayName: Cleanup Old Storage Containers
+      inputs:
+        azureSubscription: DncEng-VSTS
+        scriptLocation: inlineScript
+        scriptType: ps
+        inlineScript:  >
+          deployment/cleanup-old-containers.ps1
+          -ResourceGroup source.dot.net
+          -WebappName netsourceindex
+          -StorageAccountName netsourceindex
 
   - publish: $(Build.ArtifactStagingDirectory)/logs
     artifact: logs
