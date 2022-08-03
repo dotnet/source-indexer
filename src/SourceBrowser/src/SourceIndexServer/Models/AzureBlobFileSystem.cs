@@ -38,7 +38,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
         public bool FileExists(string name)
         {
             name = name.ToLowerInvariant();
-            var blob = container.GetBlobClient(name);
+            BlobClient blob = container.GetBlobClient(name);
             
             return blob.Exists();
         }
@@ -46,21 +46,20 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
         public Stream OpenSequentialReadStream(string name)
         {
             name = name.ToLowerInvariant();
-            var blob = container.GetBlobClient(name);
-            return blob.Download().Value.Content;
+            BlobClient blob = container.GetBlobClient(name);
+            return blob.OpenRead();
         }
 
         public IEnumerable<string> ReadLines(string name)
         {
             name = name.ToLowerInvariant();
-            var blob = container.GetBlobClient(name);
-            using (var stream = blob.Download().Value.Content)
-            using (var reader = new StreamReader(stream))
+            BlobClient blob = container.GetBlobClient(name);
+            using Stream stream = blob.OpenRead();
+            using StreamReader reader = new (stream);
+
+            while (!reader.EndOfStream)
             {
-                while (!reader.EndOfStream)
-                {
-                    yield return reader.ReadLine();
-                }
+                yield return reader.ReadLine();
             }
         }
     }
