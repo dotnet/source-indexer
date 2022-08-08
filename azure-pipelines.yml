@@ -92,35 +92,41 @@ jobs:
       $installDir = "$(Agent.ToolsDirectory)/dotnet"
 
       ls -Recurse -Include global.json | %{
-        Write-Host "Processing $_"
-        $v = $_ | Get-Content -Raw | ConvertFrom-Json | %{ if ($_.tools.dotnet) {$_.tools.dotnet} else {$_.sdk.version} }
-        if (-not $v)
-        {
-          Write-Host "No version found in $_"
-          return
-        }
-        $isSensibleVersion = $v.Split('.')[0] -as [int] -le 30
-        if (-not $isSensibleVersion)
-        {
-          Write-Host "Skipping bogus version $v"
-          return
-        }
+        try {
+          Write-Host "Processing $_"
+          $v = $_ | Get-Content -Raw | ConvertFrom-Json | %{ if ($_.tools.dotnet) {$_.tools.dotnet} else {$_.sdk.version} }
+          if (-not $v)
+          {
+            Write-Host "No version found in $_"
+            return
+          }
+          $isSensibleVersion = $v.Split('.')[0] -as [int] -le 30
+          if (-not $isSensibleVersion)
+          {
+            Write-Host "Skipping bogus version $v"
+            return
+          }
 
-        Write-Host "Installing .NET CLI version $v"
-        try
-        {
-          & $installScript -Version $v -InstallDir $installDir -NoPath
-        }
-        catch
-        {
+          Write-Host "Installing .NET CLI version $v"
           try
           {
-            & $installScript -Version $v -InstallDir $installDir -NoPath -AzureFeed https://dotnetbuilds.azureedge.net/public
+            & $installScript -Version $v -InstallDir $installDir -NoPath
           }
           catch
           {
-            throw "Unable to install Version $v"
+            try
+            {
+              & $installScript -Version $v -InstallDir $installDir -NoPath -AzureFeed https://dotnetbuilds.azureedge.net/public
+            }
+            catch
+            {
+              throw "Unable to install Version $v"
+            }
           }
+        }
+        catch
+        {
+          Write-Host "Skipping bad json file."
         }
        }
     displayName: 'Install Required Versions of .NET Core'
