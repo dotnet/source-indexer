@@ -22,7 +22,7 @@ stages:
     displayName: CodeQL (Windows)
     pool:
       name: NetCore1ESPool-Internal
-      demands: ImageOverride -equals build.windows.10.amd64.vs2019
+      demands: ImageOverride -equals windows.vs2019.amd64
 
     steps:
     - task: NuGetToolInstaller@1
