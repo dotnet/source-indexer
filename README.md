@@ -8,13 +8,13 @@ This repo contains the code for building http://source.dot.net
 This repo uses https://github.com/KirillOsenkov/SourceBrowser (with a few additions here https://github.com/dotnet/SourceBrowser/tree/source-indexer) to index the dotnet sources and produce a navigatable and searchable website containing the full source code. This includes code from the runtime, winforms, wpf, aspnetcore, and msbuild, among others. For a full list see here https://github.com/dotnet/source-indexer/blob/main/src/index/repositories.props.
 
 ## Build Prerequsites
-The build requires .net core 3.1.201 and Visual Studio 2019 to build.
+The build requires .NET core 6.0 and Visual Studio 2022 to build.
 
 ## Build
 The build will only work on windows because the source indexer executable is a .net framework executable.
 1. `git clone https://github.com/dotnet/source-indexer.git`
 2. For each *.sln file `dotnet restore`
-3. Find VS 2019 msbuild.exe on your machine, typically found at `C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Current\Bin\MSBuild.exe`
+3. Find VS 2022 msbuild.exe on your machine, typically found at `C:\Program Files (x86)\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin\MSBuild.exe`
 4. `msbuild build.proj`
 
 ## Running the built index
