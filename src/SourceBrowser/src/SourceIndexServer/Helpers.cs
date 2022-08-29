@@ -96,7 +96,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
         {
             var path = context.Request.Path.ToUriComponent();
 
-            if (!path.EndsWith(".html") && !path.EndsWith(".txt"))
+            if (!path.EndsWith(".html", StringComparison.Ordinal) && !path.EndsWith(".txt", StringComparison.Ordinal))
             {
                 await next().ConfigureAwait(false);
                 return;
@@ -109,7 +109,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
                 return;
             }
 
-            var proxyRequestUrl = proxyUri + (path.StartsWith("/") ? path : "/" + path).ToLowerInvariant();
+            var proxyRequestUrl = proxyUri + (path.StartsWith("/", StringComparison.Ordinal) ? path : "/" + path).ToLowerInvariant();
 
             if (!await UrlExistsAsync(proxyRequestUrl).ConfigureAwait(false))
             {

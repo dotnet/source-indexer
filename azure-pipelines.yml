@@ -78,67 +78,24 @@ jobs:
     displayName: Clone All Repositories
     inputs:
       solution: build.proj
-      msbuildArgs: /t:Clone /v:q /bl:$(Build.ArtifactStagingDirectory)/logs/clone.binlog
+      msbuildArgs: /t:Clone /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/clone.binlog
       msbuildArchitecture: x64
     env:
       source-dot-net-stage1-blob-container-url: $(source-dot-net-stage1-blob-container-url)
 
-  - powershell: |
-      Stop-Process -Name "dotnet"
-      $installScript = Join-Path $env:TEMP dotnet-install.ps1
-      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-      Invoke-WebRequest https://dot.net/v1/dotnet-install.ps1 -UseBasicParsing -OutFile $installScript
-
-      $installDir = "$(Agent.ToolsDirectory)/dotnet"
-
-      ls -Recurse -Include global.json | %{
-        try {
-          Write-Host "Processing $_"
-          $v = $_ | Get-Content -Raw | ConvertFrom-Json | %{ if ($_.tools.dotnet) {$_.tools.dotnet} else {$_.sdk.version} }
-          if (-not $v)
-          {
-            Write-Host "No version found in $_"
-            return
-          }
-          $isSensibleVersion = $v.Split('.')[0] -as [int] -le 30
-          if (-not $isSensibleVersion)
-          {
-            Write-Host "Skipping bogus version $v"
-            return
-          }
-
-          Write-Host "Installing .NET CLI version $v"
-          try
-          {
-            & $installScript -Version $v -InstallDir $installDir -NoPath
-          }
-          catch
-          {
-            try
-            {
-              & $installScript -Version $v -InstallDir $installDir -NoPath -AzureFeed https://dotnetbuilds.azureedge.net/public
-            }
-            catch
-            {
-              throw "Unable to install Version $v"
-            }
-          }
-        }
-        catch
-        {
-          Write-Host "Skipping bad json file."
-        }
-       }
-    displayName: 'Install Required Versions of .NET Core'
+  - task: VSBuild@1
+    displayName: Prepare All Repositories
+    inputs:
+      solution: build.proj
+      msbuildArgs: /t:Prepare /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/prepare.binlog
+      msbuildArchitecture: x64
 
   - task: VSBuild@1
     displayName: Build source index
     inputs:
       solution: build.proj
-      msbuildArgs: /t:Build /v:q /bl:$(Build.ArtifactStagingDirectory)/logs/build.binlog
+      msbuildArgs: /t:BuildIndex /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/build.binlog
       msbuildArchitecture: x64
-    env:
-      source-dot-net-stage1-blob-container-url: $(source-dot-net-stage1-blob-container-url)
 
   - powershell: |
       deployment/install-tool.ps1 -Name 'azure-cli' -Version 2.8.0 -TestPath '/wbin/az.cmd' -BinPath '/wbin/'
@@ -209,11 +166,18 @@ jobs:
       inlineScript: >
         az webapp restart --name netsourceindex --slot staging --resource-group source.dot.net
 
-  - powershell: |
+  - pwsh: |
       Start-Sleep 60
-      $statusCode = Invoke-WebRequest https://netsourceindex-staging.azurewebsites.net -UseBasicParsing | select -ExpandProperty StatusCode
-      if ($statusCode -ne 200) {
-        Write-Host "##vso[task.logissue type=error;]Deployed website returned undexpected status code $statusCode"
+      $urls = @(
+        "https://netsourceindex-staging.azurewebsites.net",
+        "https://netsourceindex-staging.azurewebsites.net/System.Private.CoreLib/src/libraries/System.Private.CoreLib/src/System/String.cs.html"
+      )
+      foreach ($url in $urls) {
+        $statusCode = Invoke-WebRequest $url -UseBasicParsing -SkipHttpErrorCheck | select -ExpandProperty StatusCode
+        if ($statusCode -ne 200) {
+          Write-Host "##vso[task.logissue type=error;]Deployed website returned undexpected status code $statusCode from url $url"
+          Write-Host "##vso[task.complete result=Failed;]Deployed website returned undexpected status code $statusCode from url $url"
+        }
       }
     displayName: Test Deployed WebApp
 

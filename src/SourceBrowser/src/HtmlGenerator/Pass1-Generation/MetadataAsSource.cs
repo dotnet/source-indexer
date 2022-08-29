@@ -90,7 +90,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                         addSourceToAsync = ReflectAddSourceToAsync(metadataAsSourceService);
                     }
 
-                    var texts = new Dictionary<INamedTypeSymbol, string>();
+                    var texts = new Dictionary<INamedTypeSymbol, string>(SymbolEqualityComparer.Default);
 
                     Parallel.ForEach(
                         types,
@@ -106,11 +106,14 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
                                 if (Configuration.GenerateMetadataAsSourceBodies)
                                 {
+// inside Parallel.ForEach so synchronous block is acceptable
+#pragma warning disable VSTHRD002
                                     var document = addSourceToAsync(
                                                             tempDocument,
                                                             type,
                                                             CancellationToken.None).Result;
                                     text = document.GetTextAsync().Result.ToString();
+#pragma warning restore VSTHRD002
                                 }
 
                                 lock (texts)

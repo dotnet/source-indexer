@@ -77,7 +77,9 @@
   <Target Name="CheckoutSources" DependsOnTargets="CloneRepository" Outputs="%(Repository.Identity)">
     <Exec Command="git checkout %(Repository.OldCommit)" WorkingDirectory="%(Repository.LocalPath)" Condition="'%(Repository.OldCommit)' != ''" />
     <Exec Command="git checkout HEAD" WorkingDirectory="%(Repository.LocalPath)" Condition="'%(Repository.OldCommit)' == ''" />
+  </Target>
 
+  <Target Name="ResolveHashV1" Outputs="%(Repository.Identity)">
     <Exec Command="git rev-parse HEAD 2>&amp;1" WorkingDirectory="%(Repository.LocalPath)" ConsoleToMSBuild="true">
       <Output TaskParameter="ConsoleOutput" PropertyName="CommitHash"/>
     </Exec>
@@ -88,11 +90,15 @@
     </ItemGroup>
   </Target>
 
+  <Target Name="CloneV1" DependsOnTargets="CloneRepository;CheckoutSources;ResolveHashV1"/>
+
   <Target Name="DownloadRepositoryV2" Outputs="%(RepositoryV2.Identity)">
     <DownloadStage1Index
       RepoName="%(RepositoryV2.RepoName)"
       OutputDirectory="%(RepositoryV2.ExtractPath)"/>
+  </Target>
 
+  <Target Name="ResolveHashV2" Outputs="%(RepositoryV2.Identity)">
     <ReadLinesFromFile File="%(RepositoryV2.ExtractPath)hash">
       <Output TaskParameter="Lines" PropertyName="CommitHash"/>
     </ReadLinesFromFile>
@@ -103,10 +109,12 @@
     </ItemGroup>
   </Target>
 
-  <Target Name="Clone" DependsOnTargets="CloneRepository;CheckoutSources;DownloadRepositoryV2">
+  <Target Name="CloneV2" DependsOnTargets="DownloadRepositoryV2;ResolveHashV2"/>
+
+  <Target Name="Clone" DependsOnTargets="CloneV1;CloneV2">
   </Target>
 
-  <Target Name="PrepareV1" DependsOnTargets="Clone" Outputs="%(ClonedRepository.Identity)">
+  <Target Name="PrepareV1" DependsOnTargets="ResolveHashV1" Outputs="%(ClonedRepository.Identity)">
     <PropertyGroup>
       <PrepareCommand>$([System.String]::Copy('%(ClonedRepository.PrepareCommand)').Trim())</PrepareCommand>
     </PropertyGroup>
@@ -114,19 +122,19 @@
     <Exec Command="cmd /c &quot;$(PrepareCommand)&quot;" WorkingDirectory="%(ClonedRepository.LocalPath)" ContinueOnError="true" IgnoreStandardErrorWarningFormat="true" LogStandardErrorAsError="false" IgnoreExitCode="true"/>
   </Target>
 
-  <Target Name="PrepareV2" DependsOnTargets="Clone" Outputs="%(ClonedRepositoryV2.Identity)">
+  <Target Name="PrepareV2" DependsOnTargets="ResolveHashV2" Outputs="%(ClonedRepositoryV2.Identity)">
   </Target>
 
   <Target Name="Prepare" DependsOnTargets="PrepareV1;PrepareV2">
   </Target>
 
-  <Target Name="FindBinlogs" Outputs="%(ClonedRepository.Identity)">
+  <Target Name="FindBinlogs" DependsOnTargets="ResolveHashV1" Outputs="%(ClonedRepository.Identity)">
     <ItemGroup>
       <BinlogToIndex Include="%(ClonedRepository.LocalPath)\**\*.binlog"/>
     </ItemGroup>
   </Target>
 
-  <Target Name="FindSolutions" Outputs="%(ClonedRepositoryV2.Identity)">
+  <Target Name="FindSolutions" DependsOnTargets="ResolveHashV2" Outputs="%(ClonedRepositoryV2.Identity)">
     <ItemGroup>
       <SolutionToIndex Include="%(ClonedRepositoryV2.ExtractPath)\**\*.sln"/>
     </ItemGroup>
@@ -138,7 +146,7 @@
     </MSBuild>
   </Target>
 
-  <Target Name="Build" DependsOnTargets="BuildGenerator;Prepare;FindBinlogs;FindSolutions">
+  <Target Name="BuildIndex" DependsOnTargets="BuildGenerator;FindBinlogs;FindSolutions">
     <Error Condition="!Exists('$(HtmlGeneratorExePath)')" Text="Html generator executable not found."/>
     <RemoveDuplicates Inputs="@(BinlogToIndex)">
       <Output TaskParameter="Filtered" ItemName="_FilteredBinlog"/>
@@ -162,6 +170,8 @@
     <Exec Command="$(SourceIndexCmd)" LogStandardErrorAsError="false"/>
     <Copy SourceFiles="@(OverwriteFiles)" DestinationFiles="@(OverwriteFiles -> '$(OutDir)index/%(RecursiveDir)%(Filename)%(Extension)')"/>
   </Target>
+
+  <Target Name="Build" DependsOnTargets="Clone;Prepare;BuildIndex"/>
 
   <Target Name="Rebuild" DependsOnTargets="Clean;Build"/>
 </Project>

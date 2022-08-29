@@ -58,7 +58,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 this.getBindableParentDelegate = (Func<SyntaxToken, SyntaxNode>)
                     Delegate.CreateDelegate(typeof(Func<SyntaxToken, SyntaxNode>), SyntaxFactsService, getBindableParent);
 
-                this.DeclaredSymbols = new HashSet<ISymbol>();
+                this.DeclaredSymbols = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
 
                 Interlocked.Increment(ref projectGenerator.DocumentCount);
                 Interlocked.Add(ref projectGenerator.LinesOfCode, Text.Lines.Count);
@@ -148,7 +148,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
             // pass a value larger than 0 to generate line numbers in JavaScript (to reduce HTML size)
             var prefix = Markup.GetDocumentPrefix(title, relativePathToRoot, pregenerateLineNumbers ? 0 : lineCount);
-            writer.Write(prefix);
+            await writer.WriteAsync(prefix);
             GenerateHeader(writer.WriteLine);
 
             var ranges = (await classifier.Classify(Document, Text))?.ToArray();
@@ -158,11 +158,11 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 DocumentUrl,
                 pregenerateLineNumbers ? lineCount : 0,
                 GenerateGlyphs(ranges));
-            writer.WriteLine(table);
+            await writer.WriteLineAsync(table);
 
             GeneratePre(ranges, writer, lineCount);
             var suffix = Markup.GetDocumentSuffix();
-            writer.WriteLine(suffix);
+            await writer.WriteLineAsync(suffix);
         }
 
         private ISymbol GetSymbolForRange(Classification.Range r)

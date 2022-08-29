@@ -24,7 +24,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
         {
             dirName = dirName.ToLowerInvariant();
             dirName = dirName.Replace("\\", "/");
-            if (!dirName.EndsWith("/"))
+            if (!dirName.EndsWith("/", StringComparison.Ordinal))
             {
                 dirName += "/";
             }

@@ -160,7 +160,7 @@ namespace Microsoft.SourceBrowser.BinLogParser
 
             foreach (var trim in stringsToTrim)
             {
-                if (commandLine.StartsWith(trim))
+                if (commandLine.StartsWith(trim, StringComparison.Ordinal))
                 {
                     return commandLine.Substring(trim.Length);
                 }

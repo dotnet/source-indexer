@@ -153,7 +153,7 @@ namespace BinLogToSln
                     string projectRelativePath;
                     string outputFile;
                     string link = null;
-                    if (repoRelativePath.StartsWith("..\\") || repoRelativePath.StartsWith("../") || Path.IsPathRooted(repoRelativePath))
+                    if (repoRelativePath.StartsWith("..\\", StringComparison.Ordinal) || repoRelativePath.StartsWith("../", StringComparison.Ordinal) || Path.IsPathRooted(repoRelativePath))
                     {
                         string externalPath = Path.Join("_external", idx++.ToString(), Path.GetFileName(filePath));
                         // not in the repo dir, treat as external
@@ -163,7 +163,7 @@ namespace BinLogToSln
                     else
                     {
                         projectRelativePath = Path.GetRelativePath(invocation.ProjectDirectory, filePath);
-                        if (projectRelativePath.StartsWith(".."))
+                        if (projectRelativePath.StartsWith("..", StringComparison.Ordinal))
                         {
                             link = repoRelativePath;
                         }

@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.Build.Evaluation;
 using Microsoft.Build.Locator;
 using Microsoft.SourceBrowser.BinLogParser;
 using Microsoft.SourceBrowser.Common;
@@ -17,6 +20,19 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
     {
         private static void Main(string[] args)
         {
+            AppDomain.CurrentDomain.AssemblyLoad += (s, e) =>
+            {
+                Console.WriteLine($"Assembly Load: {e.LoadedAssembly.GetName().Name} from {e.LoadedAssembly.Location}");
+            };
+            // This loads the real MSBuild from the toolset so that all targets and SDKs can be found
+            // as if a real build is happening
+            MSBuildLocator.RegisterDefaults();
+            RealMain(args);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void RealMain(string[] args)
+        {
             var options = CommandLineOptions.Parse(args);
 
             if (options.Projects.Count == 0)
@@ -25,16 +41,22 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 return;
             }
 
+            var msbuildAssembly = typeof(Project).Assembly;
+            var version = FileVersionInfo.GetVersionInfo(msbuildAssembly.Location);
+            Console.WriteLine($"Using msbuild version {version.FileVersion} from {msbuildAssembly.Location}");
+            Console.WriteLine();
+            var msbuildDir = Path.GetDirectoryName(msbuildAssembly.Location);
+            foreach (var dll in Directory.EnumerateFiles(msbuildDir, "*.dll"))
+            {
+                Console.WriteLine($"MSBuild Assembly: {Path.GetFileName(dll)}");
+            }
+
             Paths.SolutionDestinationFolder = options.SolutionDestinationFolder;
             SolutionGenerator.LoadPlugins = options.LoadPlugins;
             SolutionGenerator.ExcludeTests = options.ExcludeTests;
 
             AssertTraceListener.Register();
             AppDomain.CurrentDomain.FirstChanceException += FirstChanceExceptionHandler.HandleFirstChanceException;
-
-            // This loads the real MSBuild from the toolset so that all targets and SDKs can be found
-            // as if a real build is happening
-            MSBuildLocator.RegisterDefaults();
 
             if (Paths.SolutionDestinationFolder == null)
             {

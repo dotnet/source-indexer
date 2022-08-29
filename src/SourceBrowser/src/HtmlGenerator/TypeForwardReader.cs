@@ -9,6 +9,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Text;
@@ -28,6 +29,13 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
+                if (ex is ReflectionTypeLoadException rtlex)
+                {
+                    foreach (var inner in rtlex.LoaderExceptions)
+                    {
+                        Console.WriteLine(inner);
+                    }
+                }
                 result = Array.Empty<Tuple<string, string, string>>();
             }
 
@@ -40,7 +48,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         {
             var workspace = SolutionGenerator.CreateWorkspace(properties.ToImmutableDictionary());
             Solution solution;
-            if (path.EndsWith(".sln"))
+            if (path.EndsWith(".sln", StringComparison.Ordinal))
             {
                 solution = workspace.OpenSolutionAsync(path).GetAwaiter().GetResult();
             }

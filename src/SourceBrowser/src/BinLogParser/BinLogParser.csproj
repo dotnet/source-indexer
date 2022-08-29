@@ -12,6 +12,8 @@
 
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Build" Version="17.2.0" NoWarn="NU1701" />
+    <PackageReference Include="Microsoft.IO.Redist" Version="6.0.0" NoWarn="NU1701" />
     <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="$(NuGetVersionRoslyn)" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="$(NuGetVersionRoslyn)" />
     <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic" Version="$(NuGetVersionRoslyn)" />

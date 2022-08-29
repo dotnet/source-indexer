@@ -13,11 +13,17 @@
   <Target Name="Clean" DependsOnTargets="BuildTasks">
     <MSBuild Projects="src/index/index.proj" Targets="Clean" Properties="SourceIndexerTasksAssembly=$(SourceIndexerTasksAssembly)"/>
   </Target>
-  <Target Name="Build" DependsOnTargets="BuildTasks">
-    <MSBuild Projects="src/index/index.proj" Targets="Build" Properties="SourceIndexerTasksAssembly=$(SourceIndexerTasksAssembly)"/>
-  </Target>
   <Target Name="Clone" DependsOnTargets="BuildTasks">
     <MSBuild Projects="src/index/index.proj" Targets="Clone" Properties="SourceIndexerTasksAssembly=$(SourceIndexerTasksAssembly)"/>
+  </Target>
+  <Target Name="Prepare" DependsOnTargets="BuildTasks">
+    <MSBuild Projects="src/index/index.proj" Targets="Prepare" Properties="SourceIndexerTasksAssembly=$(SourceIndexerTasksAssembly)"/>
+  </Target>
+  <Target Name="BuildIndex" DependsOnTargets="BuildTasks">
+    <MSBuild Projects="src/index/index.proj" Targets="BuildIndex" Properties="SourceIndexerTasksAssembly=$(SourceIndexerTasksAssembly)"/>
+  </Target>
+  <Target Name="Build" DependsOnTargets="BuildTasks">
+    <MSBuild Projects="src/index/index.proj" Targets="Build" Properties="SourceIndexerTasksAssembly=$(SourceIndexerTasksAssembly)"/>
   </Target>
   <Target Name="SelectProjects" DependsOnTargets="BuildTasks">
     <MSBuild Projects="src/index/index.proj" Targets="SelectProjects" Properties="SourceIndexerTasksAssembly=$(SourceIndexerTasksAssembly)"/>
