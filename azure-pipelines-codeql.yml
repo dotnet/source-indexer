@@ -1,13 +1,26 @@
+parameters:
+  # Optionally do not publish to TSA. Useful for e.g. verifying fixes before PR.
+- name: Codeql.TSAEnabled
+  displayName: Publish results to TSA
+  type: boolean
+  default: true
+
 variables:
-  - name: _TeamName
-    value: DotNetCore
-  - group: SDL_Settings
+  # CG is handled in the primary CI pipeline
+- name: skipComponentGovernanceDetection
+  value: true
+  # Force CodeQL enabled so it may be run on any branch
+- name: Codeql.Enabled
+  value: true
+  # Do not let CodeQL 3000 Extension gate scan frequency
+- name: Codeql.Cadence
+  value: 0
 
 trigger: none
 
 schedules:
   - cron: 0 12 * * 1
-    displayName: Weekly Monday CodeQL/Semmle run
+    displayName: Weekly Monday CodeQL run
     branches:
       include:
       - main
@@ -19,78 +32,42 @@ stages:
 
   jobs:
   - job: codeql_windows
-    displayName: CodeQL (Windows)
+    displayName: CodeQL
     pool:
       name: NetCore1ESPool-Internal
       demands: ImageOverride -equals windows.vs2019.amd64
 
     steps:
-    - task: NuGetToolInstaller@1
-      displayName: 'Install NuGet'
-    
-    - task: NuGetAuthenticate@0
-      displayName: 'Authenticate NuGet'
+    - task: UseDotNet@2
+      displayName: Install .NET Sdk
       inputs:
-        nuGetServiceConnections: GuardianConnect
+        useGlobalJson: true
 
-    - pwsh: |
-        . $(Build.SourcesDirectory)\eng\CodeQL.ps1
-        $guardianCliLocation = Install-Gdn -Path $(Build.SourcesDirectory)\.artifacts
-        Write-Host "##vso[task.setvariable variable=GuardianCliLocation]$guardianCliLocation"
-      displayName: Install Guardian
+    - task: UseDotNet@2
+      displayName: Install .NET 6.0 runtime
+      inputs:
+        packageType: runtime
+        version: 6.0.x
 
-    - pwsh: |
-        . $(Build.SourcesDirectory)\eng\CodeQL.ps1
-        Initialize-Gdn -GuardianCliLocation $(GuardianCliLocation) `
-          -WorkingDirectory $(Build.SourcesDirectory) `
-          -LoggerLevel 'Standard'
-      displayName: 'CodeQL: Initialize'
+    - task: CodeQL3000Init@0
+      displayName: CodeQL Initialize
 
-    - pwsh: |
-        . $(Build.SourcesDirectory)\eng\CodeQL.ps1
-        New-GdnSemmelConfig -GuardianCliLocation $(GuardianCliLocation) `
-          -LoggerLevel 'Standard' `
-          -Language 'csharp' `
-          -WorkingDirectory $(Build.SourcesDirectory) `
-          -SourceCodeDirectory $(Build.SourcesDirectory)\src `
-          -OutputPath $(Build.SourcesDirectory)\.gdn\r\semmle-configure.gdnconfig `
-          -BuildCommand 'dotnet build $(Build.SourcesDirectory)\src\source-indexer.sln # dotnet build $(Build.SourcesDirectory)\src\SourceBrowser\SourceBrowser.sln'
-      displayName: 'CodeQL: Create configuration'
+    - task: DotNetCoreCLI@2
+      displayName: dotnet restore
+      inputs:
+        command: custom
+        custom: restore
+        projects: |
+          **\*.sln
 
-    - pwsh: |
-        . $(Build.SourcesDirectory)\eng\CodeQL.ps1
-        Invoke-GdnSemmle -GuardianCliLocation $(GuardianCliLocation) `
-          -LoggerLevel 'Standard' `
-          -WorkingDirectory $(Build.SourcesDirectory) `
-          -ConfigurationPath $(Build.SourcesDirectory)\.gdn\r\semmle-configure.gdnconfig
-      displayName: 'CodeQL: C#'
+    - task: DotNetCoreCLI@2
+      displayName: dotnet build
+      inputs:
+        command: 'build'
+        projects: |
+          src\source-indexer.sln
+          src\SourceBrowser\SourceBrowser.sln
+        arguments: '/p:PackageOutputPath=$(Build.ArtifactStagingDirectory)/packages'
 
-    - pwsh: |
-        . $(Build.SourcesDirectory)\eng\CodeQL.ps1
-        Publish-GdnArtifacts -GuardianCliLocation $(GuardianCliLocation) `
-          -LoggerLevel 'Standard' `
-          -WorkingDirectory $(Build.SourcesDirectory)
-      displayName: Publish results artifact
-
-    - pwsh: |
-        . $(Build.SourcesDirectory)\eng\CodeQL.ps1
-        Publish-GdnTsa -GuardianCliLocation $(GuardianCliLocation) `
-          -WorkingDirectory $(Build.SourcesDirectory) `
-          -LoggerLevel 'Standard' `
-          -TsaRepositoryName "source-indexer" `
-          -TsaCodebaseName "source-indexer" `
-          -TsaCodebaseAdmin $(_TsaCodebaseAdmin) `
-          -TsaNotificationEmail $(_TsaNotificationEmail) `
-          -TsaInstanceUrl $(_TsaInstanceURL) `
-          -TsaProjectName $(_TsaProjectName) `
-          -TsaBugAreaPath $(_TsaBugAreaPath) `
-          -TsaIterationPath $(_TsaIterationPath) `
-          -TsaPublish $true
-      displayName: Publish results to TSA
-
-    - pwsh: |
-        . $(Build.SourcesDirectory)\eng\CodeQL.ps1
-        Invoke-GdnBuildBreak -GuardianCliLocation $(GuardianCliLocation) `
-          -LoggerLevel 'Standard' `
-          -WorkingDirectory $(Build.SourcesDirectory)
-      displayName: Break on failures
+    - task: CodeQL3000Finalize@0
+      displayName: CodeQL Finalize
