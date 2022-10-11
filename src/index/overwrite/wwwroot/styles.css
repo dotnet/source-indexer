@@ -589,6 +589,7 @@ a i {
     height: 50px;
     opacity: 0.85;
     overflow: auto;
+    white-space: nowrap;
 }
 
 .headerBody {
