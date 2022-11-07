@@ -12,7 +12,7 @@ jobs:
   displayName: Build Source Index
 
   pool:
-    name: NetCore1ESPool-Internal
+    name: NetCore1ESPool-Internal-XL
     demands: ImageOverride -equals 1es-windows-2022
 
   timeoutInMinutes: 360
