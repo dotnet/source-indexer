@@ -57,10 +57,6 @@
       <RepoName>dotnet-aspnetcore</RepoName>
       <Url>https://github.com/dotnet/aspnetcore</Url>
     </RepositoryV2>
-    <RepositoryV2 Include="efcore">
-      <RepoName>dotnet-efcore</RepoName>
-      <Url>https://github.com/dotnet/efcore</Url>
-    </RepositoryV2>
     <Repository Include="performance">
       <Url>https://github.com/dotnet/performance</Url>
       <PrepareCommand>
