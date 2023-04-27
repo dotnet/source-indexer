@@ -63,7 +63,7 @@ jobs:
         src\source-indexer.sln
         src\SourceBrowser\SourceBrowser.sln
       arguments: '/p:PackageOutputPath=$(Build.ArtifactStagingDirectory)/packages'
-  
+
   - task: ComponentGovernanceComponentDetection@0
 
   - task: NuGetCommand@2
@@ -141,7 +141,7 @@ jobs:
       SlotName: staging
       packageForLinux: bin/index-stage/
       enableCustomDeployment: true
-      DeploymentType: webDeploy
+      DeploymentType: zipDeploy
       RemoveAdditionalFilesFlag: true
 
   - task: AzureCLI@2
