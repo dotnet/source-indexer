@@ -38,9 +38,9 @@
 
     <!-- All Dlls provided in the msbuild install, they need to have ExcludeAssets="runtime" on them -->
     <PackageReference Include="Microsoft.Build" Version="17.2.0" ExcludeAssets="runtime" />
-    <PackageReference Include="Microsoft.Build.Framework" Version="17.2.0" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.Build.Framework" Version="17.5.0" ExcludeAssets="runtime" />
     <PackageReference Include="Microsoft.Build.Tasks.Core" Version="16.10.0" ExcludeAssets="runtime" />
-    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="16.10.0" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.5.0" ExcludeAssets="runtime" />
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="6.0.0" ExcludeAssets="runtime" />
     <PackageReference Include="Microsoft.IO.Redist" Version="6.0.0" ExcludeAssets="runtime" />
     <PackageReference Include="Microsoft.NET.StringTools" Version="1.0.0" ExcludeAssets="runtime" />
