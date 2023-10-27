@@ -43,7 +43,7 @@
     <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.5.0" ExcludeAssets="runtime" />
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="6.0.0" ExcludeAssets="runtime" />
     <PackageReference Include="Microsoft.IO.Redist" Version="6.0.0" ExcludeAssets="runtime" />
-    <PackageReference Include="Microsoft.NET.StringTools" Version="1.0.0" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.NET.StringTools" Version="17.5.0" ExcludeAssets="runtime" />
     <PackageReference Include="System.Buffers" Version="4.5.1" ExcludeAssets="runtime" />
     <PackageReference Include="System.Collections.Immutable" Version="6.0.0" ExcludeAssets="runtime" />
     <PackageReference Include="System.Memory" Version="4.5.5" ExcludeAssets="runtime" />
