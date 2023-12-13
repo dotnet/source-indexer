@@ -42,11 +42,6 @@ jobs:
       packageType: runtime
       version: 8.0.x
 
-  - script: |
-      dotnet tool restore
-      dotnet script deployment/AllowPrereleaseSdks.csx
-    displayName: Check Allow Prerelease Sdks
-
   - task: DotNetCoreCLI@2
     displayName: dotnet restore
     inputs:
