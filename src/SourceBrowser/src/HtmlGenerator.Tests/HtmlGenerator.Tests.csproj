@@ -2,15 +2,16 @@
 
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
+    <!-- FIXME -->
+    <NoWarn>$(NoWarn);VSTHRD002</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="LibGit2Sharp" Version="0.25.3" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.9.0" />
-    <PackageReference Include="MSTest.TestAdapter" Version="1.3.2" />
-    <PackageReference Include="MSTest.TestFramework" Version="1.3.2" />
-    <PackageReference Include="Shouldly" Version="4.0.3" />
-    <PackageReference Include="System.IO.FileSystem" Version="4.3.0" />
+    <PackageReference Include="LibGit2Sharp" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="MSTest.TestAdapter" />
+    <PackageReference Include="MSTest.TestFramework" />
+    <PackageReference Include="Shouldly" />
   </ItemGroup>
 
   <ItemGroup>

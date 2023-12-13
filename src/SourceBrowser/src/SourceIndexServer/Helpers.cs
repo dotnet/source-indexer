@@ -50,7 +50,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
                         default:
                             if (!context.Response.Headers.ContainsKey(key))
                             {
-                                context.Response.Headers.Add(key, values.ToArray());
+                                context.Response.Headers[key] = values.ToArray();
                             }
 
                             break;
@@ -64,7 +64,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
                     {
                         if (!context.Response.Headers.ContainsKey(key))
                         {
-                            context.Response.Headers.Add(key, values.ToArray());
+                            context.Response.Headers[key] = values.ToArray();
                         }
                     }
 
