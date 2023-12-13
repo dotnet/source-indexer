@@ -16,9 +16,6 @@
     <PackageReference Include="MSTest.TestFramework" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
-
-    <!-- Pin transitive dependency versions -->
-    <PackageReference Include="Newtonsoft.Json" />
   </ItemGroup>
 
   <ItemGroup>

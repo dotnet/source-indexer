@@ -10,9 +10,6 @@
     <PackageReference Include="MSTest.TestAdapter" />
     <PackageReference Include="MSTest.TestFramework" />
     <PackageReference Include="Selenium.WebDriver" />
-
-    <!-- Pin transitive dependency versions -->
-    <PackageReference Include="Newtonsoft.Json" />
   </ItemGroup>
 
   <ItemGroup>
