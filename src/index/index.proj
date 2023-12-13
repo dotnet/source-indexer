@@ -37,6 +37,8 @@
   <Target Name="PrepareOutput">
     <MakeDir Condition="!Exists('$(OutDir)')" Directories="$(OutDir)"/>
     <MakeDir Condition="!Exists('$(RepositoryPath)')" Directories="$(RepositoryPath)"/>
+    <Copy SourceFiles="Directory.Build.props"
+          DestinationFiles="$(RepositoryPath)\Directory.Build.props" />
   </Target>
 
   <Target Name="CloneRepository" Outputs="%(Repository.Identity)">
@@ -114,7 +116,7 @@
   <Target Name="Clone" DependsOnTargets="CloneV1;CloneV2">
   </Target>
 
-  <Target Name="PrepareV1" DependsOnTargets="ResolveHashV1" Outputs="%(ClonedRepository.Identity)">
+  <Target Name="PrepareV1" DependsOnTargets="PrepareOutput;ResolveHashV1" Outputs="%(ClonedRepository.Identity)">
     <PropertyGroup>
       <PrepareCommand>$([System.String]::Copy('%(ClonedRepository.PrepareCommand)').Trim())</PrepareCommand>
     </PropertyGroup>
