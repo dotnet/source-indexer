@@ -37,8 +37,10 @@
   <Target Name="PrepareOutput">
     <MakeDir Condition="!Exists('$(OutDir)')" Directories="$(OutDir)"/>
     <MakeDir Condition="!Exists('$(RepositoryPath)')" Directories="$(RepositoryPath)"/>
-    <Copy SourceFiles="Directory.Build.props"
+    <Copy SourceFiles="Directory.Build.props.tmpl"
           DestinationFiles="$(RepositoryPath)\Directory.Build.props" />
+    <Copy SourceFiles="Directory.Packages.props.tmpl"
+          DestinationFiles="$(RepositoryPath)\Directory.Packages.props" />
   </Target>
 
   <Target Name="CloneRepository" Outputs="%(Repository.Identity)">
