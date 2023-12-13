@@ -46,12 +46,6 @@ stages:
       inputs:
         useGlobalJson: true
 
-    - task: UseDotNet@2
-      displayName: Install .NET 8.0 runtime
-      inputs:
-        packageType: runtime
-        version: 8.0.x
-
     - task: CodeQL3000Init@0
       displayName: CodeQL Initialize
 
