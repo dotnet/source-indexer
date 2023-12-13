@@ -1,0 +1,3 @@
+<Project>
+  <Import Project="src\SourceBrowser\src\Directory.Packages.props" />
+</Project>

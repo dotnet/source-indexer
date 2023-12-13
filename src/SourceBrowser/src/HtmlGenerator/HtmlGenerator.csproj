@@ -11,12 +11,13 @@
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <NoWarn>$(NoWarn);VSTHRD200</NoWarn>
+    <!-- FIXME -->
+    <NoWarn>$(NoWarn);VSTHRD002</NoWarn>
   </PropertyGroup>
   <PropertyGroup>
     <NuGetPackageId>SourceBrowser</NuGetPackageId>
     <NuSpecFile>$(MSBuildProjectDirectory)\$(NuGetPackageId).nuspec</NuSpecFile>
     <NuGetVersion>1.0.38</NuGetVersion>
-    <NuGetVersionRoslyn>4.2.0</NuGetVersionRoslyn>
   </PropertyGroup>
   <ItemGroup>
     <NuGetInput Include="$(MSBuildThisFile)" />
@@ -34,48 +35,46 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Build.Locator" Version="1.5.3" />
+    <PackageReference Include="Microsoft.Build.Locator" />
 
-    <!-- All Dlls provided in the msbuild install, they need to have ExcludeAssets="runtime" on them -->
-    <PackageReference Include="Microsoft.Build" Version="17.2.0" ExcludeAssets="runtime" />
-    <PackageReference Include="Microsoft.Build.Framework" Version="17.5.0" ExcludeAssets="runtime" />
-    <PackageReference Include="Microsoft.Build.Tasks.Core" Version="16.10.0" ExcludeAssets="runtime" />
-    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.5.0" ExcludeAssets="runtime" />
-    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="6.0.0" ExcludeAssets="runtime" />
-    <PackageReference Include="Microsoft.IO.Redist" Version="6.0.0" ExcludeAssets="runtime" />
-    <PackageReference Include="Microsoft.NET.StringTools" Version="17.5.0" ExcludeAssets="runtime" />
-    <PackageReference Include="System.Buffers" Version="4.5.1" ExcludeAssets="runtime" />
-    <PackageReference Include="System.Collections.Immutable" Version="6.0.0" ExcludeAssets="runtime" />
-    <PackageReference Include="System.Memory" Version="4.5.5" ExcludeAssets="runtime" />
-    <PackageReference Include="System.Numerics.Vectors" Version="4.5.0" ExcludeAssets="runtime" />
-    <PackageReference Include="System.Reflection.Metadata" Version="6.0.0" ExcludeAssets="runtime" />
-    <PackageReference Include="System.Resources.Extensions" Version="6.0.0" ExcludeAssets="runtime" />
-    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" ExcludeAssets="runtime" />
-    <PackageReference Include="System.Text.Encodings.Web" Version="6.0.0" ExcludeAssets="runtime" />
-    <PackageReference Include="System.Text.Json" Version="6.0.5" ExcludeAssets="runtime" />
-    <PackageReference Include="System.Threading.Tasks.Dataflow" Version="6.0.0" ExcludeAssets="runtime" />
-    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.4" ExcludeAssets="runtime" />
-    <PackageReference Include="System.ValueTuple" Version="4.5.0" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.Build" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.Build.Framework" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.Build.Tasks.Core" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" />
+    <PackageReference Include="Microsoft.NET.StringTools" />
+    <PackageReference Include="System.Buffers" />
+    <PackageReference Include="System.Collections.Immutable" />
+    <PackageReference Include="System.Memory" />
+    <PackageReference Include="System.Numerics.Vectors" />
+    <PackageReference Include="System.Reflection.Metadata" />
+    <PackageReference Include="System.Resources.Extensions" />
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" />
+    <PackageReference Include="System.Text.Encodings.Web" />
+    <PackageReference Include="System.Text.Json" />
+    <PackageReference Include="System.Threading.Tasks.Dataflow" />
+    <PackageReference Include="System.Threading.Tasks.Extensions" />
+    <PackageReference Include="System.ValueTuple" />
 
-    <PackageReference Include="ExceptionAnalysis.Diagnostics" Version="1.0.0.39796" />
-    <PackageReference Include="Microsoft.CodeAnalysis" Version="$(NuGetVersionRoslyn)" />
-    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.3">
+    <PackageReference Include="ExceptionAnalysis.Diagnostics" />
+    <PackageReference Include="Microsoft.CodeAnalysis" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="$(NuGetVersionRoslyn)" />
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="$(NuGetVersionRoslyn)" />
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Features" Version="$(NuGetVersionRoslyn)" />
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="$(NuGetVersionRoslyn)" />
-    <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic" Version="$(NuGetVersionRoslyn)" />
-    <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic.Features" Version="$(NuGetVersionRoslyn)" />
-    <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic.Workspaces" Version="$(NuGetVersionRoslyn)" />
-    <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="$(NuGetVersionRoslyn)" />
-    <PackageReference Include="MSBuild.StructuredLogger" Version="2.1.858" />
-    <PackageReference Include="GuiLabs.Language.Xml" Version="1.2.46" />
-    <PackageReference Include="Microsoft.VisualStudio.Language.Intellisense" Version="16.10.230" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.0-beta-20204-02" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Common" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Features" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" />
+    <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic" />
+    <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic.Features" />
+    <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic.Workspaces" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" />
+    <PackageReference Include="MSBuild.StructuredLogger" />
+    <PackageReference Include="GuiLabs.Language.Xml" />
+    <PackageReference Include="Microsoft.VisualStudio.Language.Intellisense" />
+    <PackageReference Include="Newtonsoft.Json" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\BinLogParser\BinLogParser.csproj" />

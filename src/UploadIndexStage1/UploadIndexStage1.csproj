@@ -2,16 +2,17 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <PackAsTool>true</PackAsTool>
+    <RollForward>Major</RollForward>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <VersionPrefix>1.0.1</VersionPrefix>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Azure.Storage.Blobs" Version="12.13.0" />
-    <PackageReference Include="Mono.Options" Version="6.6.0.161" />
-    <PackageReference Include="SharpZipLib" Version="1.3.3" />
+    <PackageReference Include="Azure.Storage.Blobs" />
+    <PackageReference Include="Mono.Options" />
+    <PackageReference Include="SharpZipLib" />
   </ItemGroup>
 
 </Project>
