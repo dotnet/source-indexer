@@ -109,7 +109,7 @@ jobs:
   - task: AzureCLI@2
     displayName: Upload Index to Azure Storage
     inputs:
-      azureSubscription: DncEng-VSTS
+      azureSubscription: SourceDotNet-Deployment-ARM
       scriptLocation: inlineScript
       scriptType: ps
       inlineScript: >
@@ -122,7 +122,7 @@ jobs:
     displayName: 'Azure App Service Deploy: netsourceindex'
     inputs:
       ConnectionType: AzureRM
-      azureSubscription: DncEng-VSTS
+      azureSubscription: SourceDotNet-Deployment-ARM
       appType: webApp
       WebAppName: netsourceindex
       ResourceGroupName: source.dot.net
@@ -136,7 +136,7 @@ jobs:
   - task: AzureCLI@2
     displayName: Deploy Storage Proxy Url to WebApp
     inputs:
-      azureSubscription: DncEng-VSTS
+      azureSubscription: SourceDotNet-Deployment-ARM
       scriptLocation: inlineScript
       scriptType: ps
       inlineScript: >
@@ -149,7 +149,7 @@ jobs:
   - task: AzureCLI@2
     displayName: Restart WebApp
     inputs:
-      azureSubscription: DncEng-VSTS
+      azureSubscription: SourceDotNet-Deployment-ARM
       scriptLocation: inlineScript
       scriptType: ps
       inlineScript: >
@@ -173,7 +173,7 @@ jobs:
   - task: AzureCLI@2
     displayName: Swap Staging Slot into Production
     inputs:
-      azureSubscription: DncEng-VSTS
+      azureSubscription: SourceDotNet-Deployment-ARM
       scriptLocation: inlineScript
       scriptType: ps
       inlineScript:  >
@@ -186,7 +186,7 @@ jobs:
   - task: AzureCLI@2
     displayName: Cleanup Old Storage Containers
     inputs:
-      azureSubscription: DncEng-VSTS
+      azureSubscription: SourceDotNet-Deployment-ARM
       scriptLocation: inlineScript
       scriptType: ps
       inlineScript:  >
