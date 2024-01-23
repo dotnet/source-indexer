@@ -55,36 +55,45 @@ jobs:
 
   - task: ComponentGovernanceComponentDetection@0
 
-  - task: NuGetCommand@2
-    displayName: NuGet push
-    inputs:
-      command: 'push'
-      packagesToPush: '$(Build.ArtifactStagingDirectory)/packages/*.nupkg'
-      nuGetFeedType: 'internal'
-      publishVstsFeed: '9ee6d478-d288-47f7-aacc-f6e6d082ae6d/d1622942-d16f-48e5-bc83-96f4539e7601'
+  # - task: NuGetCommand@2
+  #   displayName: NuGet push
+  #   inputs:
+  #     command: 'push'
+  #     packagesToPush: '$(Build.ArtifactStagingDirectory)/packages/*.nupkg'
+  #     nuGetFeedType: 'internal'
+  #     publishVstsFeed: '9ee6d478-d288-47f7-aacc-f6e6d082ae6d/d1622942-d16f-48e5-bc83-96f4539e7601'
 
-  - task: VSBuild@1
-    displayName: Clone All Repositories
-    inputs:
-      solution: build.proj
-      msbuildArgs: /t:Clone /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/clone.binlog
-      msbuildArchitecture: x64
-    env:
-      source-dot-net-stage1-blob-container-url: $(source-dot-net-stage1-blob-container-url)
+  # - task: VSBuild@1
+  #   displayName: Clone All Repositories
+  #   inputs:
+  #     solution: build.proj
+  #     msbuildArgs: /t:Clone /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/clone.binlog
+  #     msbuildArchitecture: x64
+  #   env:
+  #     source-dot-net-stage1-blob-container-url: $(source-dot-net-stage1-blob-container-url)
 
-  - task: VSBuild@1
-    displayName: Prepare All Repositories
-    inputs:
-      solution: build.proj
-      msbuildArgs: /t:Prepare /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/prepare.binlog
-      msbuildArchitecture: x64
+  # - task: VSBuild@1
+  #   displayName: Prepare All Repositories
+  #   inputs:
+  #     solution: build.proj
+  #     msbuildArgs: /t:Prepare /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/prepare.binlog
+  #     msbuildArchitecture: x64
 
-  - task: VSBuild@1
-    displayName: Build source index
-    inputs:
-      solution: build.proj
-      msbuildArgs: /t:BuildIndex /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/build.binlog
-      msbuildArchitecture: x64
+  # - task: VSBuild@1
+  #   displayName: Build source index
+  #   inputs:
+  #     solution: build.proj
+  #     msbuildArgs: /t:BuildIndex /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/build.binlog
+  #     msbuildArchitecture: x64
+
+  - powershell: |
+      az --version
+      az extension list
+    displayName: 'TEST: Print azcli version'
+
+  - powershell: |
+      azcopy --version
+    displayName: 'TEST: Print azcli version'
 
   - powershell: |
       deployment/install-tool.ps1 -Name 'azure-cli' -Version 2.55.0 -TestPath '/wbin/az.cmd' -BinPath '/wbin/'
@@ -118,82 +127,82 @@ jobs:
         -IndexSource bin/index/index/
         -OutFile bin/index.url
 
-  - task: AzureRmWebAppDeployment@4
-    displayName: 'Azure App Service Deploy: netsourceindex'
-    inputs:
-      ConnectionType: AzureRM
-      azureSubscription: SourceDotNet-Deployment-ARM
-      appType: webApp
-      WebAppName: netsourceindex
-      ResourceGroupName: source.dot.net
-      deployToSlotOrASE: true
-      SlotName: staging
-      packageForLinux: bin/index-stage/
-      enableCustomDeployment: true
-      DeploymentType: zipDeploy
-      RemoveAdditionalFilesFlag: true
+  # - task: AzureRmWebAppDeployment@4
+  #   displayName: 'Azure App Service Deploy: netsourceindex'
+  #   inputs:
+  #     ConnectionType: AzureRM
+  #     azureSubscription: SourceDotNet-Deployment-ARM
+  #     appType: webApp
+  #     WebAppName: netsourceindex
+  #     ResourceGroupName: source.dot.net
+  #     deployToSlotOrASE: true
+  #     SlotName: staging
+  #     packageForLinux: bin/index-stage/
+  #     enableCustomDeployment: true
+  #     DeploymentType: zipDeploy
+  #     RemoveAdditionalFilesFlag: true
 
-  - task: AzureCLI@2
-    displayName: Deploy Storage Proxy Url to WebApp
-    inputs:
-      azureSubscription: SourceDotNet-Deployment-ARM
-      scriptLocation: inlineScript
-      scriptType: ps
-      inlineScript: >
-        deployment/deploy-storage-proxy.ps1
-        -ProxyUrlFile bin/index.url
-        -ResourceGroup source.dot.net
-        -WebappName netsourceindex
-        -Slot staging
+  # - task: AzureCLI@2
+  #   displayName: Deploy Storage Proxy Url to WebApp
+  #   inputs:
+  #     azureSubscription: SourceDotNet-Deployment-ARM
+  #     scriptLocation: inlineScript
+  #     scriptType: ps
+  #     inlineScript: >
+  #       deployment/deploy-storage-proxy.ps1
+  #       -ProxyUrlFile bin/index.url
+  #       -ResourceGroup source.dot.net
+  #       -WebappName netsourceindex
+  #       -Slot staging
 
-  - task: AzureCLI@2
-    displayName: Restart WebApp
-    inputs:
-      azureSubscription: SourceDotNet-Deployment-ARM
-      scriptLocation: inlineScript
-      scriptType: ps
-      inlineScript: >
-        az webapp restart --name netsourceindex --slot staging --resource-group source.dot.net
+  # - task: AzureCLI@2
+  #   displayName: Restart WebApp
+  #   inputs:
+  #     azureSubscription: SourceDotNet-Deployment-ARM
+  #     scriptLocation: inlineScript
+  #     scriptType: ps
+  #     inlineScript: >
+  #       az webapp restart --name netsourceindex --slot staging --resource-group source.dot.net
 
-  - pwsh: |
-      Start-Sleep 60
-      $urls = @(
-        "https://netsourceindex-staging.azurewebsites.net",
-        "https://netsourceindex-staging.azurewebsites.net/System.Private.CoreLib/src/libraries/System.Private.CoreLib/src/System/String.cs.html"
-      )
-      foreach ($url in $urls) {
-        $statusCode = Invoke-WebRequest $url -UseBasicParsing -SkipHttpErrorCheck | select -ExpandProperty StatusCode
-        if ($statusCode -ne 200) {
-          Write-Host "##vso[task.logissue type=error;]Deployed website returned undexpected status code $statusCode from url $url"
-          Write-Host "##vso[task.complete result=Failed;]Deployed website returned undexpected status code $statusCode from url $url"
-        }
-      }
-    displayName: Test Deployed WebApp
+  # - pwsh: |
+  #     Start-Sleep 60
+  #     $urls = @(
+  #       "https://netsourceindex-staging.azurewebsites.net",
+  #       "https://netsourceindex-staging.azurewebsites.net/System.Private.CoreLib/src/libraries/System.Private.CoreLib/src/System/String.cs.html"
+  #     )
+  #     foreach ($url in $urls) {
+  #       $statusCode = Invoke-WebRequest $url -UseBasicParsing -SkipHttpErrorCheck | select -ExpandProperty StatusCode
+  #       if ($statusCode -ne 200) {
+  #         Write-Host "##vso[task.logissue type=error;]Deployed website returned undexpected status code $statusCode from url $url"
+  #         Write-Host "##vso[task.complete result=Failed;]Deployed website returned undexpected status code $statusCode from url $url"
+  #       }
+  #     }
+  #   displayName: Test Deployed WebApp
 
-  - task: AzureCLI@2
-    displayName: Swap Staging Slot into Production
-    inputs:
-      azureSubscription: SourceDotNet-Deployment-ARM
-      scriptLocation: inlineScript
-      scriptType: ps
-      inlineScript:  >
-        az webapp deployment slot swap
-        --resource-group source.dot.net
-        --name netsourceindex
-        --slot staging
-        --target-slot production
+  # - task: AzureCLI@2
+  #   displayName: Swap Staging Slot into Production
+  #   inputs:
+  #     azureSubscription: SourceDotNet-Deployment-ARM
+  #     scriptLocation: inlineScript
+  #     scriptType: ps
+  #     inlineScript:  >
+  #       az webapp deployment slot swap
+  #       --resource-group source.dot.net
+  #       --name netsourceindex
+  #       --slot staging
+  #       --target-slot production
 
-  - task: AzureCLI@2
-    displayName: Cleanup Old Storage Containers
-    inputs:
-      azureSubscription: SourceDotNet-Deployment-ARM
-      scriptLocation: inlineScript
-      scriptType: ps
-      inlineScript:  >
-        deployment/cleanup-old-containers.ps1
-        -ResourceGroup source.dot.net
-        -WebappName netsourceindex
-        -StorageAccountName netsourceindex
+  # - task: AzureCLI@2
+  #   displayName: Cleanup Old Storage Containers
+  #   inputs:
+  #     azureSubscription: SourceDotNet-Deployment-ARM
+  #     scriptLocation: inlineScript
+  #     scriptType: ps
+  #     inlineScript:  >
+  #       deployment/cleanup-old-containers.ps1
+  #       -ResourceGroup source.dot.net
+  #       -WebappName netsourceindex
+  #       -StorageAccountName netsourceindex
 
   - publish: $(Build.ArtifactStagingDirectory)/logs
     artifact: logs
