@@ -87,12 +87,12 @@ jobs:
       msbuildArchitecture: x64
 
   - powershell: |
-      deployment/install-tool.ps1 -Name 'azure-cli' -Version 2.8.0 -TestPath '/wbin/az.cmd' -BinPath '/wbin/'
-    displayName: 'Install Az CLI 2.8.0'
+      deployment/install-tool.ps1 -Name 'azure-cli' -Version 2.55.0 -TestPath '/wbin/az.cmd' -BinPath '/wbin/'
+    displayName: 'Install Az CLI 2.55.0'
 
   - powershell: |
-      deployment/install-tool.ps1 -Name 'azcopy' -Version 10.2.1
-    displayName: 'Install AzCopy 10.2.1'
+      deployment/install-tool.ps1 -Name 'azcopy' -Version 10.22.1
+    displayName: 'Install AzCopy 10.22.1'
 
   - task: CopyFiles@2
     inputs:
