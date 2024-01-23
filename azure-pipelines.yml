@@ -89,19 +89,8 @@ jobs:
   - powershell: |
       az --version
       az extension list
-    displayName: 'TEST: Print azcli version'
-
-  - powershell: |
       azcopy --version
-    displayName: 'TEST: Print azcli version'
-
-  - powershell: |
-      deployment/install-tool.ps1 -Name 'azure-cli' -Version 2.55.0 -TestPath '/wbin/az.cmd' -BinPath '/wbin/'
-    displayName: 'Install Az CLI 2.55.0'
-
-  - powershell: |
-      deployment/install-tool.ps1 -Name 'azcopy' -Version 10.22.1
-    displayName: 'Install AzCopy 10.22.1'
+    displayName: 'Print az tool versions'
 
   - task: CopyFiles@2
     inputs:
