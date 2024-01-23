@@ -55,36 +55,36 @@ jobs:
 
   - task: ComponentGovernanceComponentDetection@0
 
-  # - task: NuGetCommand@2
-  #   displayName: NuGet push
-  #   inputs:
-  #     command: 'push'
-  #     packagesToPush: '$(Build.ArtifactStagingDirectory)/packages/*.nupkg'
-  #     nuGetFeedType: 'internal'
-  #     publishVstsFeed: '9ee6d478-d288-47f7-aacc-f6e6d082ae6d/d1622942-d16f-48e5-bc83-96f4539e7601'
+  - task: NuGetCommand@2
+    displayName: NuGet push
+    inputs:
+      command: 'push'
+      packagesToPush: '$(Build.ArtifactStagingDirectory)/packages/*.nupkg'
+      nuGetFeedType: 'internal'
+      publishVstsFeed: '9ee6d478-d288-47f7-aacc-f6e6d082ae6d/d1622942-d16f-48e5-bc83-96f4539e7601'
 
-  # - task: VSBuild@1
-  #   displayName: Clone All Repositories
-  #   inputs:
-  #     solution: build.proj
-  #     msbuildArgs: /t:Clone /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/clone.binlog
-  #     msbuildArchitecture: x64
-  #   env:
-  #     source-dot-net-stage1-blob-container-url: $(source-dot-net-stage1-blob-container-url)
+  - task: VSBuild@1
+    displayName: Clone All Repositories
+    inputs:
+      solution: build.proj
+      msbuildArgs: /t:Clone /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/clone.binlog
+      msbuildArchitecture: x64
+    env:
+      source-dot-net-stage1-blob-container-url: $(source-dot-net-stage1-blob-container-url)
 
-  # - task: VSBuild@1
-  #   displayName: Prepare All Repositories
-  #   inputs:
-  #     solution: build.proj
-  #     msbuildArgs: /t:Prepare /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/prepare.binlog
-  #     msbuildArchitecture: x64
+  - task: VSBuild@1
+    displayName: Prepare All Repositories
+    inputs:
+      solution: build.proj
+      msbuildArgs: /t:Prepare /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/prepare.binlog
+      msbuildArchitecture: x64
 
-  # - task: VSBuild@1
-  #   displayName: Build source index
-  #   inputs:
-  #     solution: build.proj
-  #     msbuildArgs: /t:BuildIndex /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/build.binlog
-  #     msbuildArchitecture: x64
+  - task: VSBuild@1
+    displayName: Build source index
+    inputs:
+      solution: build.proj
+      msbuildArgs: /t:BuildIndex /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/build.binlog
+      msbuildArchitecture: x64
 
   - powershell: |
       az --version
