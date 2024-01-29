@@ -42,7 +42,7 @@
 
     <!-- other dependencies -->
     <PackageVersion Include="LibGit2Sharp" Version="0.29.0" />
-    <PackageVersion Include="MSBuild.StructuredLogger" Version="2.1.858" />
+    <PackageVersion Include="MSBuild.StructuredLogger" Version="2.2.169" />
     <PackageVersion Include="ManagedEsent" Version="1.9.4" />
     <PackageVersion Include="System.Reactive" Version="5.0.0" />
     <PackageVersion Include="System.Composition" Version="6.0.0" />
