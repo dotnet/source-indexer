@@ -123,7 +123,7 @@ extends:
             azureSubscription: SourceDotNet-Deployment-ARM
             scriptLocation: inlineScript
             scriptType: ps
-            inlineScript: |
+            inlineScript: >
               deployment/upload-index-to-container.ps1
               -StorageAccountName netsourceindex
               -IndexSource bin/index/index/
@@ -150,7 +150,7 @@ extends:
             azureSubscription: SourceDotNet-Deployment-ARM
             scriptLocation: inlineScript
             scriptType: ps
-            inlineScript: |
+            inlineScript: >
               deployment/deploy-storage-proxy.ps1
               -ProxyUrlFile bin/index.url
               -ResourceGroup source.dot.net
@@ -187,7 +187,7 @@ extends:
             azureSubscription: SourceDotNet-Deployment-ARM
             scriptLocation: inlineScript
             scriptType: ps
-            inlineScript: |
+            inlineScript: >
               az webapp deployment slot swap
               --resource-group source.dot.net
               --name netsourceindex
@@ -200,7 +200,7 @@ extends:
             azureSubscription: SourceDotNet-Deployment-ARM
             scriptLocation: inlineScript
             scriptType: ps
-            inlineScript: |
+            inlineScript: >
               deployment/cleanup-old-containers.ps1
               -ResourceGroup source.dot.net
               -WebappName netsourceindex
