@@ -1,0 +1,169 @@
+{
+  "properties": {
+    "helpUri": "https://eng.ms/docs/microsoft-security/security/azure-security/cloudai-security-fundamentals-engineering/security-integration/guardian-wiki/microsoft-guardian/general/baselines"
+  },
+  "version": "1.0.0",
+  "baselines": {
+    "default": {
+      "name": "default",
+      "createdDate": "2024-03-27 17:15:40Z",
+      "lastUpdatedDate": "2024-03-27 17:15:40Z"
+    }
+  },
+  "results": {
+    "7d2e6f583842f647a3bbf043f5a7e5a5b10303076041a72a2dacb81230e248e3": {
+      "signature": "7d2e6f583842f647a3bbf043f5a7e5a5b10303076041a72a2dacb81230e248e3",
+      "alternativeSignatures": [],
+      "target": "bin/repo/msbuild/src/Tasks.UnitTests/TestResources/mycert.pfx",
+      "line": 1,
+      "memberOf": [
+        "default"
+      ],
+      "tool": "credscan",
+      "ruleId": "CSCAN-GENERAL0020",
+      "createdDate": "2024-03-27 17:15:40Z",
+      "expirationDate": "2024-09-13 17:17:44Z",
+      "justification": "This error is baselined with an expiration date of 180 days from 2024-03-27 17:17:44Z"
+    },
+    "dcd8cc11554325b4085b39e4de63f7251ef8ff9e371b7a59e9825d852855f103": {
+      "signature": "dcd8cc11554325b4085b39e4de63f7251ef8ff9e371b7a59e9825d852855f103",
+      "alternativeSignatures": [],
+      "target": "bin/repo/performance/src/benchmarks/micro/libraries/System.Net.Http/ec256.pfx",
+      "line": 1,
+      "memberOf": [
+        "default"
+      ],
+      "tool": "credscan",
+      "ruleId": "CSCAN-GENERAL0020",
+      "createdDate": "2024-03-27 17:15:40Z",
+      "expirationDate": "2024-09-13 17:17:44Z",
+      "justification": "This error is baselined with an expiration date of 180 days from 2024-03-27 17:17:44Z"
+    },
+    "970d8f96820f64fc36d36e677f367d018c6bf77189fd1f0dec49c92639aa1e41": {
+      "signature": "970d8f96820f64fc36d36e677f367d018c6bf77189fd1f0dec49c92639aa1e41",
+      "alternativeSignatures": [],
+      "target": "bin/repo/performance/src/benchmarks/micro/libraries/System.Net.Http/ec512.pfx",
+      "line": 1,
+      "memberOf": [
+        "default"
+      ],
+      "tool": "credscan",
+      "ruleId": "CSCAN-GENERAL0020",
+      "createdDate": "2024-03-27 17:15:40Z",
+      "expirationDate": "2024-09-13 17:17:44Z",
+      "justification": "This error is baselined with an expiration date of 180 days from 2024-03-27 17:17:44Z"
+    },
+    "4368063594d9a1521d132007c122d630c7f47277d75e68fdae38eb21a1888e67": {
+      "signature": "4368063594d9a1521d132007c122d630c7f47277d75e68fdae38eb21a1888e67",
+      "alternativeSignatures": [],
+      "target": "bin/repo/performance/src/benchmarks/micro/libraries/System.Net.Http/rsa2048.pfx",
+      "line": 1,
+      "memberOf": [
+        "default"
+      ],
+      "tool": "credscan",
+      "ruleId": "CSCAN-GENERAL0020",
+      "createdDate": "2024-03-27 17:15:40Z",
+      "expirationDate": "2024-09-13 17:17:44Z",
+      "justification": "This error is baselined with an expiration date of 180 days from 2024-03-27 17:17:44Z"
+    },
+    "e845812e71d9eae31d5effeaa4ecd35c80e254898c263e0bdee4ceac5eaed07b": {
+      "signature": "e845812e71d9eae31d5effeaa4ecd35c80e254898c263e0bdee4ceac5eaed07b",
+      "alternativeSignatures": [],
+      "target": "bin/repo/performance/src/benchmarks/micro/libraries/System.Net.Http/rsa4096.pfx",
+      "line": 1,
+      "memberOf": [
+        "default"
+      ],
+      "tool": "credscan",
+      "ruleId": "CSCAN-GENERAL0020",
+      "createdDate": "2024-03-27 17:15:40Z",
+      "expirationDate": "2024-09-13 17:17:44Z",
+      "justification": "This error is baselined with an expiration date of 180 days from 2024-03-27 17:17:44Z"
+    },
+    "d204c298144f2729c062c5709d7e2289615c289154d6832173f19d34ad54f0c2": {
+      "signature": "d204c298144f2729c062c5709d7e2289615c289154d6832173f19d34ad54f0c2",
+      "alternativeSignatures": [],
+      "target": "bin/repo/performance/src/benchmarks/micro/libraries/System.Net.Http/testclienteku.contoso.com.pfx",
+      "line": 1,
+      "memberOf": [
+        "default"
+      ],
+      "tool": "credscan",
+      "ruleId": "CSCAN-GENERAL0020",
+      "createdDate": "2024-03-27 17:15:40Z",
+      "expirationDate": "2024-09-13 17:17:44Z",
+      "justification": "This error is baselined with an expiration date of 180 days from 2024-03-27 17:17:44Z"
+    },
+    "23e75938d0fa3fb3bd9e84230cdc89f09bb97bb959f1698664377ef8bb4dda40": {
+      "signature": "23e75938d0fa3fb3bd9e84230cdc89f09bb97bb959f1698664377ef8bb4dda40",
+      "alternativeSignatures": [],
+      "target": "bin/repo/performance/src/benchmarks/micro/libraries/System.Net.Http/testservereku.contoso.com.pfx",
+      "line": 1,
+      "memberOf": [
+        "default"
+      ],
+      "tool": "credscan",
+      "ruleId": "CSCAN-GENERAL0020",
+      "createdDate": "2024-03-27 17:15:40Z",
+      "expirationDate": "2024-09-13 17:17:44Z",
+      "justification": "This error is baselined with an expiration date of 180 days from 2024-03-27 17:17:44Z"
+    },
+    "d5f67f05bc5efa54dd43ac4ed1642c91deb173da61bdf86ae8e0c8398a0ca82d": {
+      "signature": "d5f67f05bc5efa54dd43ac4ed1642c91deb173da61bdf86ae8e0c8398a0ca82d",
+      "alternativeSignatures": [],
+      "target": "bin/repo/msbuild/artifacts/bin/Microsoft.Build.Tasks.UnitTests/Debug/net472/TestResources/mycert.pfx",
+      "line": 1,
+      "memberOf": [
+        "default"
+      ],
+      "tool": "credscan",
+      "ruleId": "CSCAN-GENERAL0020",
+      "createdDate": "2024-03-27 17:15:40Z",
+      "expirationDate": "2024-09-13 17:17:44Z",
+      "justification": "This error is baselined with an expiration date of 180 days from 2024-03-27 17:17:44Z"
+    },
+    "c73db38abd057f2b14553e1470bcfd8587828af21840d59d7b4d96f3bf05f05a": {
+      "signature": "c73db38abd057f2b14553e1470bcfd8587828af21840d59d7b4d96f3bf05f05a",
+      "alternativeSignatures": [],
+      "target": "bin/repo/msbuild/artifacts/bin/Microsoft.Build.Tasks.UnitTests/Debug/net8.0/TestResources/mycert.pfx",
+      "line": 1,
+      "memberOf": [
+        "default"
+      ],
+      "tool": "credscan",
+      "ruleId": "CSCAN-GENERAL0020",
+      "createdDate": "2024-03-27 17:15:40Z",
+      "expirationDate": "2024-09-13 17:17:44Z",
+      "justification": "This error is baselined with an expiration date of 180 days from 2024-03-27 17:17:44Z"
+    },
+    "11077518705090b014a366758ede18049fadc9d71bea18d4b156784a255fcc22": {
+      "signature": "11077518705090b014a366758ede18049fadc9d71bea18d4b156784a255fcc22",
+      "alternativeSignatures": [],
+      "target": "bin/repo/aspnetcore/src/src/Security/Authentication/Negotiate/samples/NegotiateAuthSample/Startup.cs",
+      "line": 30,
+      "memberOf": [
+        "default"
+      ],
+      "tool": "credscan",
+      "ruleId": "CSCAN-MSFT0090",
+      "createdDate": "2024-03-27 17:15:40Z",
+      "expirationDate": "2024-09-13 17:17:44Z",
+      "justification": "This error is baselined with an expiration date of 180 days from 2024-03-27 17:17:44Z"
+    },
+    "4bf41e47ba4c98a0f101e547b1ae8c1d2266cbf13382dba2cde685e7b9264e11": {
+      "signature": "4bf41e47ba4c98a0f101e547b1ae8c1d2266cbf13382dba2cde685e7b9264e11",
+      "alternativeSignatures": [],
+      "target": "bin/repo/aspnetcore/src/src/Security/Authentication/Negotiate/test/Negotiate.Test/LdapSettingsValidationTests.cs",
+      "line": 25,
+      "memberOf": [
+        "default"
+      ],
+      "tool": "credscan",
+      "ruleId": "CSCAN-MSFT0090",
+      "createdDate": "2024-03-27 17:15:40Z",
+      "expirationDate": "2024-09-13 17:17:44Z",
+      "justification": "This error is baselined with an expiration date of 180 days from 2024-03-27 17:17:44Z"
+    }
+  }
+}
