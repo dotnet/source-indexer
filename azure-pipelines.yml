@@ -44,10 +44,6 @@ extends:
             condition: always()
             targetPath: $(Build.ArtifactStagingDirectory)/logs
             artifactName: logs
-          - output: pipelineArtifact
-            condition: always()
-            targetPath: bin/repo
-            artifactName: repo-logs
 
         steps:
         - checkout: self
