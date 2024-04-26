@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Azure.Identity;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using ICSharpCode.SharpZipLib.GZip;
@@ -19,12 +20,16 @@ namespace UploadIndexStage1
         {
             string sourceFolder = null;
             string repoName = null;
-            string blobContainerSasUrl = null;
+            string clientId = null;
+            string storageAccount = null;
+            string blobContainer = null;
             var options = new OptionSet
             {
                 {"i=", "The source folder", i => sourceFolder = i},
                 {"n=", "The repo name", n => repoName = n},
-                {"o=", "The destination blob container url, can also be in the BLOB_CONTAINER_URL environment variable", o => blobContainerSasUrl = o},
+                {"c=", "The Azure Client ID (optional)", c => clientId = c},
+                {"s=", "The destination storage account name or URL", s => storageAccount = s},
+                {"b=", "The destination storage account container", b => blobContainer = b},
             };
 
             List<string> extra = options.Parse(args);
@@ -44,17 +49,39 @@ namespace UploadIndexStage1
                 Fatal("Missing argument -n");
             }
 
-            if (string.IsNullOrEmpty(blobContainerSasUrl))
+            if (string.IsNullOrEmpty(storageAccount))
             {
-                blobContainerSasUrl = Environment.GetEnvironmentVariable("BLOB_CONTAINER_URL");
+                Fatal("Missing argument -s");
             }
 
-            if (string.IsNullOrEmpty(blobContainerSasUrl))
+            if (string.IsNullOrEmpty(blobContainer))
             {
-                Fatal("Missing argument -o");
+                Fatal("Missing argument -b");
             }
 
-            var containerClient = new BlobContainerClient(new Uri(blobContainerSasUrl));
+            if (!storageAccount.StartsWith("https://"))
+            {
+                storageAccount = "https://" + storageAccount + ".blob.core.windows.net";
+            }
+
+            DefaultAzureCredential credential;
+
+            if (string.IsNullOrEmpty(clientId))
+            {
+                credential = new DefaultAzureCredential();
+                System.Console.WriteLine("Trying to use managed identity without default identity");
+            }
+            else
+            {
+                credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions { ManagedIdentityClientId = clientId });
+                System.Console.WriteLine("Trying to use managed identity with client id: " + clientId);
+            }
+
+            BlobServiceClient blobServiceClient = new(
+                new Uri(storageAccount),
+                credential);
+
+            var containerClient = blobServiceClient.GetBlobContainerClient(blobContainer);
             string newBlobName = $"{repoName}/{DateTime.UtcNow:O}.tar.gz";
             BlobClient newBlobClient = containerClient.GetBlobClient(newBlobName);
 

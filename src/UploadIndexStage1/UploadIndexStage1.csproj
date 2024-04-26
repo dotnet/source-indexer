@@ -6,10 +6,11 @@
     <PackAsTool>true</PackAsTool>
     <RollForward>Major</RollForward>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <VersionPrefix>1.0.1</VersionPrefix>
+    <VersionPrefix>2.0.0</VersionPrefix>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Azure.Identity" />
     <PackageReference Include="Azure.Storage.Blobs" />
     <PackageReference Include="Mono.Options" />
     <PackageReference Include="SharpZipLib" />
