@@ -99,7 +99,9 @@
   <Target Name="DownloadRepositoryV2" Outputs="%(RepositoryV2.Identity)">
     <DownloadStage1Index
       RepoName="%(RepositoryV2.RepoName)"
-      OutputDirectory="%(RepositoryV2.ExtractPath)"/>
+      OutputDirectory="%(RepositoryV2.ExtractPath)"
+      StorageAccount="https://netsourceindexstage1.blob.core.windows.net/"
+      BlobContainer="stage1"/>
   </Target>
 
   <Target Name="ResolveHashV2" Outputs="%(RepositoryV2.Identity)">

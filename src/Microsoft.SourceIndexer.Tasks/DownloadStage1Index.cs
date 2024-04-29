@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Azure;
+using Azure.Identity;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using ICSharpCode.SharpZipLib.GZip;
@@ -14,7 +15,13 @@ namespace Microsoft.SourceIndexer.Tasks
 {
     public class DownloadStage1Index : Task
     {
-        public string BlobContainerSasUrl { get; set; }
+        public string ClientId { get; set; }
+
+        [Required]
+        public string StorageAccount { get; set; }
+
+        [Required]
+        public string BlobContainer { get; set; }
 
         [Required]
         public string RepoName { get; set; }
@@ -37,12 +44,29 @@ namespace Microsoft.SourceIndexer.Tasks
 
         private void ExecuteCore()
         {
-            if (string.IsNullOrEmpty(BlobContainerSasUrl))
+            if (!StorageAccount.StartsWith("https://"))
             {
-                BlobContainerSasUrl = Environment.GetEnvironmentVariable("source-dot-net-stage1-blob-container-url");
+                StorageAccount = "https://" + StorageAccount + ".blob.core.windows.net";
             }
 
-            var containerClient = new BlobContainerClient(new Uri(BlobContainerSasUrl));
+            DefaultAzureCredential credential;
+
+            if (string.IsNullOrEmpty(ClientId))
+            {
+                credential = new DefaultAzureCredential();
+                Log.LogMessage($"Trying to use managed identity without default identity");
+            }
+            else
+            {
+                credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions { ManagedIdentityClientId = ClientId });
+                Log.LogMessage($"Trying to use managed identity with client id: {ClientId}");
+            }
+
+            BlobServiceClient blobServiceClient = new(
+                new Uri(StorageAccount),
+                credential);
+
+            var containerClient = blobServiceClient.GetBlobContainerClient(BlobContainer);
             Pageable<BlobItem> blobs = containerClient.GetBlobs(prefix: RepoName + "/");
             BlobItem newest = blobs.OrderByDescending(b => b.Name).FirstOrDefault();
             if (newest == null)
