@@ -56,9 +56,15 @@ namespace Microsoft.SourceIndexer.Tasks
 
             DefaultAzureCredential credential;
 
+            if (string.IsNullOrEmpty(ClientId) && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ARM_CLIENT_ID")))
+            {
+                ClientId = Environment.GetEnvironmentVariable("ARM_CLIENT_ID");
+                Log.LogMessage("Found client ID in environment variable; using it");
+            }
+
             if (string.IsNullOrEmpty(ClientId))
             {
-                credential = new DefaultAzureCredential();
+                credential = new DefaultAzureCredential(options);
                 Log.LogMessage($"Trying to use managed identity without default identity");
             }
             else
