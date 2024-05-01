@@ -83,7 +83,7 @@ extends:
           inputs:
             command: 'build'
             projects: 'build.proj'
-            arguments: '/t:Clone /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/clone.binlog'
+            arguments: '/t:Clone /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/clone.binlog /p:Stage1StorageAccount=netsourceindexstage1 /p:Stage1StorageContainer=stage1'
 
         - task: DotNetCoreCLI@2
           displayName: Prepare All Repositories
