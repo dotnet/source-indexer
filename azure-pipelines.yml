@@ -78,26 +78,26 @@ extends:
               src\SourceBrowser\SourceBrowser.sln
             arguments: '/p:PackageOutputPath=$(Build.ArtifactStagingDirectory)/packages'
 
-        - task: VSBuild@1
+        - task: DotNetCoreCLI@2
           displayName: Clone All Repositories
           inputs:
-            solution: build.proj
-            msbuildArgs: /t:Clone /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/clone.binlog
-            msbuildArchitecture: x64
+            command: 'build'
+            projects: 'build.proj'
+            arguments: '/t:Clone /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/clone.binlog'
 
-        - task: VSBuild@1
+        - task: DotNetCoreCLI@2
           displayName: Prepare All Repositories
           inputs:
-            solution: build.proj
-            msbuildArgs: /t:Prepare /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/prepare.binlog
-            msbuildArchitecture: x64
+            command: 'build'
+            projects: 'build.proj'
+            arguments: '/t:Prepare /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/prepare.binlog'
 
-        - task: VSBuild@1
+        - task: DotNetCoreCLI@2
           displayName: Build source index
           inputs:
-            solution: build.proj
-            msbuildArgs: /t:BuildIndex /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/build.binlog
-            msbuildArchitecture: x64
+            command: 'build'
+            projects: 'build.proj'
+            arguments: '/t:BuildIndex /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/build.binlog'
 
         - task: CopyFiles@2
           inputs:
