@@ -15,11 +15,16 @@ namespace Microsoft.SourceIndexer.Tasks
 {
     public class DownloadStage1Index : Task
     {
+        // If specified, auth will attempt to use a specific client ID. If not, auth will use any available
+        // credential it finds on your computer, in the order specified by
+        // https://learn.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential
         public string ClientId { get; set; }
 
+        // This can be either just an account name, or a full https://XXX.blob.core.windows.net domain
         [Required]
         public string StorageAccount { get; set; }
 
+        // This should be a container name like "stage1"
         [Required]
         public string BlobContainer { get; set; }
 
