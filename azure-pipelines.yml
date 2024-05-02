@@ -78,14 +78,31 @@ extends:
               src\SourceBrowser\SourceBrowser.sln
             arguments: '/p:PackageOutputPath=$(Build.ArtifactStagingDirectory)/packages'
 
+        - task: AzureCLI@2
+          displayName: Get stage 1 auth token
+          inputs:
+            azureSubscription: 'SourceDotNet Stage1 Publish'
+            addSpnToEnvironment: true
+            scriptType: 'ps'
+            scriptLocation: 'inlineScript'
+            inlineScript: |
+              echo "##vso[task.setvariable variable=ARM_CLIENT_ID]$env:servicePrincipalId" 
+              echo "##vso[task.setvariable variable=ARM_ID_TOKEN]$env:idToken"
+              echo "##vso[task.setvariable variable=ARM_TENANT_ID]$env:tenantId"
+
+        - script: |
+            echo "Client ID: $(ARM_CLIENT_ID)"
+            echo "ID Token: $(ARM_ID_TOKEN)"
+            echo "Tenant ID: $(ARM_TENANT_ID)"
+            az login --service-principal -u $(ARM_CLIENT_ID) --tenant $(ARM_TENANT_ID) --allow-no-subscriptions --federated-token $(ARM_ID_TOKEN)
+          displayName: "Login to Azure"
+
         - task: DotNetCoreCLI@2
           displayName: Clone All Repositories
           inputs:
             command: 'build'
             projects: 'build.proj'
-            arguments: '/t:Clone /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/clone.binlog'
-          env:
-            source-dot-net-stage1-blob-container-url: $(source-dot-net-stage1-blob-container-url)
+            arguments: '/t:Clone /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/clone.binlog /p:Stage1StorageAccount=netsourceindexstage1 /p:Stage1StorageContainer=stage1'
 
         - task: DotNetCoreCLI@2
           displayName: Prepare All Repositories
