@@ -66,10 +66,10 @@ namespace UploadIndexStage1
 
             DefaultAzureCredential credential;
 
-            if (string.IsNullOrEmpty(ClientId) && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ARM_CLIENT_ID")))
+            if (string.IsNullOrEmpty(clientId) && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ARM_CLIENT_ID")))
             {
-                ClientId = Environment.GetEnvironmentVariable("ARM_CLIENT_ID");
-                Log.LogMessage("Found client ID in environment variable; using it");
+                clientId = Environment.GetEnvironmentVariable("ARM_CLIENT_ID");
+                System.Console.WriteLine("Found client ID in environment variable; using it");
             }
 
             if (string.IsNullOrEmpty(clientId))
