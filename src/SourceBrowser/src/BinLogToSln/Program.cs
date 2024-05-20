@@ -83,7 +83,8 @@ namespace BinLogToSln
                     continue;
                 }
 
-                if (Path.GetFileName(invocation.ProjectDirectory) == "ref")
+                string projectFolder = Path.GetFileName(invocation.ProjectDirectory);
+                if (projectFolder == "ref" || projectFolder == "stubs")
                 {
                     Console.WriteLine($"Skipping Ref Assembly project {invocation.ProjectFilePath}");
                     continue;
