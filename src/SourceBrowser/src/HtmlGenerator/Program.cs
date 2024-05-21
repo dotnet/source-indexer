@@ -197,7 +197,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                         var invocations = BinLogCompilerInvocationsReader.ExtractInvocations(path);
                         foreach (var invocation in invocations)
                         {
-                            if (Path.GetFileName(invocation.ProjectDirectory) == "ref")
+                            string projectFolder = Path.GetFileName(invocation.ProjectDirectory);
+                            if (projectFolder == "ref" || projectFolder == "stubs")
                             {
                                 Log.Write($"Skipping Ref Assembly project {invocation.ProjectFilePath}");
                                 continue;
