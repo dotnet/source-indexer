@@ -131,7 +131,7 @@ extends:
           displayName: Normalize Case Of Index Files
 
         - task: AzureCLI@2
-          displayName: Upload Index to Azure Storage
+          displayName: Create new storage container
           inputs:
             azureSubscription: SourceDotNet-Deployment-ARM
             scriptLocation: inlineScript
@@ -139,8 +139,16 @@ extends:
             inlineScript: >
               deployment/upload-index-to-container.ps1
               -StorageAccountName netsourceindex
-              -IndexSource bin/index/index/
               -OutFile bin/index.url
+
+        - task: AzureFileCopy@6
+          displayName: Upload index to Azure Stroage
+          inputs:
+            azureSubscription: SourceDotNet-Deployment-ARM
+            SourcePath: "bin/index/index/*"
+            Destination: AzureBlob
+            storage: netsourceindex
+            ContainerName: $(NEW_CONTAINER_NAME)
 
         - task: AzureRmWebAppDeployment@4
           displayName: 'Azure App Service Deploy: netsourceindex'

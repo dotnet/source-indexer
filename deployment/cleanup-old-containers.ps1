@@ -11,13 +11,11 @@ param(
 $ErrorActionPreference = "Stop"
 Import-Module $PSScriptRoot/util.ps1 -Force
 
-$StorageAccountKey = Get-StorageAccountKey -StorageAccountName $StorageAccountName
-
 $allContainers = New-Object System.Collections.Generic.HashSet[string]
 
 Write-Host "Finding containers..."
 {
-  az storage container list --account-name netsourceindex --account-key $StorageAccountKey --auth-mode key --query '[*].name' | ConvertFrom-Json | Write-Output | %{
+  az storage container list --account-name netsourceindex --auth-mode login --query '[*].name' | ConvertFrom-Json | Write-Output | %{
     $allContainers.Add($_)
   } | Out-Null
 } | Check-Failure
@@ -79,7 +77,7 @@ $toDelete | %{
   } else {
     Write-Host "Container $_ has TTL $ttl, deleting..."
     {
-      az storage container delete --name $_ --account-name $StorageAccountName --account-key $StorageAccountKey --auth-mode key
+      az storage container delete --name $_ --account-name $StorageAccountName --auth-mode login
     } | Check-Failure
     Write-Host "Container $_ deleted."
   }
