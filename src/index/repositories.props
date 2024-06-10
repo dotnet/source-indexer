@@ -46,13 +46,10 @@
         $(ArcadeBuildCmd)
       </PrepareCommand>
     </Repository>
-    <Repository Include="wcf">
+    <RepositoryV2 Include="wcf">
+      <RepoName>dotnet-wcf</RepoName>
       <Url>https://github.com/dotnet/wcf</Url>
-      <PrepareCommand>
-        $(ArcadeBuildCmd)
-      </PrepareCommand>
-      <Branch>main</Branch>
-    </Repository>
+    </RepositoryV2>
     <RepositoryV2 Include="aspnetcore">
       <RepoName>dotnet-aspnetcore</RepoName>
       <Url>https://github.com/dotnet/aspnetcore</Url>
