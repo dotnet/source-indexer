@@ -30,7 +30,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
                 new Uri(uri),
                 credential);
 
-            container = blobServiceClient.GetBlobContainerClient(blobContainer);
+            container = blobServiceClient.GetBlobContainerClient(uri);
         }
 
         public bool DirectoryExists(string name)
