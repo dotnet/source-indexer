@@ -1,4 +1,5 @@
-﻿using Azure.Storage.Blobs;
+﻿using Azure.Identity;
+using Azure.Storage.Blobs;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -9,10 +10,27 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
     public class AzureBlobFileSystem : IFileSystem
     {
         private readonly BlobContainerClient container;
+        private string clientId;
 
         public AzureBlobFileSystem(string uri)
         {
             container = new BlobContainerClient(new Uri(uri));
+
+            DefaultAzureCredential credential;
+
+            if (string.IsNullOrEmpty(clientId) && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ARM_CLIENT_ID")))
+                clientId = Environment.GetEnvironmentVariable("ARM_CLIENT_ID");
+
+            if (string.IsNullOrEmpty(clientId))
+                credential = new DefaultAzureCredential();
+            else
+                credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions { ManagedIdentityClientId = clientId });
+
+            BlobServiceClient blobServiceClient = new(
+                new Uri(uri),
+                credential);
+
+            container = blobServiceClient.GetBlobContainerClient(blobContainer);
         }
 
         public bool DirectoryExists(string name)
