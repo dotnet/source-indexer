@@ -14,23 +14,8 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
 
         public AzureBlobFileSystem(string uri)
         {
-            container = new BlobContainerClient(new Uri(uri));
-
-            DefaultAzureCredential credential;
-
-            if (string.IsNullOrEmpty(clientId) && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ARM_CLIENT_ID")))
-                clientId = Environment.GetEnvironmentVariable("ARM_CLIENT_ID");
-
-            if (string.IsNullOrEmpty(clientId))
-                credential = new DefaultAzureCredential();
-            else
-                credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions { ManagedIdentityClientId = clientId });
-
-            BlobServiceClient blobServiceClient = new(
-                new Uri(uri),
-                credential);
-
-            container = blobServiceClient.GetBlobContainerClient(uri);
+            container = new BlobContainerClient(new Uri(uri),
+                                                new DefaultAzureCredential());
         }
 
         public bool DirectoryExists(string name)
