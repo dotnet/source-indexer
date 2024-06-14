@@ -201,28 +201,3 @@ extends:
               }
             }
           displayName: Test Deployed WebApp
-
-        - task: AzureCLI@2
-          displayName: Swap Staging Slot into Production
-          inputs:
-            azureSubscription: SourceDotNet-Deployment-ARM
-            scriptLocation: inlineScript
-            scriptType: ps
-            inlineScript: >
-              az webapp deployment slot swap
-              --resource-group source.dot.net
-              --name netsourceindex
-              --slot staging
-              --target-slot production
-
-        - task: AzureCLI@2
-          displayName: Cleanup Old Storage Containers
-          inputs:
-            azureSubscription: SourceDotNet-Deployment-ARM
-            scriptLocation: inlineScript
-            scriptType: ps
-            inlineScript: >
-              deployment/cleanup-old-containers.ps1
-              -ResourceGroup source.dot.net
-              -WebappName netsourceindex
-              -StorageAccountName netsourceindex
