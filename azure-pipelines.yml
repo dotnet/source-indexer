@@ -164,7 +164,7 @@ extends:
             WebAppName: netsourceindex
             ResourceGroupName: source.dot.net
             deployToSlotOrASE: true
-            SlotName: ${{ variables.deploymentSlot }}
+            SlotName: $(deploymentSlot)
             packageForLinux: bin/index-stage/
             enableCustomDeployment: true
             DeploymentType: zipDeploy
@@ -181,7 +181,7 @@ extends:
               -ProxyUrlFile bin/index.url
               -ResourceGroup source.dot.net
               -WebappName netsourceindex
-              -Slot ${{ variables.deploymentSlot }}
+              -Slot $(deploymentSlot)
 
         - task: AzureCLI@2
           displayName: Restart WebApp
@@ -190,13 +190,13 @@ extends:
             scriptLocation: inlineScript
             scriptType: ps
             inlineScript: |
-              az webapp restart --name netsourceindex --slot ${{ variables.deploymentSlot }} --resource-group source.dot.net
+              az webapp restart --name netsourceindex --slot $(deploymentSlot) --resource-group source.dot.net
 
         - pwsh: |
             Start-Sleep 60
             $urls = @(
-              "https://netsourceindex-${{ variables.deploymentSlot }}.azurewebsites.net",
-              "https://netsourceindex-${{ variables.deploymentSlot }}.azurewebsites.net/System.Private.CoreLib/src/libraries/System.Private.CoreLib/src/System/String.cs.html"
+              "https://netsourceindex-$(deploymentSlot).azurewebsites.net",
+              "https://netsourceindex-$(deploymentSlot).azurewebsites.net/System.Private.CoreLib/src/libraries/System.Private.CoreLib/src/System/String.cs.html"
             )
             foreach ($url in $urls) {
               $statusCode = Invoke-WebRequest $url -UseBasicParsing -SkipHttpErrorCheck | select -ExpandProperty StatusCode
