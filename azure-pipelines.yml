@@ -30,11 +30,18 @@ extends:
         timeoutInMinutes: 360
 
         variables:
-        - name: deploymentSlot
-          value: 'validation'
         - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranch'], 'refs/heads/main')) }}:
+          - name: isOfficialBuild
+            value: true
+        - ${{ if or(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest'), ne(variables['Build.SourceBranch'], 'refs/heads/main')) }}:
+          - name: isOfficialBuild
+            value: false
+        - ${{ if eq(variables.isOfficialBuild, true) }}:
           - name: deploymentSlot
-            value: 'staging'
+            value: staging
+        - ${{ if ne(variables.isOfficialBuild, true) }}:
+          - name: deploymentSlot
+            value: validation
         - group: source-dot-net stage1 variables
 
         templateContext:
@@ -207,7 +214,7 @@ extends:
             }
           displayName: Test Deployed WebApp
 
-        - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranch'], 'refs/heads/main')) }}:
+        - ${{ if eq(variables.isOfficialBuild, true) }}:
           - task: AzureCLI@2
             displayName: Swap Staging Slot into Production
             inputs:
