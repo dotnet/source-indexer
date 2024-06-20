@@ -30,6 +30,18 @@ extends:
         timeoutInMinutes: 360
 
         variables:
+        - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranch'], 'refs/heads/main')) }}:
+          - name: isOfficialBuild
+            value: true
+        - ${{ if or(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest'), ne(variables['Build.SourceBranch'], 'refs/heads/main')) }}:
+          - name: isOfficialBuild
+            value: false
+        - ${{ if eq(variables.isOfficialBuild, true) }}:
+          - name: deploymentSlot
+            value: staging
+        - ${{ if ne(variables.isOfficialBuild, true) }}:
+          - name: deploymentSlot
+            value: validation
         - group: source-dot-net stage1 variables
 
         templateContext:
@@ -159,7 +171,7 @@ extends:
             WebAppName: netsourceindex
             ResourceGroupName: source.dot.net
             deployToSlotOrASE: true
-            SlotName: staging
+            SlotName: $(deploymentSlot)
             packageForLinux: bin/index-stage/
             enableCustomDeployment: true
             DeploymentType: zipDeploy
@@ -176,7 +188,7 @@ extends:
               -ProxyUrlFile bin/index.url
               -ResourceGroup source.dot.net
               -WebappName netsourceindex
-              -Slot staging
+              -Slot $(deploymentSlot)
 
         - task: AzureCLI@2
           displayName: Restart WebApp
@@ -185,13 +197,13 @@ extends:
             scriptLocation: inlineScript
             scriptType: ps
             inlineScript: |
-              az webapp restart --name netsourceindex --slot staging --resource-group source.dot.net
+              az webapp restart --name netsourceindex --slot $(deploymentSlot) --resource-group source.dot.net
 
         - pwsh: |
             Start-Sleep 60
             $urls = @(
-              "https://netsourceindex-staging.azurewebsites.net",
-              "https://netsourceindex-staging.azurewebsites.net/System.Private.CoreLib/src/libraries/System.Private.CoreLib/src/System/String.cs.html"
+              "https://netsourceindex-$(deploymentSlot).azurewebsites.net",
+              "https://netsourceindex-$(deploymentSlot).azurewebsites.net/System.Private.CoreLib/src/libraries/System.Private.CoreLib/src/System/String.cs.html"
             )
             foreach ($url in $urls) {
               $statusCode = Invoke-WebRequest $url -UseBasicParsing -SkipHttpErrorCheck | select -ExpandProperty StatusCode
@@ -201,3 +213,29 @@ extends:
               }
             }
           displayName: Test Deployed WebApp
+
+        - ${{ if eq(variables.isOfficialBuild, true) }}:
+          - task: AzureCLI@2
+            displayName: Swap Staging Slot into Production
+            inputs:
+              azureSubscription: SourceDotNet-Deployment-ARM
+              scriptLocation: inlineScript
+              scriptType: ps
+              inlineScript: >
+                az webapp deployment slot swap
+                --resource-group source.dot.net
+                --name netsourceindex
+                --slot staging
+                --target-slot production
+
+          - task: AzureCLI@2
+            displayName: Cleanup Old Storage Containers
+            inputs:
+              azureSubscription: SourceDotNet-Deployment-ARM
+              scriptLocation: inlineScript
+              scriptType: ps
+              inlineScript: >
+                deployment/cleanup-old-containers.ps1
+                -ResourceGroup source.dot.net
+                -WebappName netsourceindex
+                -StorageAccountName netsourceindex
