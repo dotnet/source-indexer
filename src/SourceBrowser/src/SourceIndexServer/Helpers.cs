@@ -3,12 +3,14 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.SourceBrowser.SourceIndexServer.Models;
+using Microsoft.VisualBasic;
 
 namespace Microsoft.SourceBrowser.SourceIndexServer
 {
     public static class Helpers
     {
-        public static async Task ProxyRequestAsync(this HttpContext context, HttpClient client, string targetUrl, Action<HttpRequestMessage> configureRequest = null)
+        public static async Task ProxyRequestAsync(this HttpContext context, string targetUrl, Action<HttpRequestMessage> configureRequest = null)
         {
             using (var req = new HttpRequestMessage(HttpMethod.Get, targetUrl))
             {
@@ -30,49 +32,11 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
                 }
 
                 configureRequest?.Invoke(req);
+                var fs = new AzureBlobFileSystem(targetUrl);
+                var uri = new Uri(targetUrl);
 
-                HttpResponseMessage res = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
-                context.Response.RegisterForDispose(res);
-
-                foreach (var (key, values) in res.Headers)
-                {
-                    switch (key.ToLower())
-                    {
-                        // Remove headers that the response doesn't need
-                        case "set-cookie":
-                        case "x-powered-by":
-                        case "x-aspnet-version":
-                        case "server":
-                        case "transfer-encoding":
-                        case "access-control-expose-headers":
-                        case "access-control-allow-origin":
-                            continue;
-                        default:
-                            if (!context.Response.Headers.ContainsKey(key))
-                            {
-                                context.Response.Headers[key] = values.ToArray();
-                            }
-
-                            break;
-                    }
-                }
-
-                context.Response.StatusCode = (int)res.StatusCode;
-                if (res.Content != null)
-                {
-                    foreach (var (key, values) in res.Content.Headers)
-                    {
-                        if (!context.Response.Headers.ContainsKey(key))
-                        {
-                            context.Response.Headers[key] = values.ToArray();
-                        }
-                    }
-
-                    using (var data = await res.Content.ReadAsStreamAsync().ConfigureAwait(false))
-                    {
-                        await data.CopyToAsync(context.Response.Body).ConfigureAwait(false);
-                    }
-                }
+                var data = fs.OpenSequentialReadStream(uri.LocalPath);
+                context.Response.Body = data;
             }
         }
 
@@ -80,16 +44,9 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
 
         private static async Task<bool> UrlExistsAsync(string proxyRequestUrl)
         {
-            using (var res = new HttpRequestMessage(HttpMethod.Head, proxyRequestUrl))
-            using (var req = await s_client.SendAsync(res).ConfigureAwait(false))
-            {
-                if (req.IsSuccessStatusCode)
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            var fs = new AzureBlobFileSystem(proxyRequestUrl);
+            var uri = new Uri(proxyRequestUrl);
+            return fs.FileExists(uri.LocalPath);
         }
 
         public static async Task ServeProxiedIndex(HttpContext context, Func<Task> next)
@@ -117,7 +74,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
                 return;
             }
 
-            await context.ProxyRequestAsync(s_client, proxyRequestUrl).ConfigureAwait(false);
+            await context.ProxyRequestAsync(proxyRequestUrl).ConfigureAwait(false);
         }
 
         public static string IndexProxyUrl => Environment.GetEnvironmentVariable("SOURCE_BROWSER_INDEX_PROXY_URL");
