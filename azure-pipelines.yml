@@ -42,6 +42,12 @@ extends:
         - ${{ if ne(variables.isOfficialBuild, true) }}:
           - name: deploymentSlot
             value: validation
+        - ${{ if eq(variables.isOfficialBuild, true) }}:
+          - name: storageAccount
+            value: netsourceindex
+        - ${{ if ne(variables.isOfficialBuild, true) }}:
+          - name: storageAccount
+            value: netsourceindexvalidation
         - group: source-dot-net stage1 variables
 
         templateContext:
@@ -150,7 +156,7 @@ extends:
             scriptType: ps
             inlineScript: >
               deployment/upload-index-to-container.ps1
-              -StorageAccountName netsourceindex
+              -StorageAccountName $(storageAccount)
               -OutFile bin/index.url
 
         - task: AzureFileCopy@6
@@ -159,7 +165,7 @@ extends:
             azureSubscription: SourceDotNet-Deployment-ARM
             SourcePath: "bin/index/index/*"
             Destination: AzureBlob
-            storage: netsourceindex
+            storage: $(storageAccount)
             ContainerName: $(NEW_CONTAINER_NAME)
 
         - task: AzureRmWebAppDeployment@4
@@ -238,4 +244,4 @@ extends:
                 deployment/cleanup-old-containers.ps1
                 -ResourceGroup source.dot.net
                 -WebappName netsourceindex
-                -StorageAccountName netsourceindex
+                -StorageAccountName $(storageAccount)
