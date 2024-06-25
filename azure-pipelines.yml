@@ -33,15 +33,13 @@ extends:
         - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranch'], 'refs/heads/main')) }}:
           - name: isOfficialBuild
             value: true
-        - ${{ else }}:
-          - name: isOfficialBuild
-            value: false
-        - ${{ if eq(variables['isOfficialBuild'], 'true') }}:
           - name: deploymentSlot
             value: staging
           - name: storageAccount
             value: netsourceindex
         - ${{ else }}:
+          - name: isOfficialBuild
+            value: false
           - name: deploymentSlot
             value: validation
           - name: storageAccount
