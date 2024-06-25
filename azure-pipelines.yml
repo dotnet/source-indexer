@@ -33,19 +33,17 @@ extends:
         - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranch'], 'refs/heads/main')) }}:
           - name: isOfficialBuild
             value: true
-        - ${{ if or(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest'), ne(variables['Build.SourceBranch'], 'refs/heads/main')) }}:
+        - ${{ else }}:
           - name: isOfficialBuild
             value: false
-        - ${{ if eq(variables.isOfficialBuild, true) }}:
+        - ${{ if eq(variables['isOfficialBuild'], 'true') }}:
           - name: deploymentSlot
             value: staging
-        - ${{ if ne(variables.isOfficialBuild, true) }}:
-          - name: deploymentSlot
-            value: validation
-        - ${{ if eq(variables.isOfficialBuild, true) }}:
           - name: storageAccount
             value: netsourceindex
-        - ${{ if ne(variables.isOfficialBuild, true) }}:
+        - ${{ else }}:
+          - name: deploymentSlot
+            value: validation
           - name: storageAccount
             value: netsourceindexvalidation
         - group: source-dot-net stage1 variables
