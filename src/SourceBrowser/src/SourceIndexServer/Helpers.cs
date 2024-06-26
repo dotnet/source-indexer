@@ -29,9 +29,12 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
         public static async Task ServeProxiedIndex(HttpContext context, Func<Task> next)
         {
             var path = context.Request.Path.ToUriComponent();
+            System.Diagnostics.Trace.TraceError(message: $"HELLO I AM SERVING PROXIED INDEX {path}");
+
 
             if (!path.EndsWith(".html", StringComparison.Ordinal) && !path.EndsWith(".txt", StringComparison.Ordinal))
             {
+                System.Diagnostics.Trace.TraceError(message: $"HELLO {path} DOES NOT END WITH .html OR .txt");
                 await next().ConfigureAwait(false);
                 return;
             }
@@ -39,6 +42,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
             var proxyUri = IndexProxyUrl;
             if (string.IsNullOrEmpty(proxyUri))
             {
+                System.Diagnostics.Trace.TraceError(message: $"HELLO '{proxyUri}' IS NULL");
                 await next().ConfigureAwait(false);
                 return;
             }
@@ -47,10 +51,12 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
 
             if (!await UrlExistsAsync(proxyRequestUrl).ConfigureAwait(false))
             {
+                System.Diagnostics.Trace.TraceError(message: $"HELLO '{proxyRequestUrl}' DOES NOT EXIST");
                 await next().ConfigureAwait(false);
                 return;
             }
 
+            System.Diagnostics.Trace.TraceError(message: $"HELLO FALLBACK TIME");
             await context.ProxyRequestAsync(proxyRequestUrl).ConfigureAwait(false);
         }
 
