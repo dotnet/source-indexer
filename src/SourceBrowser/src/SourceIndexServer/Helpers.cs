@@ -3,6 +3,8 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.AzureAppServices;
 using Microsoft.SourceBrowser.SourceIndexServer.Models;
 
 namespace Microsoft.SourceBrowser.SourceIndexServer
@@ -29,12 +31,13 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
         public static async Task ServeProxiedIndex(HttpContext context, Func<Task> next)
         {
             var path = context.Request.Path.ToUriComponent();
-            System.Diagnostics.Trace.TraceError(message: $"HELLO I AM SERVING PROXIED INDEX {path}");
+
+            Program.Logger.LogError($"HELLO I AM SERVING PROXIED INDEX {path}\n");
 
 
             if (!path.EndsWith(".html", StringComparison.Ordinal) && !path.EndsWith(".txt", StringComparison.Ordinal))
             {
-                System.Diagnostics.Trace.TraceError(message: $"HELLO {path} DOES NOT END WITH .html OR .txt");
+                Program.Logger.LogError($"HELLO {path} DOES NOT END WITH .html OR .txt\n");
                 await next().ConfigureAwait(false);
                 return;
             }
@@ -42,7 +45,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
             var proxyUri = IndexProxyUrl;
             if (string.IsNullOrEmpty(proxyUri))
             {
-                System.Diagnostics.Trace.TraceError(message: $"HELLO '{proxyUri}' IS NULL");
+                Program.Logger.LogError($"HELLO '{proxyUri}' IS NULL\n");
                 await next().ConfigureAwait(false);
                 return;
             }
@@ -51,12 +54,12 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
 
             if (!await UrlExistsAsync(proxyRequestUrl).ConfigureAwait(false))
             {
-                System.Diagnostics.Trace.TraceError(message: $"HELLO '{proxyRequestUrl}' DOES NOT EXIST");
+                Program.Logger.LogError($"HELLO '{proxyRequestUrl}' DOES NOT EXIST\n");
                 await next().ConfigureAwait(false);
                 return;
             }
 
-            System.Diagnostics.Trace.TraceError(message: $"HELLO FALLBACK TIME");
+            Program.Logger.LogError($"HELLO FALLBACK TIME\n");
             await context.ProxyRequestAsync(proxyRequestUrl).ConfigureAwait(false);
         }
 

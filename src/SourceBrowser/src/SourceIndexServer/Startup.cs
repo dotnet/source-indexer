@@ -73,8 +73,8 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
             });
 
             // retrieve the logger
-            var logger = app.ApplicationServices.GetService<ILogger<Program>>();
-            logger.LogError("BLAH BLAH BLAH DOES LOGGING WORK");
+            Program.Logger = app.ApplicationServices.GetService<ILogger<Program>>();
+            Program.Logger.LogError("BLAH BLAH BLAH DOES LOGGING WORK");
         }
     }
 }

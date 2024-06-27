@@ -1,5 +1,6 @@
 ﻿using Azure.Identity;
 using Azure.Storage.Blobs;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -51,7 +52,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
         {
             name = name.ToLowerInvariant();
             BlobClient blob = container.GetBlobClient(name);
-            System.Diagnostics.Trace.TraceError(message: $"HELLO I AM CHECKING IF {name} EXISTS");
+            Program.Logger.LogError($"HELLO I AM CHECKING IF {name} EXISTS\n");
             
             return blob.Exists();
         }
@@ -60,7 +61,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
         {
             name = name.ToLowerInvariant();
             BlobClient blob = container.GetBlobClient(name);
-            System.Diagnostics.Trace.TraceError(message: $"HELLO I AM TRYING TO STREAM {name}");
+            Program.Logger.LogError($"HELLO I AM TRYING TO STREAM {name}\n");
             return blob.OpenRead();
         }
 
@@ -68,7 +69,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
         {
             name = name.ToLowerInvariant();
             BlobClient blob = container.GetBlobClient(name);
-            System.Diagnostics.Trace.TraceError(message: $"HELLO I AM TRYING TO cat {name}");
+            Program.Logger.LogError($"HELLO I AM TRYING TO cat {name}\n");
             using Stream stream = blob.OpenRead();
             using StreamReader reader = new (stream);
 

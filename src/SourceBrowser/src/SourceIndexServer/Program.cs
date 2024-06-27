@@ -11,6 +11,8 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
             BuildWebHost(args).Run();
         }
 
+        public static ILogger Logger { get; set; }
+
         public static IHost BuildWebHost(string[] args) =>
             Host.CreateDefaultBuilder(args)
                 .ConfigureWebHostDefaults(
