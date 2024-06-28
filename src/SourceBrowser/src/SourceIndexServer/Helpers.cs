@@ -13,6 +13,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
         public static async Task ProxyRequestAsync(this HttpContext context, string targetPath, Action<HttpRequestMessage> configureRequest = null)
         {
             var fs = new AzureBlobFileSystem(IndexProxyUrl);
+            context.Response.Headers.Append("Content-Type", "text/html");
             using (var data = fs.OpenSequentialReadStream(targetPath))
             {
                 await data.CopyToAsync(context.Response.Body).ConfigureAwait(false);
