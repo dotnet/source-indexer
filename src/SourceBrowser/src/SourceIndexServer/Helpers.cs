@@ -51,7 +51,6 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
                 return;
             }
 
-            Program.Logger.LogError($"HELLO FALLBACK TIME\n");
             await context.ProxyRequestAsync(proxyRequestPathSuffix).ConfigureAwait(false);
         }
 
