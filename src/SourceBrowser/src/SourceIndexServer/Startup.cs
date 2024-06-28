@@ -6,7 +6,6 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.FileProviders.Physical;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.AzureAppServices;
 using Microsoft.SourceBrowser.SourceIndexServer.Models;
 
 namespace Microsoft.SourceBrowser.SourceIndexServer

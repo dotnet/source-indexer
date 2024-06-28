@@ -4,7 +4,6 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.AzureAppServices;
 using Microsoft.SourceBrowser.SourceIndexServer.Models;
 
 namespace Microsoft.SourceBrowser.SourceIndexServer
