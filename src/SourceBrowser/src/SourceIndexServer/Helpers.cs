@@ -30,12 +30,8 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
         {
             var path = context.Request.Path.ToUriComponent();
 
-            Program.Logger.LogError($"HELLO I AM SERVING PROXIED INDEX {path}\n");
-
-
             if (!path.EndsWith(".html", StringComparison.Ordinal) && !path.EndsWith(".txt", StringComparison.Ordinal))
             {
-                Program.Logger.LogError($"HELLO {path} DOES NOT END WITH .html OR .txt\n");
                 await next().ConfigureAwait(false);
                 return;
             }
@@ -43,7 +39,6 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
             var proxyUri = IndexProxyUrl;
             if (string.IsNullOrEmpty(proxyUri))
             {
-                Program.Logger.LogError($"HELLO '{proxyUri}' IS NULL\n");
                 await next().ConfigureAwait(false);
                 return;
             }
@@ -52,7 +47,6 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
 
             if (!await UrlExistsAsync(proxyRequestPathSuffix).ConfigureAwait(false))
             {
-                Program.Logger.LogError($"HELLO '{proxyRequestPathSuffix}' DOES NOT EXIST\n");
                 await next().ConfigureAwait(false);
                 return;
             }

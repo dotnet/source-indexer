@@ -72,9 +72,8 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
                 endPoints.MapControllers();
             });
 
-            // retrieve the logger
+            // Retrieve and store the logger
             Program.Logger = app.ApplicationServices.GetService<ILogger<Program>>();
-            Program.Logger.LogError("BLAH BLAH BLAH DOES LOGGING WORK");
         }
     }
 }

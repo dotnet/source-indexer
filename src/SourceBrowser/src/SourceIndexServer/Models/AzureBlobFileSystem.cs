@@ -52,7 +52,6 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
         {
             name = name.ToLowerInvariant();
             BlobClient blob = container.GetBlobClient(name);
-            Program.Logger.LogError($"HELLO I AM CHECKING IF {name} EXISTS IN CONTAINER {container.Uri}: {blob.Exists()}\n");
             
             return blob.Exists();
         }
@@ -61,7 +60,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
         {
             name = name.ToLowerInvariant();
             BlobClient blob = container.GetBlobClient(name);
-            Program.Logger.LogError($"HELLO I AM TRYING TO STREAM {name}\n");
+
             return blob.OpenRead();
         }
 
@@ -69,7 +68,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
         {
             name = name.ToLowerInvariant();
             BlobClient blob = container.GetBlobClient(name);
-            Program.Logger.LogError($"HELLO I AM TRYING TO cat {name}\n");
+
             using Stream stream = blob.OpenRead();
             using StreamReader reader = new (stream);
 
