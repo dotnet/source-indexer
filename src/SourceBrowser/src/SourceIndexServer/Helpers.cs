@@ -11,21 +11,19 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
 {
     public static class Helpers
     {
-        public static async Task ProxyRequestAsync(this HttpContext context, string targetUrl, Action<HttpRequestMessage> configureRequest = null)
+        public static async Task ProxyRequestAsync(this HttpContext context, string targetPath, Action<HttpRequestMessage> configureRequest = null)
         {
             var fs = new AzureBlobFileSystem(IndexProxyUrl);
-            var uri = new Uri(targetUrl);
-            using (var data = fs.OpenSequentialReadStream(uri.LocalPath))
+            using (var data = fs.OpenSequentialReadStream(targetPath))
             {
                 await data.CopyToAsync(context.Response.Body).ConfigureAwait(false);
             }
         }
 
-        private static async Task<bool> UrlExistsAsync(string proxyRequestUrl)
+        private static async Task<bool> UrlExistsAsync(string proxyRequestPath)
         {
-            var uri = new Uri(proxyRequestUrl);
             var fs = new AzureBlobFileSystem(IndexProxyUrl);
-            return fs.FileExists(uri.LocalPath);
+            return fs.FileExists(proxyRequestPath);
         }
 
         public static async Task ServeProxiedIndex(HttpContext context, Func<Task> next)
@@ -50,17 +48,17 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
                 return;
             }
 
-            var proxyRequestUrl = proxyUri + (path.StartsWith("/", StringComparison.Ordinal) ? path : "/" + path).ToLowerInvariant();
+            var proxyRequestPathSuffix = (path.StartsWith("/", StringComparison.Ordinal) ? path : "/" + path).ToLowerInvariant();
 
-            if (!await UrlExistsAsync(proxyRequestUrl).ConfigureAwait(false))
+            if (!await UrlExistsAsync(proxyRequestPathSuffix).ConfigureAwait(false))
             {
-                Program.Logger.LogError($"HELLO '{proxyRequestUrl}' DOES NOT EXIST\n");
+                Program.Logger.LogError($"HELLO '{proxyRequestPathSuffix}' DOES NOT EXIST\n");
                 await next().ConfigureAwait(false);
                 return;
             }
 
             Program.Logger.LogError($"HELLO FALLBACK TIME\n");
-            await context.ProxyRequestAsync(proxyRequestUrl).ConfigureAwait(false);
+            await context.ProxyRequestAsync(proxyRequestPathSuffix).ConfigureAwait(false);
         }
 
         public static string IndexProxyUrl => Environment.GetEnvironmentVariable("SOURCE_BROWSER_INDEX_PROXY_URL");
