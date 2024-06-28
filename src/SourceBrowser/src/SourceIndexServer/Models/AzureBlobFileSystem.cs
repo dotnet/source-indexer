@@ -52,7 +52,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
         {
             name = name.ToLowerInvariant();
             BlobClient blob = container.GetBlobClient(name);
-            Program.Logger.LogError($"HELLO I AM CHECKING IF {name} EXISTS IN CONTAINER {container.Uri}\n");
+            Program.Logger.LogError($"HELLO I AM CHECKING IF {name} EXISTS IN CONTAINER {container.Uri}: {blob.Exists()}\n");
             
             return blob.Exists();
         }
