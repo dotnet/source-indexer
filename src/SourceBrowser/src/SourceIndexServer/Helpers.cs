@@ -13,7 +13,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
     {
         public static async Task ProxyRequestAsync(this HttpContext context, string targetUrl, Action<HttpRequestMessage> configureRequest = null)
         {
-            var fs = new AzureBlobFileSystem(targetUrl);
+            var fs = new AzureBlobFileSystem(IndexProxyUrl);
             var uri = new Uri(targetUrl);
             using (var data = fs.OpenSequentialReadStream(uri.LocalPath))
             {
@@ -23,8 +23,8 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
 
         private static async Task<bool> UrlExistsAsync(string proxyRequestUrl)
         {
-            var fs = new AzureBlobFileSystem(proxyRequestUrl);
             var uri = new Uri(proxyRequestUrl);
+            var fs = new AzureBlobFileSystem(IndexProxyUrl);
             return fs.FileExists(uri.LocalPath);
         }
 
