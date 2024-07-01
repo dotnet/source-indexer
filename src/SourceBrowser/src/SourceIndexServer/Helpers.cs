@@ -20,7 +20,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
             }
         }
 
-        private static async Task<bool> UrlExistsAsync(string proxyRequestPath)
+        private static bool UrlExists(string proxyRequestPath)
         {
             var fs = new AzureBlobFileSystem(IndexProxyUrl);
             return fs.FileExists(proxyRequestPath);
@@ -45,7 +45,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
 
             var proxyRequestPathSuffix = (path.StartsWith("/", StringComparison.Ordinal) ? path : "/" + path).ToLowerInvariant();
 
-            if (!await UrlExistsAsync(proxyRequestPathSuffix).ConfigureAwait(false))
+            if (!UrlExists(proxyRequestPathSuffix))
             {
                 await next().ConfigureAwait(false);
                 return;
