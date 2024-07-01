@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.FileProviders.Physical;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.SourceBrowser.SourceIndexServer.Models;
 
 namespace Microsoft.SourceBrowser.SourceIndexServer
@@ -64,12 +65,14 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
             app.UseStaticFiles();
             app.UseRouting();
 
-
             app.UseEndpoints(endPoints =>
             {
                 endPoints.MapRazorPages();
                 endPoints.MapControllers();
             });
+
+            // Retrieve and store the logger
+            Program.Logger = app.ApplicationServices.GetService<ILogger<Program>>();
         }
     }
 }

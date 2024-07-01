@@ -59,6 +59,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
         {
             name = name.ToLowerInvariant();
             BlobClient blob = container.GetBlobClient(name);
+
             return blob.OpenRead();
         }
 
@@ -66,6 +67,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
         {
             name = name.ToLowerInvariant();
             BlobClient blob = container.GetBlobClient(name);
+
             using Stream stream = blob.OpenRead();
             using StreamReader reader = new (stream);
 

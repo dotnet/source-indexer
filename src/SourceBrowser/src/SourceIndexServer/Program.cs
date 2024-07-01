@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace Microsoft.SourceBrowser.SourceIndexServer
 {
@@ -10,11 +11,19 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
             BuildWebHost(args).Run();
         }
 
+        public static ILogger Logger { get; set; }
+
         public static IHost BuildWebHost(string[] args) =>
             Host.CreateDefaultBuilder(args)
                 .ConfigureWebHostDefaults(
                     builder => { builder
                         .UseStartup<Startup>(); })
+                .ConfigureLogging(logging =>
+                        {
+                            logging.ClearProviders();
+                            logging.AddConsole();
+                            logging.AddAzureWebAppDiagnostics();
+                        })
                 .UseWindowsService()
                 .Build();
     }
