@@ -1,5 +1,6 @@
 ﻿using Azure.Identity;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -53,6 +54,14 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
             BlobClient blob = container.GetBlobClient(name);
             
             return blob.Exists();
+        }
+
+        public BlobProperties FileProperties(string name)
+        {
+            name = name.ToLowerInvariant();
+            BlobClient blob = container.GetBlobClient(name);
+
+            return blob.GetProperties();
         }
 
         public Stream OpenSequentialReadStream(string name)
