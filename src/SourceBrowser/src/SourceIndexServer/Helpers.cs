@@ -14,7 +14,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
         {
             var fs = new AzureBlobFileSystem(IndexProxyUrl);
             var props = fs.FileProperties(targetPath);
-            context.Response.Headers.Append("Content-Md5", props.ContentHash.ToString());
+            context.Response.Headers.Append("Content-Md5", Convert.ToBase64String(props.ContentHash));
             context.Response.Headers.Append("Content-Type", props.ContentType);
             context.Response.Headers.Append("Etag", props.ETag.ToString());
             context.Response.Headers.Append("Last-Modified", props.LastModified.ToString("R"));
