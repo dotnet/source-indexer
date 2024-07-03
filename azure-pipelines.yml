@@ -32,14 +32,14 @@ extends:
         variables:
         - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranch'], 'refs/heads/main')) }}:
           - name: isOfficialBuild
-            value: true
+            value: True
           - name: deploymentSlot
             value: staging
           - name: storageAccount
             value: netsourceindex
         - ${{ else }}:
           - name: isOfficialBuild
-            value: false
+            value: False
           - name: deploymentSlot
             value: validation
           - name: storageAccount
@@ -200,28 +200,29 @@ extends:
             }
           displayName: Test Deployed WebApp
 
-        - ${{ if eq(variables['isOfficialBuild'], true) }}:
-          - task: AzureCLI@2
-            displayName: Swap Staging Slot into Production
-            inputs:
-              azureSubscription: SourceDotNet-Deployment-ARM
-              scriptLocation: inlineScript
-              scriptType: ps
-              inlineScript: >
-                az webapp deployment slot swap
-                --resource-group source.dot.net
-                --name netsourceindex
-                --slot staging
-                --target-slot production
+        - task: AzureCLI@2
+          displayName: Swap Staging Slot into Production
+          condition: eq(variables['isOfficialBuild'], 'True')
+          inputs:
+            azureSubscription: SourceDotNet-Deployment-ARM
+            scriptLocation: inlineScript
+            scriptType: ps
+            inlineScript: >
+              az webapp deployment slot swap
+              --resource-group source.dot.net
+              --name netsourceindex
+              --slot staging
+              --target-slot production
 
-          - task: AzureCLI@2
-            displayName: Cleanup Old Storage Containers
-            inputs:
-              azureSubscription: SourceDotNet-Deployment-ARM
-              scriptLocation: inlineScript
-              scriptType: ps
-              inlineScript: >
-                deployment/cleanup-old-containers.ps1
-                -ResourceGroup source.dot.net
-                -WebappName netsourceindex
-                -StorageAccountName $(storageAccount)
+        - task: AzureCLI@2
+          displayName: Cleanup Old Storage Containers
+          condition: eq(variables['isOfficialBuild'], 'True')
+          inputs:
+            azureSubscription: SourceDotNet-Deployment-ARM
+            scriptLocation: inlineScript
+            scriptType: ps
+            inlineScript: >
+              deployment/cleanup-old-containers.ps1
+              -ResourceGroup source.dot.net
+              -WebappName netsourceindex
+              -StorageAccountName $(storageAccount)
