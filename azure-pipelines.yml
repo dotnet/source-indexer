@@ -200,7 +200,7 @@ extends:
             }
           displayName: Test Deployed WebApp
 
-        - ${{ if eq(variables.isOfficialBuild, true) }}:
+        - ${{ if eq(variables['isOfficialBuild'], true) }}:
           - task: AzureCLI@2
             displayName: Swap Staging Slot into Production
             inputs:
