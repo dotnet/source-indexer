@@ -32,14 +32,14 @@ extends:
         variables:
         - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranch'], 'refs/heads/main')) }}:
           - name: isOfficialBuild
-            value: true
+            value: True
           - name: deploymentSlot
             value: staging
           - name: storageAccount
             value: netsourceindex
         - ${{ else }}:
           - name: isOfficialBuild
-            value: false
+            value: True
           - name: deploymentSlot
             value: validation
           - name: storageAccount
@@ -200,7 +200,7 @@ extends:
             }
           displayName: Test Deployed WebApp
 
-        - ${{ if eq(variables['isOfficialBuild'], true) }}:
+        - ${{ if eq(variables.isOfficialBuild, 'True') }}:
           - task: AzureCLI@2
             displayName: Swap Staging Slot into Production
             inputs:
