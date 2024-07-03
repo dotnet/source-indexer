@@ -39,7 +39,7 @@ extends:
             value: netsourceindex
         - ${{ else }}:
           - name: isOfficialBuild
-            value: True
+            value: False
           - name: deploymentSlot
             value: validation
           - name: storageAccount
