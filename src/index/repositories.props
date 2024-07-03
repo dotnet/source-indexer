@@ -66,5 +66,9 @@
         $(ArcadeBuildCmd) -projects src\benchmarks\micro\MicroBenchmarks.sln
       </PrepareCommand>
     </Repository>
+    <RepositoryV2 Include="aspire">
+      <RepoName>dotnet-aspire</RepoName>
+      <Url>https://github.com/dotnet/aspire</Url>
+    </RepositoryV2>
   </ItemGroup>
 </Project>
