@@ -10,7 +10,7 @@ $newContainerName = "index-$((New-Guid).ToString("N"))"
 
 Write-Host "Creating new container '$newContainerName'..."
 {
-  az storage container create --name "$newContainerName" --auth-mode login --public-access container --fail-on-exist --account-name $StorageAccountName
+  az storage container create --name "$newContainerName" --auth-mode login --public-access off --fail-on-exist --account-name $StorageAccountName
 } | Check-Failure
 
 Write-Output "##vso[task.setvariable variable=NEW_CONTAINER_NAME]$newContainerName"
