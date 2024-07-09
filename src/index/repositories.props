@@ -70,5 +70,9 @@
       <RepoName>dotnet-aspire</RepoName>
       <Url>https://github.com/dotnet/aspire</Url>
     </RepositoryV2>
+    <RepositoryV2 Include="extensions">
+      <RepoName>dotnet-extensions</RepoName>
+      <Url>https://github.com/dotnet/extensions</Url>
+    </RepositoryV2>
   </ItemGroup>
 </Project>
