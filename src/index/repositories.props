@@ -40,12 +40,10 @@
         $(ArcadeBuildCmd)
       </PrepareCommand>
     </Repository>
-    <Repository Include="machinelearning">
+    <RepositoryV2 Include="machinelearning">
+      <RepoName>dotnet-machinelearning</RepoName>
       <Url>https://github.com/dotnet/machinelearning</Url>
-      <PrepareCommand>
-        $(ArcadeBuildCmd)
-      </PrepareCommand>
-    </Repository>
+    </RepositoryV2>
     <RepositoryV2 Include="wcf">
       <RepoName>dotnet-wcf</RepoName>
       <Url>https://github.com/dotnet/wcf</Url>
