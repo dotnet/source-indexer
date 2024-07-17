@@ -55,6 +55,7 @@ namespace Microsoft.SourceIndexer.Tasks
             }
 
             DefaultAzureCredential credential;
+            DefaultAzureCredentialOptions credentialoptions;
 
             if (string.IsNullOrEmpty(ClientId) && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ARM_CLIENT_ID")))
             {
@@ -64,21 +65,46 @@ namespace Microsoft.SourceIndexer.Tasks
 
             if (string.IsNullOrEmpty(ClientId))
             {
-                credential = new DefaultAzureCredential();
+                credentialoptions = new DefaultAzureCredentialOptions
+                {
+                    Diagnostics =
+                    {
+                        LoggedHeaderNames = { "x-ms-request-id" },
+                        LoggedQueryParameters = { "api-version" },
+                        IsAccountIdentifierLoggingEnabled = true
+                    }
+                };
                 Log.LogMessage($"Trying to use managed identity without default identity");
             }
             else
             {
-                credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions { ManagedIdentityClientId = ClientId });
+                credentialoptions = new DefaultAzureCredentialOptions
+                {
+                    Diagnostics =
+                    {
+                        LoggedHeaderNames = { "x-ms-request-id" },
+                        LoggedQueryParameters = { "api-version" },
+                        IsAccountIdentifierLoggingEnabled = true
+                    },
+                    ManagedIdentityClientId = clientId };
                 Log.LogMessage($"Trying to use managed identity with client id: {ClientId}");
             }
+
+            credential = new DefaultAzureCredential(credentialoptions);
 
             BlobServiceClient blobServiceClient = new(
                 new Uri(StorageAccount),
                 credential);
 
             var containerClient = blobServiceClient.GetBlobContainerClient(BlobContainer);
-            Pageable<BlobItem> blobs = containerClient.GetBlobs(prefix: RepoName + "/");
+            try
+            {
+                Pageable<BlobItem> blobs = containerClient.GetBlobs(prefix: RepoName + "/");
+            }
+            catch (AuthenticationFailedException e)
+            {
+                Fatal($"*** BLOB ENUMERATION FAILED: {e.Message}");
+            }
             BlobItem newest = blobs.OrderByDescending(b => b.Name).FirstOrDefault();
             if (newest == null)
             {
@@ -89,7 +115,14 @@ namespace Microsoft.SourceIndexer.Tasks
             BlobClient blobClient = containerClient.GetBlobClient(newest.Name);
             var loggableUrl = new UriBuilder(blobClient.Uri) {Fragment = "", Query = ""};
             Log.LogMessage($"Extracting {loggableUrl} to {OutputDirectory}");
-            using Stream fileStream = blobClient.OpenRead();
+            try 
+            {
+                using Stream fileStream = blobClient.OpenRead();
+            }
+            catch (AuthenticationFailedException e)
+            {
+                Fatal($"*** STREAM READ FAILED: {e.Message}");
+            }
             using var input = new GZipInputStream(fileStream);
             using var archive = TarArchive.CreateInputTarArchive(input, Encoding.UTF8);
             archive.ExtractContents(OutputDirectory, true); // would like this to be false, but SharpZipLib has a bug in 1.3.3

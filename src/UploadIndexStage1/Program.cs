@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Azure.Core;
 using Azure.Identity;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
@@ -65,6 +66,7 @@ namespace UploadIndexStage1
             }
 
             DefaultAzureCredential credential;
+            DefaultAzureCredentialOptions credentialoptions;
 
             if (string.IsNullOrEmpty(clientId) && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ARM_CLIENT_ID")))
             {
@@ -74,14 +76,32 @@ namespace UploadIndexStage1
 
             if (string.IsNullOrEmpty(clientId))
             {
-                credential = new DefaultAzureCredential();
+                credentialoptions = new DefaultAzureCredentialOptions
+                {
+                    Diagnostics =
+                    {
+                        LoggedHeaderNames = { "x-ms-request-id" },
+                        LoggedQueryParameters = { "api-version" },
+                        IsAccountIdentifierLoggingEnabled = true
+                    }
+                };
                 System.Console.WriteLine("Trying to use managed identity without default identity");
             }
             else
             {
-                credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions { ManagedIdentityClientId = clientId });
+                credentialoptions = new DefaultAzureCredentialOptions
+                {
+                    Diagnostics =
+                    {
+                        LoggedHeaderNames = { "x-ms-request-id" },
+                        LoggedQueryParameters = { "api-version" },
+                        IsAccountIdentifierLoggingEnabled = true
+                    },
+                    ManagedIdentityClientId = clientId };
                 System.Console.WriteLine("Trying to use managed identity with client id: " + clientId);
             }
+
+            credential = new DefaultAzureCredential(credentialoptions);
 
             BlobServiceClient blobServiceClient = new(
                 new Uri(storageAccount),
@@ -127,7 +147,14 @@ namespace UploadIndexStage1
                 }
 
                 outputFileStream.Position = 0;
-                await newBlobClient.UploadAsync(outputFileStream);
+                try
+                {
+                    await newBlobClient.UploadAsync(outputFileStream);
+                }
+                catch (AuthenticationFailedException e)
+                {
+                    Fatal($"*** UPLOAD FAILED: {e.Message}");
+                }
             }
 
             Console.WriteLine("Cleaning up old blobs");
@@ -136,7 +163,14 @@ namespace UploadIndexStage1
             foreach (BlobItem d in toDelete)
             {
                 Console.WriteLine($"Deleting blob {d.Name}");
-                await containerClient.DeleteBlobAsync(d.Name);
+                try
+                {
+                    await containerClient.DeleteBlobAsync(d.Name);
+                }
+                catch (AuthenticationFailedException e)
+                {
+                    Fatal($"*** CONTAINER \"{d.Name}\" CLEANUP FAILED: {e.Message}");
+                }
             }
             Console.WriteLine("Finished.");
         }
