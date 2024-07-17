@@ -86,7 +86,11 @@ namespace Microsoft.SourceIndexer.Tasks
                         LoggedQueryParameters = { "api-version" },
                         IsAccountIdentifierLoggingEnabled = true
                     },
+<<<<<<< HEAD
                     ManagedIdentityClientId = ClientId };
+=======
+                    ManagedIdentityClientId = clientId };
+>>>>>>> origin/main
                 Log.LogMessage($"Trying to use managed identity with client id: {ClientId}");
             }
 
@@ -97,6 +101,7 @@ namespace Microsoft.SourceIndexer.Tasks
                 credential);
 
             var containerClient = blobServiceClient.GetBlobContainerClient(BlobContainer);
+<<<<<<< HEAD
             Pageable<BlobItem> blobs;
             try
             {
@@ -106,6 +111,15 @@ namespace Microsoft.SourceIndexer.Tasks
             {
                 Log.LogError($"*** BLOB ENUMERATION FAILED: {e.Message}");
                 return;
+=======
+            try
+            {
+                Pageable<BlobItem> blobs = containerClient.GetBlobs(prefix: RepoName + "/");
+            }
+            catch (AuthenticationFailedException e)
+            {
+                Fatal($"*** BLOB ENUMERATION FAILED: {e.Message}");
+>>>>>>> origin/main
             }
             BlobItem newest = blobs.OrderByDescending(b => b.Name).FirstOrDefault();
             if (newest == null)
@@ -120,6 +134,7 @@ namespace Microsoft.SourceIndexer.Tasks
             try 
             {
                 using Stream fileStream = blobClient.OpenRead();
+<<<<<<< HEAD
                 using var input = new GZipInputStream(fileStream);
                 using var archive = TarArchive.CreateInputTarArchive(input, Encoding.UTF8);
                 archive.ExtractContents(OutputDirectory, true); // would like this to be false, but SharpZipLib has a bug in 1.3.3
@@ -129,6 +144,16 @@ namespace Microsoft.SourceIndexer.Tasks
                 Log.LogError($"*** STREAM READ FAILED: {e.Message}");
                 return;
             }
+=======
+            }
+            catch (AuthenticationFailedException e)
+            {
+                Fatal($"*** STREAM READ FAILED: {e.Message}");
+            }
+            using var input = new GZipInputStream(fileStream);
+            using var archive = TarArchive.CreateInputTarArchive(input, Encoding.UTF8);
+            archive.ExtractContents(OutputDirectory, true); // would like this to be false, but SharpZipLib has a bug in 1.3.3
+>>>>>>> origin/main
         }
     }
 }
