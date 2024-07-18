@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Azure.Core;
+using Azure.Core.Diagnostics;
 using Azure.Identity;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
@@ -64,6 +65,8 @@ namespace UploadIndexStage1
             {
                 storageAccount = "https://" + storageAccount + ".blob.core.windows.net";
             }
+
+            using AzureEventSourceListener listener = AzureEventSourceListener.CreateConsoleLogger();
 
             DefaultAzureCredential credential;
             DefaultAzureCredentialOptions credentialoptions;

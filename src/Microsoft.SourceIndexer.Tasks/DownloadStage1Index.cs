@@ -54,6 +54,8 @@ namespace Microsoft.SourceIndexer.Tasks
                 StorageAccount = "https://" + StorageAccount + ".blob.core.windows.net";
             }
 
+            using AzureEventSourceListener listener = AzureEventSourceListener.CreateConsoleLogger();
+
             DefaultAzureCredential credential;
             DefaultAzureCredentialOptions credentialoptions;
 
