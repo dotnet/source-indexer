@@ -14,10 +14,32 @@
       <RepoName>dotnet-runtime</RepoName>
       <Url>https://github.com/dotnet/runtime</Url>
     </RepositoryV2>
+    <Repository Include="winforms">
+      <Url>https://github.com/dotnet/winforms</Url>
+      <PrepareCommand>
+        $(ArcadeBuildCmd)
+      </PrepareCommand>
+      <Branch>main</Branch>
+    </Repository>
     <RepositoryV2 Include="wpf">
       <RepoName>dotnet-wpf</RepoName>
       <Url>https://github.com/dotnet/wpf</Url>
     </RepositoryV2>
+    <Repository Include="iot">
+      <Url>https://github.com/dotnet/iot</Url>
+      <PrepareCommand>
+        $(ArcadeBuildCmd)
+      </PrepareCommand>
+      <Branch>main</Branch>
+    </Repository>
+    <Repository Include="msbuild">
+      <Url>https://github.com/dotnet/msbuild</Url>
+      <Branch>main</Branch>
+      <DeepClone>true</DeepClone>
+      <PrepareCommand>
+        $(ArcadeBuildCmd)
+      </PrepareCommand>
+    </Repository>
     <RepositoryV2 Include="machinelearning">
       <RepoName>dotnet-machinelearning</RepoName>
       <Url>https://github.com/dotnet/machinelearning</Url>
@@ -30,6 +52,18 @@
       <RepoName>dotnet-aspnetcore</RepoName>
       <Url>https://github.com/dotnet/aspnetcore</Url>
     </RepositoryV2>
+    <Repository Include="performance">
+      <Url>https://github.com/dotnet/performance</Url>
+      <PrepareCommand>
+        $(ArcadeBuildCmd) -projects src\benchmarks\micro\MicroBenchmarks.sln
+      </PrepareCommand>
+    </Repository>
+    <Repository Include="sdk">
+      <Url>https://github.com/dotnet/sdk</Url>
+      <PrepareCommand>
+        $(ArcadeBuildCmd) -projects src\benchmarks\micro\MicroBenchmarks.sln
+      </PrepareCommand>
+    </Repository>
     <RepositoryV2 Include="aspire">
       <RepoName>dotnet-aspire</RepoName>
       <Url>https://github.com/dotnet/aspire</Url>
