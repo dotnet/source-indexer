@@ -14,13 +14,10 @@
       <RepoName>dotnet-runtime</RepoName>
       <Url>https://github.com/dotnet/runtime</Url>
     </RepositoryV2>
-    <Repository Include="winforms">
+    <RepositoryV2 Include="winforms">
+      <RepoName>dotnet-winforms</RepoName>
       <Url>https://github.com/dotnet/winforms</Url>
-      <PrepareCommand>
-        $(ArcadeBuildCmd)
-      </PrepareCommand>
-      <Branch>main</Branch>
-    </Repository>
+    </RepositoryV2>
     <RepositoryV2 Include="wpf">
       <RepoName>dotnet-wpf</RepoName>
       <Url>https://github.com/dotnet/wpf</Url>
