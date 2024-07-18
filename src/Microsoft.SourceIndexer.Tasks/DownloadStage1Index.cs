@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Azure;
+using Azure.Core.Diagnostics;
 using Azure.Identity;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
@@ -53,6 +54,8 @@ namespace Microsoft.SourceIndexer.Tasks
             {
                 StorageAccount = "https://" + StorageAccount + ".blob.core.windows.net";
             }
+
+            using AzureEventSourceListener listener = AzureEventSourceListener.CreateConsoleLogger();
 
             DefaultAzureCredential credential;
             DefaultAzureCredentialOptions credentialoptions;
