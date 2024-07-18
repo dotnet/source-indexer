@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Azure;
+using Azure.Core.Diagnostics;
 using Azure.Identity;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
