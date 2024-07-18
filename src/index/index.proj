@@ -94,7 +94,7 @@
     </ItemGroup>
   </Target>
 
-  <Target Name="CloneV1" DependsOnTargets="CloneRepository;CheckoutSources;ResolveHashV1"/>
+  <Target Name="CloneV1" DependsOnTargets="CloneRepository;CheckoutSources;ResolveHashV1" Condition="@(Repository->Count()) &gt; 0"/>
 
   <Target Name="DownloadRepositoryV2" Outputs="%(RepositoryV2.Identity)">
     <DownloadStage1Index
@@ -115,7 +115,7 @@
     </ItemGroup>
   </Target>
 
-  <Target Name="CloneV2" DependsOnTargets="DownloadRepositoryV2;ResolveHashV2"/>
+  <Target Name="CloneV2" DependsOnTargets="DownloadRepositoryV2;ResolveHashV2" Condition="@(RepositoryV2->Count()) &gt; 0"/>
 
   <Target Name="Clone" DependsOnTargets="CloneV1;CloneV2">
   </Target>
