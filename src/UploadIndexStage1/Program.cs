@@ -79,28 +79,12 @@ namespace UploadIndexStage1
 
             if (string.IsNullOrEmpty(clientId))
             {
-                credentialoptions = new DefaultAzureCredentialOptions
-                {
-                    Diagnostics =
-                    {
-                        LoggedHeaderNames = { "x-ms-request-id" },
-                        LoggedQueryParameters = { "api-version" },
-                        IsAccountIdentifierLoggingEnabled = true
-                    }
-                };
+                credentialoptions = new DefaultAzureCredentialOptions;
                 System.Console.WriteLine("Trying to use managed identity without default identity");
             }
             else
             {
-                credentialoptions = new DefaultAzureCredentialOptions
-                {
-                    Diagnostics =
-                    {
-                        LoggedHeaderNames = { "x-ms-request-id" },
-                        LoggedQueryParameters = { "api-version" },
-                        IsAccountIdentifierLoggingEnabled = true
-                    },
-                    ManagedIdentityClientId = clientId };
+                credentialoptions = new DefaultAzureCredentialOptions { ManagedIdentityClientId = clientId };
                 System.Console.WriteLine("Trying to use managed identity with client id: " + clientId);
             }
 
