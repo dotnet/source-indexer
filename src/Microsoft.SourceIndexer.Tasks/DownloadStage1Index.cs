@@ -68,7 +68,7 @@ namespace Microsoft.SourceIndexer.Tasks
 
             if (string.IsNullOrEmpty(ClientId))
             {
-                credentialoptions = new DefaultAzureCredentialOptions;
+                credentialoptions = new DefaultAzureCredentialOptions {};
                 Log.LogMessage($"Trying to use managed identity without default identity");
             }
             else

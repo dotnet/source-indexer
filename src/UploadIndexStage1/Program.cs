@@ -79,7 +79,7 @@ namespace UploadIndexStage1
 
             if (string.IsNullOrEmpty(clientId))
             {
-                credentialoptions = new DefaultAzureCredentialOptions;
+                credentialoptions = new DefaultAzureCredentialOptions {};
                 System.Console.WriteLine("Trying to use managed identity without default identity");
             }
             else
