@@ -68,28 +68,12 @@ namespace Microsoft.SourceIndexer.Tasks
 
             if (string.IsNullOrEmpty(ClientId))
             {
-                credentialoptions = new DefaultAzureCredentialOptions
-                {
-                    Diagnostics =
-                    {
-                        LoggedHeaderNames = { "x-ms-request-id" },
-                        LoggedQueryParameters = { "api-version" },
-                        IsAccountIdentifierLoggingEnabled = true
-                    }
-                };
+                credentialoptions = new DefaultAzureCredentialOptions {};
                 Log.LogMessage($"Trying to use managed identity without default identity");
             }
             else
             {
-                credentialoptions = new DefaultAzureCredentialOptions
-                {
-                    Diagnostics =
-                    {
-                        LoggedHeaderNames = { "x-ms-request-id" },
-                        LoggedQueryParameters = { "api-version" },
-                        IsAccountIdentifierLoggingEnabled = true
-                    },
-                    ManagedIdentityClientId = ClientId };
+                credentialoptions = new DefaultAzureCredentialOptions { ManagedIdentityClientId = ClientId };
                 Log.LogMessage($"Trying to use managed identity with client id: {ClientId}");
             }
 
