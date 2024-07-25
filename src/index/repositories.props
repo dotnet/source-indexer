@@ -10,6 +10,10 @@
       <RepoName>dotnet-arcade</RepoName>
       <Url>https://github.com/dotnet/arcade</Url>
     </RepositoryV2>
+    <RepositoryV2 Include="roslyn">
+      <RepoName>dotnet-roslyn</RepoName>
+      <Url>https://github.com/dotnet/roslyn</Url>
+    </RepositoryV2>
     <RepositoryV2 Include="runtime">
       <RepoName>dotnet-runtime</RepoName>
       <Url>https://github.com/dotnet/runtime</Url>
