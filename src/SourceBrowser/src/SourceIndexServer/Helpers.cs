@@ -10,7 +10,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
 {
     public static class Helpers
     {
-        public static async Task ProxyRequestAsync(this HttpContext context, string targetPath, Action<HttpRequestMessage> configureRequest = null)
+        private static async Task ProxyRequestAsync(this HttpContext context, string targetPath, Action<HttpRequestMessage> configureRequest = null)
         {
             var fs = new AzureBlobFileSystem(IndexProxyUrl);
             var props = fs.FileProperties(targetPath);
@@ -24,7 +24,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
             }
         }
 
-        private static bool UrlExists(string proxyRequestPath)
+        private static bool FileExists(string proxyRequestPath)
         {
             var fs = new AzureBlobFileSystem(IndexProxyUrl);
             return fs.FileExists(proxyRequestPath);
@@ -32,7 +32,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
 
         public static async Task ServeProxiedIndex(HttpContext context, Func<Task> next)
         {
-            var path = context.Request.Path.ToUriComponent();
+            var path = context.Request.Path.Value;
 
             if (!path.EndsWith(".html", StringComparison.Ordinal) && !path.EndsWith(".txt", StringComparison.Ordinal))
             {
@@ -49,7 +49,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
 
             var proxyRequestPathSuffix = (path.StartsWith("/", StringComparison.Ordinal) ? path : "/" + path).ToLowerInvariant();
 
-            if (!UrlExists(proxyRequestPathSuffix))
+            if (!FileExists(proxyRequestPathSuffix))
             {
                 await next().ConfigureAwait(false);
                 return;
