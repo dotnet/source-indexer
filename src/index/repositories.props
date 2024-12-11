@@ -41,6 +41,10 @@
         $(ArcadeBuildCmd)
       </PrepareCommand>
     </Repository>
+    <RepositoryV2 Include="maui">
+      <RepoName>dotnet-maui</RepoName>
+      <Url>https://github.com/dotnet/maui</Url>
+    </RepositoryV2>
     <RepositoryV2 Include="machinelearning">
       <RepoName>dotnet-machinelearning</RepoName>
       <Url>https://github.com/dotnet/machinelearning</Url>
