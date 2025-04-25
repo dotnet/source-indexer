@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Azure;
+using Azure.Core;
 using Azure.Core.Diagnostics;
 using Azure.Identity;
 using Azure.Storage.Blobs;
@@ -57,8 +58,7 @@ namespace Microsoft.SourceIndexer.Tasks
 
             using AzureEventSourceListener listener = AzureEventSourceListener.CreateConsoleLogger();
 
-            DefaultAzureCredential credential;
-            DefaultAzureCredentialOptions credentialoptions;
+            TokenCredential credential;
 
             if (string.IsNullOrEmpty(ClientId) && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ARM_CLIENT_ID")))
             {
@@ -68,16 +68,13 @@ namespace Microsoft.SourceIndexer.Tasks
 
             if (string.IsNullOrEmpty(ClientId))
             {
-                credentialoptions = new DefaultAzureCredentialOptions {};
+                credential = new AzureCliCredential();
                 Log.LogMessage($"Trying to use managed identity without default identity");
             }
             else
             {
-                credentialoptions = new DefaultAzureCredentialOptions { ManagedIdentityClientId = ClientId };
-                Log.LogMessage($"Trying to use managed identity with client id: {ClientId}");
+                credential = new ManagedIdentityCredential(ClientId);
             }
-
-            credential = new DefaultAzureCredential(credentialoptions);
 
             BlobServiceClient blobServiceClient = new(
                 new Uri(StorageAccount),
@@ -104,7 +101,7 @@ namespace Microsoft.SourceIndexer.Tasks
             BlobClient blobClient = containerClient.GetBlobClient(newest.Name);
             var loggableUrl = new UriBuilder(blobClient.Uri) {Fragment = "", Query = ""};
             Log.LogMessage($"Extracting {loggableUrl} to {OutputDirectory}");
-            try 
+            try
             {
                 using Stream fileStream = blobClient.OpenRead();
                 using var input = new GZipInputStream(fileStream);
