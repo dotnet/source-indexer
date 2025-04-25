@@ -68,8 +68,7 @@ namespace UploadIndexStage1
 
             using AzureEventSourceListener listener = AzureEventSourceListener.CreateConsoleLogger();
 
-            DefaultAzureCredential credential;
-            DefaultAzureCredentialOptions credentialoptions;
+            TokenCredential credential;
 
             if (string.IsNullOrEmpty(clientId) && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ARM_CLIENT_ID")))
             {
@@ -79,16 +78,14 @@ namespace UploadIndexStage1
 
             if (string.IsNullOrEmpty(clientId))
             {
-                credentialoptions = new DefaultAzureCredentialOptions {};
+                credential = new AzureCliCredential();
                 System.Console.WriteLine("Trying to use managed identity without default identity");
             }
             else
             {
-                credentialoptions = new DefaultAzureCredentialOptions { ManagedIdentityClientId = clientId };
-                System.Console.WriteLine("Trying to use managed identity with client id: " + clientId);
+                System.Console.WriteLine("Trying to use ManagedIdentityCredential with ClientID");
+                credential = new ManagedIdentityCredential(clientId);
             }
-
-            credential = new DefaultAzureCredential(credentialoptions);
 
             BlobServiceClient blobServiceClient = new(
                 new Uri(storageAccount),

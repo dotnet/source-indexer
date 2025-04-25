@@ -1,4 +1,5 @@
-﻿using Azure.Identity;
+﻿using Azure.Core;
+using Azure.Identity;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using System;
@@ -11,7 +12,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
     public class AzureBlobFileSystem : IFileSystem
     {
         private readonly BlobContainerClient container;
-        private DefaultAzureCredential credential;
+        private TokenCredential credential;
         private string clientId;
 
         public AzureBlobFileSystem(string uri)
@@ -20,9 +21,9 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
                 clientId = Environment.GetEnvironmentVariable("ARM_CLIENT_ID");
 
             if (string.IsNullOrEmpty(clientId))
-                credential = new DefaultAzureCredential();
+                credential = new AzureCliCredential();
             else
-                credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions { ManagedIdentityClientId = clientId });
+                credential = new ManagedIdentityCredential(clientId);
 
             container = new BlobContainerClient(new Uri(uri),
                                                 credential);
