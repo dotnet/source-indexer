@@ -175,6 +175,9 @@
     </PropertyGroup>
     <Exec Command="$(SourceIndexCmd)" LogStandardErrorAsError="false"/>
     <Copy SourceFiles="@(OverwriteFiles)" DestinationFiles="@(OverwriteFiles -> '$(OutDir)index/%(RecursiveDir)%(Filename)%(Extension)')"/>
+    <ItemGroup>
+      <EmbedInBinlog Include="$(OutDir)index/**/diagnostics.txt"/>
+    </ItemGroup>
   </Target>
 
   <Target Name="Build" DependsOnTargets="Clone;Prepare;BuildIndex"/>
