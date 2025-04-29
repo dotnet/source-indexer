@@ -131,11 +131,21 @@ namespace BinLogToSln
                 project.WriteLine("    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>");
                 project.WriteLine("    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>");
                 project.WriteLine($"    <AssemblyName>{invocation.AssemblyName}</AssemblyName>");
+                int idx = 1;
                 if (invocation.Parsed.CompilationOptions is CSharpCompilationOptions cSharpOptions)
                 {
                     if (cSharpOptions.AllowUnsafe)
                     {
                         project.WriteLine("    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>");
+                    }
+                    if (cSharpOptions.PublicSign)
+                    {
+                        project.WriteLine("    <PublicSign>true</PublicSign>");
+                    }
+                    if (cSharpOptions.CryptoKeyFile != null)
+                    {
+                        includeFile(cSharpOptions.CryptoKeyFile, out string projectRelativePath, out _);
+                        project.WriteLine($"    <KeyOriginatorFile>{projectRelativePath}</KeyOriginatorFile>");
                     }
                 }
 
@@ -146,36 +156,10 @@ namespace BinLogToSln
                 }
                 project.WriteLine("  </PropertyGroup>");
                 project.WriteLine("  <ItemGroup>");
-                int idx = 1;
                 foreach (CommandLineSourceFile sourceFile in invocation.Parsed.SourceFiles)
                 {
-                    string filePath = Path.GetFullPath(sourceFile.Path);
-                    string repoRelativePath = Path.GetRelativePath(repoRoot, filePath);
-                    string projectRelativePath;
-                    string outputFile;
-                    string link = null;
-                    if (repoRelativePath.StartsWith("..\\", StringComparison.Ordinal) || repoRelativePath.StartsWith("../", StringComparison.Ordinal) || Path.IsPathRooted(repoRelativePath))
-                    {
-                        string externalPath = Path.Join("_external", idx++.ToString(), Path.GetFileName(filePath));
-                        // not in the repo dir, treat as external
-                        projectRelativePath = Path.Join(Path.GetRelativePath(invocation.ProjectDirectory, repoRoot), "..", externalPath);
-                        outputFile = Path.Join(output, externalPath);
-                    }
-                    else
-                    {
-                        projectRelativePath = Path.GetRelativePath(invocation.ProjectDirectory, filePath);
-                        if (projectRelativePath.StartsWith("..", StringComparison.Ordinal))
-                        {
-                            link = repoRelativePath;
-                        }
-                        outputFile = Path.Join(output, "src", repoRelativePath);
-                    }
+                    includeFile(sourceFile.Path, out string projectRelativePath, out string link);
                     project.WriteLine($"    <Compile Include=\"{projectRelativePath}\"{(link != null ? $" Link=\"{link}\"" : "")}/>");
-                    Directory.CreateDirectory(Path.GetDirectoryName(outputFile));
-                    if (!File.Exists(outputFile))
-                    {
-                        File.Copy(filePath, outputFile);
-                    }
                 }
                 project.WriteLine("  </ItemGroup>");
                 project.WriteLine("  <ItemGroup>");
@@ -200,6 +184,35 @@ namespace BinLogToSln
                         Path.GetFileName(invocation.OutputAssemblyPath));
                     Directory.CreateDirectory(Path.GetDirectoryName(outputFilePath));
                     File.Copy(invocation.OutputAssemblyPath, outputFilePath, true);
+                }
+
+                void includeFile(string originalPath, out string projectRelativePath, out string link)
+                {
+                    string filePath = Path.GetFullPath(originalPath);
+                    string repoRelativePath = Path.GetRelativePath(repoRoot, filePath);
+                    string outputFile;
+                    link = null;
+                    if (repoRelativePath.StartsWith("..\\", StringComparison.Ordinal) || repoRelativePath.StartsWith("../", StringComparison.Ordinal) || Path.IsPathRooted(repoRelativePath))
+                    {
+                        string externalPath = Path.Join("_external", idx++.ToString(), Path.GetFileName(filePath));
+                        // not in the repo dir, treat as external
+                        projectRelativePath = Path.Join(Path.GetRelativePath(invocation.ProjectDirectory, repoRoot), "..", externalPath);
+                        outputFile = Path.Join(output, externalPath);
+                    }
+                    else
+                    {
+                        projectRelativePath = Path.GetRelativePath(invocation.ProjectDirectory, filePath);
+                        if (projectRelativePath.StartsWith("..", StringComparison.Ordinal))
+                        {
+                            link = repoRelativePath;
+                        }
+                        outputFile = Path.Join(output, "src", repoRelativePath);
+                    }
+                    Directory.CreateDirectory(Path.GetDirectoryName(outputFile));
+                    if (!File.Exists(outputFile))
+                    {
+                        File.Copy(filePath, outputFile);
+                    }
                 }
             }
 
