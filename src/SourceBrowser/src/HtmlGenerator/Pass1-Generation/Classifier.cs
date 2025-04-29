@@ -11,7 +11,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 {
     public partial class Classification
     {
-        public async Task<IEnumerable<Range>> Classify(Document document, SourceText text)
+        public async Task<IEnumerable<Range>> ClassifyAsync(Document document, SourceText text)
         {
             var span = TextSpan.FromBounds(0, text.Length);
 
@@ -181,6 +181,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 ["delegate name"] = Constants.ClassificationTypeName,
                 ["record name"] = Constants.ClassificationTypeName,
                 ["record class name"] = Constants.ClassificationTypeName,
+                ["record struct name"] = Constants.ClassificationTypeName,
                 ["module name"] = Constants.ClassificationTypeName,
                 ["type parameter name"] = Constants.ClassificationTypeName,
                 ["preprocessor keyword"] = Constants.ClassificationPreprocessKeyword,

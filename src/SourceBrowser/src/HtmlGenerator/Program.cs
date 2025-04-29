@@ -91,7 +91,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     federation.AddFederation(entry.Key, entry.Value);
                 }
 
-                IndexSolutions(options.Projects, options.Properties, federation, options.ServerPathMappings, options.PluginBlacklist, options.DoNotIncludeReferencedProjects, options.RootPath);
+                IndexSolutions(options.Projects, options.Properties, federation, options.ServerPathMappings, options.PluginBlacklist, options.DoNotIncludeReferencedProjects, options.RootPath,
+                    options.IncludeSourceGeneratedDocuments);
                 FinalizeProjects(options.EmitAssemblyList, federation);
                 WebsiteFinalizer.Finalize(websiteDestination, options.EmitAssemblyList, federation);
             }
@@ -112,7 +113,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 + "[/nobuiltinfederations] "
                 + "[/offlinefederation:server=assemblyListFile] "
                 + "[/assemblylist]"
-                + "[/excludetests]" +
+                + "[/excludetests]"
+                + "[/excludeSourceGeneratedDocuments]" +
                 "" +
                 "Plugins are now off by default.");
         }
@@ -138,7 +140,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             IReadOnlyDictionary<string, string> serverPathMappings,
             IEnumerable<string> pluginBlacklist,
             bool doNotIncludeReferencedProjects = false,
-            string rootPath = null)
+            string rootPath = null,
+            bool includeSourceGeneratedDocuments = true)
         {
             var assemblyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -230,6 +233,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                         serverPathMappings: serverPathMappings,
                         pluginBlacklist: pluginBlacklist,
                         doNotIncludeReferencedProjects: doNotIncludeReferencedProjects,
+                        includeSourceGeneratedDocuments: includeSourceGeneratedDocuments,
                         typeForwards: typeForwards))
                     {
                         solutionGenerator.GlobalAssemblyList = assemblyNames;
