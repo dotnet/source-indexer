@@ -170,3 +170,17 @@ class TargetedTypeNewTest
         return new(new());
     }
 }
+
+class TypeWithPrimaryConstructor(A a, B b)
+{
+    public A A => a;
+    public B[] ArrayOfB => [b];
+}
+
+class EmptyType;
+
+class TypeWithAllowsRefStruct<T>
+    where T : allows ref struct
+{
+    public static T Return(T value) => value;
+}

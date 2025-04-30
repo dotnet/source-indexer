@@ -7,25 +7,25 @@
 
   <ItemGroup>
     <!-- msbuild-->
-    <PackageVersion Include="Microsoft.Build.Framework" Version="17.5.0" />
-    <PackageVersion Include="Microsoft.Build.Tasks.Core" Version="17.5.0" />
-    <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="17.5.0" />
-    <PackageVersion Include="Microsoft.Build" Version="17.5.0" />
+    <PackageVersion Include="Microsoft.Build.Framework" Version="17.12.6" />
+    <PackageVersion Include="Microsoft.Build.Tasks.Core" Version="17.12.6" />
+    <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="17.12.6" />
+    <PackageVersion Include="Microsoft.Build" Version="17.12.6" />
 
     <!-- component governance -->
     <PackageVersion Include="Microsoft.IO.Redist" Version="6.0.1" />
 
     <!-- roslyn -->
-    <PackageVersion Include="Microsoft.CodeAnalysis" Version="4.2.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.Common" Version="4.2.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.2.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Features" Version="4.2.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.2.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.VisualBasic" Version="4.2.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.VisualBasic.Features" Version="4.2.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.VisualBasic.Workspaces" Version="4.2.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.Common" Version="4.2.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="4.2.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis" Version="4.12.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Common" Version="4.12.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.12.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Features" Version="4.12.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.12.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.VisualBasic" Version="4.12.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.VisualBasic.Features" Version="4.12.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.VisualBasic.Workspaces" Version="4.12.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.Common" Version="4.12.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="4.12.0" />
 
     <!-- roslyn analyzer -->
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" />
@@ -40,7 +40,7 @@
     <PackageVersion Include="NUnit3TestAdapter" Version="3.15.1" />
     <PackageVersion Include="xunit" Version="2.4.1" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.4.1" />
-    <PackageVersion Include="Newtonsoft.Json" Version="13.0.1" />
+    <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageVersion Include="Shouldly" Version="4.0.3" />
 
     <!-- other dependencies -->
@@ -48,22 +48,22 @@
     <PackageVersion Include="MSBuild.StructuredLogger" Version="2.2.169" />
     <PackageVersion Include="ManagedEsent" Version="1.9.4" />
     <PackageVersion Include="System.Reactive" Version="5.0.0" />
-    <PackageVersion Include="System.Composition" Version="6.0.0" />
-    <PackageVersion Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
+    <PackageVersion Include="System.Composition" Version="8.0.0" />
+    <PackageVersion Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.0" />
 
-    <PackageVersion Include="System.Buffers" Version="4.5.1" />
-    <PackageVersion Include="System.Memory" Version="4.5.5" />
-    <PackageVersion Include="System.Numerics.Vectors" Version="4.5.0" />
+    <PackageVersion Include="System.Buffers" Version="4.6.0" />
+    <PackageVersion Include="System.Memory" Version="4.6.0" />
+    <PackageVersion Include="System.Numerics.Vectors" Version="4.6.0" />
     <PackageVersion Include="System.Threading.Tasks.Extensions" Version="4.5.4" />
     <PackageVersion Include="System.ValueTuple" Version="4.5.0" />
 
-    <PackageVersion Include="Microsoft.Build.Locator" Version="1.5.3" />
-    <PackageVersion Include="Microsoft.NET.StringTools" Version="17.5.0" />
+    <PackageVersion Include="Microsoft.Build.Locator" Version="1.7.8" />
+    <PackageVersion Include="Microsoft.NET.StringTools" Version="17.12.6" />
     <PackageVersion Include="Microsoft.VisualStudio.Language.Intellisense" Version="16.10.230" />
-    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="1.1.0-beta-20204-02" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="1.1.1" />
 
     <PackageVersion Include="ExceptionAnalysis.Diagnostics" Version="1.0.0.39796" />
-    <PackageVersion Include="GuiLabs.Language.Xml" Version="1.2.46" />
+    <PackageVersion Include="GuiLabs.Language.Xml" Version="1.2.88" />
 
     <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.1" />

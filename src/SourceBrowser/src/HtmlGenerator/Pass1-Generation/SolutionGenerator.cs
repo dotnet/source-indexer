@@ -21,6 +21,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         public string ProjectFilePath { get; private set; }
         public IReadOnlyDictionary<string, string> ServerPathMappings { get; set; }
         private Federation Federation { get; set; }
+        public bool IncludeSourceGeneratedDocuments { get; }
+
         public IEnumerable<string> PluginBlacklist { get; private set; }
         private readonly HashSet<string> typeScriptFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         public MEF.PluginAggregator PluginAggregator;
@@ -42,6 +44,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             IReadOnlyDictionary<string, string> serverPathMappings = null,
             IEnumerable<string> pluginBlacklist = null,
             bool doNotIncludeReferencedProjects = false,
+            bool includeSourceGeneratedDocuments = true,
             IReadOnlyDictionary<ValueTuple<string, string>, string> typeForwards = null)
         {
             this.SolutionSourceFolder = Path.GetDirectoryName(solutionFilePath);
@@ -51,6 +54,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             this.solution = CreateSolution(solutionFilePath, properties, doNotIncludeReferencedProjects);
             this.Federation = federation ?? new Federation();
             this.PluginBlacklist = pluginBlacklist ?? Enumerable.Empty<string>();
+            this.IncludeSourceGeneratedDocuments = includeSourceGeneratedDocuments;
             this.Properties = properties;
             this.TypeForwards = typeForwards ?? ImmutableDictionary<ValueTuple<string, string>, string>.Empty;
 
@@ -333,7 +337,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     CurrentAssemblyName = project.AssemblyName;
 
                     var generator = new ProjectGenerator(this, project);
-                    generator.Generate().GetAwaiter().GetResult();
+                    generator.GenerateAsync().GetAwaiter().GetResult();
 
                     File.AppendAllText(Paths.ProcessedAssemblies, project.AssemblyName + Environment.NewLine, Encoding.UTF8);
                 }
