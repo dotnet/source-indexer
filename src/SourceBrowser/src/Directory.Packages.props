@@ -12,9 +12,6 @@
     <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="17.14.8" />
     <PackageVersion Include="Microsoft.Build" Version="17.14.8" />
 
-    <!-- component governance -->
-    <PackageVersion Include="Microsoft.IO.Redist" Version="6.1.0" />
-
     <!-- roslyn -->
     <PackageVersion Include="Microsoft.CodeAnalysis" Version="4.14.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Common" Version="4.14.0" />
