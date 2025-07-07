@@ -7,81 +7,78 @@
 
   <ItemGroup>
     <!-- msbuild-->
-    <PackageVersion Include="Microsoft.Build.Framework" Version="17.12.6" />
-    <PackageVersion Include="Microsoft.Build.Tasks.Core" Version="17.12.6" />
-    <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="17.12.6" />
-    <PackageVersion Include="Microsoft.Build" Version="17.12.6" />
-
-    <!-- component governance -->
-    <PackageVersion Include="Microsoft.IO.Redist" Version="6.0.1" />
+    <PackageVersion Include="Microsoft.Build.Framework" Version="17.14.8" />
+    <PackageVersion Include="Microsoft.Build.Tasks.Core" Version="17.14.8" />
+    <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="17.14.8" />
+    <PackageVersion Include="Microsoft.Build" Version="17.14.8" />
 
     <!-- roslyn -->
-    <PackageVersion Include="Microsoft.CodeAnalysis" Version="4.12.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.Common" Version="4.12.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.12.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Features" Version="4.12.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.12.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.VisualBasic" Version="4.12.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.VisualBasic.Features" Version="4.12.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.VisualBasic.Workspaces" Version="4.12.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.Common" Version="4.12.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="4.12.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis" Version="4.14.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Common" Version="4.14.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Features" Version="4.14.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.14.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.VisualBasic" Version="4.14.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.VisualBasic.Features" Version="4.14.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.VisualBasic.Workspaces" Version="4.14.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.Common" Version="4.14.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="4.14.0" />
 
     <!-- roslyn analyzer -->
-    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="4.14.0" />
 
     <!-- test dependencies -->
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="16.6.0" />
-    <PackageVersion Include="MSTest.TestAdapter" Version="2.1.1" />
-    <PackageVersion Include="MSTest.TestFramework" Version="2.1.1" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageVersion Include="MSTest.TestAdapter" Version="3.9.3" />
+    <PackageVersion Include="MSTest.TestFramework" Version="3.9.3" />
     <PackageVersion Include="Selenium.WebDriver" Version="3.14.0" />
     <PackageVersion Include="coverlet.collector" Version="1.2.0" />
     <PackageVersion Include="nunit" Version="3.12.0" />
     <PackageVersion Include="NUnit3TestAdapter" Version="3.15.1" />
-    <PackageVersion Include="xunit" Version="2.4.1" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="2.4.1" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.1" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageVersion Include="Shouldly" Version="4.0.3" />
+    <PackageVersion Include="Shouldly" Version="4.3.0" />
 
     <!-- other dependencies -->
-    <PackageVersion Include="LibGit2Sharp" Version="0.29.0" />
-    <PackageVersion Include="MSBuild.StructuredLogger" Version="2.2.169" />
-    <PackageVersion Include="ManagedEsent" Version="1.9.4" />
-    <PackageVersion Include="System.Reactive" Version="5.0.0" />
-    <PackageVersion Include="System.Composition" Version="8.0.0" />
-    <PackageVersion Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.0" />
+    <PackageVersion Include="LibGit2Sharp" Version="0.30.0" />
+    <PackageVersion Include="MSBuild.StructuredLogger" Version="2.2.386" />
+    <PackageVersion Include="ManagedEsent" Version="2.0.0" />
+    <PackageVersion Include="System.Reactive" Version="6.0.0" />
+    <PackageVersion Include="System.Composition" Version="9.0.6" />
+    <PackageVersion Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />
 
-    <PackageVersion Include="System.Buffers" Version="4.6.0" />
-    <PackageVersion Include="System.Memory" Version="4.6.0" />
-    <PackageVersion Include="System.Numerics.Vectors" Version="4.6.0" />
-    <PackageVersion Include="System.Threading.Tasks.Extensions" Version="4.5.4" />
-    <PackageVersion Include="System.ValueTuple" Version="4.5.0" />
+    <PackageVersion Include="System.Buffers" Version="4.6.1" />
+    <PackageVersion Include="System.Memory" Version="4.6.3" />
+    <PackageVersion Include="System.Numerics.Vectors" Version="4.6.1" />
+    <PackageVersion Include="System.Threading.Tasks.Extensions" Version="4.6.3" />
+    <PackageVersion Include="System.ValueTuple" Version="4.6.1" />
 
-    <PackageVersion Include="Microsoft.Build.Locator" Version="1.7.8" />
-    <PackageVersion Include="Microsoft.NET.StringTools" Version="17.12.6" />
-    <PackageVersion Include="Microsoft.VisualStudio.Language.Intellisense" Version="16.10.230" />
-    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="1.1.1" />
+    <PackageVersion Include="Microsoft.Build.Locator" Version="1.9.1" />
+    <PackageVersion Include="Microsoft.NET.StringTools" Version="17.14.8" />
+    <PackageVersion Include="Microsoft.VisualStudio.Language.Intellisense" Version="17.14.249" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
 
     <PackageVersion Include="ExceptionAnalysis.Diagnostics" Version="1.0.0.39796" />
     <PackageVersion Include="GuiLabs.Language.Xml" Version="1.2.88" />
 
-    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.1" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.AzureAppServices" Version="8.0.11" />
-    <PackageVersion Include="System.Resources.Extensions" Version="8.0.0" />
-    <PackageVersion Include="System.Collections.Immutable" Version="8.0.0" />
-    <PackageVersion Include="System.Text.Encodings.Web" Version="8.0.0" />
-    <PackageVersion Include="System.Text.Json" Version="8.0.5" />
-    <PackageVersion Include="System.Threading.Tasks.Dataflow" Version="8.0.1" />
+    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.6" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.WindowsServices" Version="9.0.6" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.AzureAppServices" Version="9.0.6" />
+    <PackageVersion Include="System.Resources.Extensions" Version="9.0.6" />
+    <PackageVersion Include="System.Collections.Immutable" Version="9.0.6" />
+    <PackageVersion Include="System.Text.Encodings.Web" Version="9.0.6" />
+    <PackageVersion Include="System.Text.Json" Version="9.0.6" />
+    <PackageVersion Include="System.Threading.Tasks.Dataflow" Version="9.0.6" />
   </ItemGroup>
 
   <!-- dependencies for dotnet/source-browser projects -->
   <ItemGroup>
-      <PackageVersion Include="Azure.Identity" Version="1.13.1" />
-      <PackageVersion Include="Azure.Storage.Blobs" Version="12.23.0" />
+      <PackageVersion Include="Azure.Identity" Version="1.14.1" />
+      <PackageVersion Include="Azure.Storage.Blobs" Version="12.24.1" />
       <PackageVersion Include="Mono.Options" Version="6.12.0.148" />
       <PackageVersion Include="SharpZipLib" Version="1.4.2" />
-      <PackageVersion Include="System.Reflection.Metadata" Version="8.0.1" />
+      <PackageVersion Include="System.Reflection.Metadata" Version="9.0.6" />
   </ItemGroup>
 
 </Project>
