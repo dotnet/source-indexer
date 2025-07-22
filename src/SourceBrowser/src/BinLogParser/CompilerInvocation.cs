@@ -17,6 +17,7 @@ namespace Microsoft.SourceBrowser.BinLogParser
         public string CommandLineArguments { get; set; }
         public string SolutionRoot { get; set; }
         public IEnumerable<string> TypeScriptFiles { get; set; }
+        public Dictionary<string, string> ProjectProperties { get; set; } = new Dictionary<string, string>();
 
         public string AssemblyName => Path.GetFileNameWithoutExtension(OutputAssemblyPath);
 

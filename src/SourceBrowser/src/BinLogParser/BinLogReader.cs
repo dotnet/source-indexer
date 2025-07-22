@@ -138,12 +138,28 @@ namespace Microsoft.SourceBrowser.BinLogParser
             commandLine = TrimCompilerExeFromCommandLine(commandLine, name == "Csc"
                 ? CompilerKind.CSharp
                 : CompilerKind.VisualBasic);
-            return new CompilerInvocation
+            
+            var invocation = new CompilerInvocation
             {
                 Language = language,
                 CommandLineArguments = commandLine,
                 ProjectFilePath = task.GetNearestParent<Microsoft.Build.Logging.StructuredLogger.Project>()?.ProjectFile
             };
+
+            // Capture project properties from the project
+            var project = task.GetNearestParent<Microsoft.Build.Logging.StructuredLogger.Project>();
+            if (project != null)
+            {
+                project.VisitAllChildren<Microsoft.Build.Logging.StructuredLogger.Property>(prop =>
+                {
+                    if (!string.IsNullOrEmpty(prop.Name) && !string.IsNullOrEmpty(prop.Value))
+                    {
+                        invocation.ProjectProperties[prop.Name] = prop.Value;
+                    }
+                });
+            }
+
+            return invocation;
         }
 
         public static string TrimCompilerExeFromCommandLine(string commandLine, CompilerKind language)

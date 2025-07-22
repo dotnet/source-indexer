@@ -11,6 +11,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.SourceBrowser.BinLogParser;
 using Mono.Options;
+using NuGet.Frameworks;
 
 namespace BinLogToSln
 {
@@ -46,37 +47,67 @@ namespace BinLogToSln
 
             try
             {
-                // Prefer invocations with non-*.notsupported.cs source files
+                // Check for UseForSourceIndex escape hatch
+                if (invocation.ProjectProperties.TryGetValue("UseForSourceIndex", out var useForSourceIndex) &&
+                    bool.TryParse(useForSourceIndex, out var shouldUse) && shouldUse)
+                {
+                    return int.MaxValue; // Highest possible score
+                }
+
+                // Check for IsPlatformNotSupportedAssembly property
+                if (invocation.ProjectProperties.TryGetValue("IsPlatformNotSupportedAssembly", out var isPlatformNotSupported) &&
+                    bool.TryParse(isPlatformNotSupported, out var isNotSupported) && isNotSupported)
+                {
+                    score -= 10000; // Heavy penalty for platform not supported assemblies
+                }
+
+                // Prefer invocations with actual source files
                 var sourceFiles = invocation.Parsed?.SourceFiles;
                 if (sourceFiles.HasValue)
                 {
                     int totalSourceFiles = sourceFiles.Value.Length;
-                    int notSupportedFiles = sourceFiles.Value.Count(sf => sf.Path.Contains(".notsupported.cs"));
+                    score += totalSourceFiles * 100; // Base score for having source files
                     
-                    if (totalSourceFiles > 0)
+                    // Bonus for having more source files (indicates more complete implementation)
+                    if (totalSourceFiles > 10)
                     {
-                        // Higher score for projects with fewer notsupported files relative to total
-                        score += (totalSourceFiles - notSupportedFiles) * 100;
-                        
-                        // Bonus for having no notsupported files at all
-                        if (notSupportedFiles == 0)
-                        {
-                            score += 1000;
-                        }
+                        score += 500;
                     }
                 }
 
-                // Prefer more specific target frameworks
-                // This is a heuristic - longer framework names are typically more specific
-                string targetFramework = GetTargetFrameworkFromCommandLine(invocation.CommandLineArguments);
-                if (!string.IsNullOrEmpty(targetFramework))
+                // Prefer more specific target frameworks using NuGet.Frameworks
+                if (invocation.ProjectProperties.TryGetValue("TargetFramework", out var targetFramework) &&
+                    !string.IsNullOrEmpty(targetFramework))
                 {
-                    score += targetFramework.Length * 10;
-                    
-                    // Prefer platform-specific frameworks over generic ones
-                    if (targetFramework.Contains("linux") || targetFramework.Contains("windows") || targetFramework.Contains("osx"))
+                    try
                     {
-                        score += 500;
+                        var framework = NuGetFramework.Parse(targetFramework);
+                        
+                        // Prefer platform-specific frameworks
+                        if (framework.HasPlatform)
+                        {
+                            score += 1000;
+                        }
+                        
+                        // Additional scoring based on framework specificity
+                        if (framework.Platform != null)
+                        {
+                            var platformString = framework.Platform.ToLowerInvariant();
+                            if (platformString.Contains("linux") || platformString.Contains("windows") || platformString.Contains("osx"))
+                            {
+                                score += 500;
+                            }
+                        }
+
+                        // Prefer newer frameworks
+                        if (framework.Version != null)
+                        {
+                            score += (int)(framework.Version.Major * 10 + framework.Version.Minor);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Warning: Could not parse TargetFramework '{targetFramework}': {ex.Message}");
                     }
                 }
             }
@@ -90,34 +121,27 @@ namespace BinLogToSln
             return score;
         }
 
-        private static string GetTargetFrameworkFromCommandLine(string commandLineArguments)
+        private static bool ShouldExcludeInvocation(CompilerInvocation invocation)
         {
-            if (string.IsNullOrEmpty(commandLineArguments))
-                return null;
-
-            // Look for /p:TargetFramework=xxx pattern
-            var match = System.Text.RegularExpressions.Regex.Match(
-                commandLineArguments, 
-                @"/p:TargetFramework=([^\s;]+)", 
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            
-            if (match.Success)
+            if (string.IsNullOrEmpty(invocation.ProjectDirectory))
             {
-                return match.Groups[1].Value;
+                return true;
             }
 
-            // Look for --target-framework xxx pattern  
-            match = System.Text.RegularExpressions.Regex.Match(
-                commandLineArguments, 
-                @"--target-framework\s+([^\s]+)", 
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            
-            if (match.Success)
+            string projectFolder = Path.GetFileName(invocation.ProjectDirectory);
+            if (projectFolder == "ref" || projectFolder == "stubs")
             {
-                return match.Groups[1].Value;
+                Console.WriteLine($"Skipping Ref Assembly project {invocation.ProjectFilePath}");
+                return true;
             }
-
-            return null;
+            
+            if (Path.GetFileName(Path.GetDirectoryName(invocation.ProjectDirectory)) == "cycle-breakers")
+            {
+                Console.WriteLine($"Skipping Wpf Cycle-Breaker project {invocation.ProjectFilePath}");
+                return true;
+            }
+            
+            return false;
         }
         static void Main(string[] args)
         {
@@ -181,22 +205,7 @@ namespace BinLogToSln
             
             // Group invocations by assembly name and select the best one for each
             var invocationGroups = invocations
-                .Where(invocation => !string.IsNullOrEmpty(invocation.ProjectDirectory))
-                .Where(invocation => 
-                {
-                    string projectFolder = Path.GetFileName(invocation.ProjectDirectory);
-                    if (projectFolder == "ref" || projectFolder == "stubs")
-                    {
-                        Console.WriteLine($"Skipping Ref Assembly project {invocation.ProjectFilePath}");
-                        return false;
-                    }
-                    if (Path.GetFileName(Path.GetDirectoryName(invocation.ProjectDirectory)) == "cycle-breakers")
-                    {
-                        Console.WriteLine($"Skipping Wpf Cycle-Breaker project {invocation.ProjectFilePath}");
-                        return false;
-                    }
-                    return true;
-                })
+                .Where(invocation => !ShouldExcludeInvocation(invocation))
                 .GroupBy(invocation => invocation.AssemblyName)
                 .Select(group => SelectBestInvocation(group));
 
@@ -209,6 +218,11 @@ namespace BinLogToSln
                 }
 
                 if (!processed.Add(invocation.ProjectFilePath))
+                {
+                    continue;
+                }
+
+                if (!processed.Add(Path.GetFileNameWithoutExtension(invocation.ProjectFilePath)))
                 {
                     continue;
                 }
