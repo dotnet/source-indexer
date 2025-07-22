@@ -16,6 +16,113 @@ namespace BinLogToSln
 {
     class Program
     {
+        private static CompilerInvocation SelectBestInvocation(IGrouping<string, CompilerInvocation> invocationGroup)
+        {
+            var invocations = invocationGroup.ToList();
+            if (invocations.Count == 1)
+            {
+                return invocations[0];
+            }
+
+            Console.WriteLine($"Selecting best invocation for assembly '{invocationGroup.Key}' from {invocations.Count} candidates:");
+            foreach (var inv in invocations)
+            {
+                Console.WriteLine($"  - {inv.ProjectFilePath}");
+            }
+
+            // Score each invocation based on our criteria
+            var scoredInvocations = invocations.Select(inv => new
+            {
+                Invocation = inv,
+                Score = CalculateInvocationScore(inv)
+            }).ToList();
+
+            // Select the highest scored invocation
+            var best = scoredInvocations.OrderByDescending(x => x.Score).First();
+            
+            Console.WriteLine($"Selected: {best.Invocation.ProjectFilePath} (score: {best.Score})");
+            return best.Invocation;
+        }
+
+        private static int CalculateInvocationScore(CompilerInvocation invocation)
+        {
+            int score = 0;
+
+            try
+            {
+                // Prefer invocations with non-*.notsupported.cs source files
+                var sourceFiles = invocation.Parsed?.SourceFiles;
+                if (sourceFiles.HasValue)
+                {
+                    int totalSourceFiles = sourceFiles.Value.Length;
+                    int notSupportedFiles = sourceFiles.Value.Count(sf => sf.Path.Contains(".notsupported.cs"));
+                    
+                    if (totalSourceFiles > 0)
+                    {
+                        // Higher score for projects with fewer notsupported files relative to total
+                        score += (totalSourceFiles - notSupportedFiles) * 100;
+                        
+                        // Bonus for having no notsupported files at all
+                        if (notSupportedFiles == 0)
+                        {
+                            score += 1000;
+                        }
+                    }
+                }
+
+                // Prefer more specific target frameworks
+                // This is a heuristic - longer framework names are typically more specific
+                string targetFramework = GetTargetFrameworkFromCommandLine(invocation.CommandLineArguments);
+                if (!string.IsNullOrEmpty(targetFramework))
+                {
+                    score += targetFramework.Length * 10;
+                    
+                    // Prefer platform-specific frameworks over generic ones
+                    if (targetFramework.Contains("linux") || targetFramework.Contains("windows") || targetFramework.Contains("osx"))
+                    {
+                        score += 500;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error calculating score for {invocation.ProjectFilePath}: {ex.Message}");
+                // Return a base score so we don't exclude this invocation entirely
+                score = 1;
+            }
+
+            return score;
+        }
+
+        private static string GetTargetFrameworkFromCommandLine(string commandLineArguments)
+        {
+            if (string.IsNullOrEmpty(commandLineArguments))
+                return null;
+
+            // Look for /p:TargetFramework=xxx pattern
+            var match = System.Text.RegularExpressions.Regex.Match(
+                commandLineArguments, 
+                @"/p:TargetFramework=([^\s;]+)", 
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            
+            if (match.Success)
+            {
+                return match.Groups[1].Value;
+            }
+
+            // Look for --target-framework xxx pattern  
+            match = System.Text.RegularExpressions.Regex.Match(
+                commandLineArguments, 
+                @"--target-framework\s+([^\s]+)", 
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            
+            if (match.Success)
+            {
+                return match.Groups[1].Value;
+            }
+
+            return null;
+        }
         static void Main(string[] args)
         {
             string binlog = null;
@@ -75,24 +182,33 @@ namespace BinLogToSln
             WriteSolutionHeader(sln);
 
             IEnumerable<CompilerInvocation> invocations = BinLogCompilerInvocationsReader.ExtractInvocations(binlog);
+            
+            // Group invocations by assembly name and select the best one for each
+            var invocationGroups = invocations
+                .Where(invocation => !string.IsNullOrEmpty(invocation.ProjectDirectory))
+                .Where(invocation => 
+                {
+                    string projectFolder = Path.GetFileName(invocation.ProjectDirectory);
+                    if (projectFolder == "ref" || projectFolder == "stubs")
+                    {
+                        Console.WriteLine($"Skipping Ref Assembly project {invocation.ProjectFilePath}");
+                        return false;
+                    }
+                    if (Path.GetFileName(Path.GetDirectoryName(invocation.ProjectDirectory)) == "cycle-breakers")
+                    {
+                        Console.WriteLine($"Skipping Wpf Cycle-Breaker project {invocation.ProjectFilePath}");
+                        return false;
+                    }
+                    return true;
+                })
+                .GroupBy(invocation => invocation.AssemblyName)
+                .Select(group => SelectBestInvocation(group));
+
             var processed = new HashSet<string>();
-            foreach (CompilerInvocation invocation in invocations)
+            foreach (CompilerInvocation invocation in invocationGroups)
             {
-                if (string.IsNullOrEmpty(invocation.ProjectDirectory))
+                if (invocation == null)
                 {
-                    continue;
-                }
-
-                string projectFolder = Path.GetFileName(invocation.ProjectDirectory);
-                if (projectFolder == "ref" || projectFolder == "stubs")
-                {
-                    Console.WriteLine($"Skipping Ref Assembly project {invocation.ProjectFilePath}");
-                    continue;
-                }
-
-                if (Path.GetFileName(Path.GetDirectoryName(invocation.ProjectDirectory)) == "cycle-breakers")
-                {
-                    Console.WriteLine($"Skipping Wpf Cycle-Breaker project {invocation.ProjectFilePath}");
                     continue;
                 }
 
