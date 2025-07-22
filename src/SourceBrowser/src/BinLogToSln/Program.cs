@@ -24,11 +24,7 @@ namespace BinLogToSln
                 return invocations[0];
             }
 
-            Console.WriteLine($"Selecting best invocation for assembly '{invocationGroup.Key}' from {invocations.Count} candidates:");
-            foreach (var inv in invocations)
-            {
-                Console.WriteLine($"  - {inv.ProjectFilePath}");
-            }
+            Console.WriteLine($"Found {invocations.Count} candidates for assembly '{invocationGroup.Key}', selecting best...");
 
             // Score each invocation based on our criteria
             var scoredInvocations = invocations.Select(inv => new
@@ -40,7 +36,7 @@ namespace BinLogToSln
             // Select the highest scored invocation
             var best = scoredInvocations.OrderByDescending(x => x.Score).First();
             
-            Console.WriteLine($"Selected: {best.Invocation.ProjectFilePath} (score: {best.Score})");
+            Console.WriteLine($"Selected '{best.Invocation.ProjectFilePath}' (score: {best.Score})");
             return best.Invocation;
         }
 
@@ -86,7 +82,7 @@ namespace BinLogToSln
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error calculating score for {invocation.ProjectFilePath}: {ex.Message}");
+                Console.WriteLine($"Warning: Error calculating score for {invocation.ProjectFilePath}: {ex.Message}");
                 // Return a base score so we don't exclude this invocation entirely
                 score = 1;
             }
