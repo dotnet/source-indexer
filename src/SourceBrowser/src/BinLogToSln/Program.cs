@@ -47,35 +47,21 @@ namespace BinLogToSln
 
             try
             {
-                // Check for UseForSourceIndex escape hatch
+                // 1. UseForSourceIndex (highest priority)
                 if (invocation.ProjectProperties.TryGetValue("UseForSourceIndex", out var useForSourceIndex) &&
                     bool.TryParse(useForSourceIndex, out var shouldUse) && shouldUse)
                 {
                     return int.MaxValue; // Highest possible score
                 }
 
-                // Check for IsPlatformNotSupportedAssembly property
+                // 2. Not IsPlatformNotSupportedAssembly (second priority)
                 if (invocation.ProjectProperties.TryGetValue("IsPlatformNotSupportedAssembly", out var isPlatformNotSupported) &&
                     bool.TryParse(isPlatformNotSupported, out var isNotSupported) && isNotSupported)
                 {
                     score -= 10000; // Heavy penalty for platform not supported assemblies
                 }
 
-                // Prefer invocations with actual source files
-                var sourceFiles = invocation.Parsed?.SourceFiles;
-                if (sourceFiles.HasValue)
-                {
-                    int totalSourceFiles = sourceFiles.Value.Length;
-                    score += totalSourceFiles * 100; // Base score for having source files
-                    
-                    // Bonus for having more source files (indicates more complete implementation)
-                    if (totalSourceFiles > 10)
-                    {
-                        score += 500;
-                    }
-                }
-
-                // Prefer more specific target frameworks using NuGet.Frameworks
+                // 3. Newest TargetFramework version (third priority)
                 if (invocation.ProjectProperties.TryGetValue("TargetFramework", out var targetFramework) &&
                     !string.IsNullOrEmpty(targetFramework))
                 {
@@ -83,32 +69,44 @@ namespace BinLogToSln
                     {
                         var framework = NuGetFramework.Parse(targetFramework);
                         
-                        // Prefer platform-specific frameworks
-                        if (framework.HasPlatform)
-                        {
-                            score += 1000;
-                        }
-                        
-                        // Additional scoring based on framework specificity
-                        if (framework.Platform != null)
-                        {
-                            var platformString = framework.Platform.ToLowerInvariant();
-                            if (platformString.Contains("linux") || platformString.Contains("windows") || platformString.Contains("osx"))
-                            {
-                                score += 500;
-                            }
-                        }
-
-                        // Prefer newer frameworks
+                        // Prefer newer frameworks (high weight)
                         if (framework.Version != null)
                         {
-                            score += (int)(framework.Version.Major * 10 + framework.Version.Minor);
+                            score += (int)(framework.Version.Major * 1000 + framework.Version.Minor * 100);
                         }
                     }
                     catch (Exception ex)
                     {
                         Console.WriteLine($"Warning: Could not parse TargetFramework '{targetFramework}': {ex.Message}");
                     }
+                }
+
+                // 4. Has a platform (fourth priority)
+                if (invocation.ProjectProperties.TryGetValue("TargetFramework", out var targetFrameworkForPlatform) &&
+                    !string.IsNullOrEmpty(targetFrameworkForPlatform))
+                {
+                    try
+                    {
+                        var framework = NuGetFramework.Parse(targetFrameworkForPlatform);
+                        
+                        // Prefer platform-specific frameworks
+                        if (framework.HasPlatform)
+                        {
+                            score += 500;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Warning: Could not parse TargetFramework '{targetFrameworkForPlatform}': {ex.Message}");
+                    }
+                }
+
+                // 5. More source files (lowest priority)
+                var sourceFiles = invocation.Parsed?.SourceFiles;
+                if (sourceFiles.HasValue)
+                {
+                    int totalSourceFiles = sourceFiles.Value.Length;
+                    score += totalSourceFiles; // Lower weight than other factors
                 }
             }
             catch (Exception ex)

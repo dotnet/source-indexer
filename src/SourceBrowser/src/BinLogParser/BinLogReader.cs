@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Microsoft.Build.Framework;
 using Microsoft.CodeAnalysis;
 
@@ -139,17 +140,20 @@ namespace Microsoft.SourceBrowser.BinLogParser
                 ? CompilerKind.CSharp
                 : CompilerKind.VisualBasic);
             
+            // Get the project once and reuse it
+            var project = task.GetNearestParent<Microsoft.Build.Logging.StructuredLogger.Project>();
+            
             var invocation = new CompilerInvocation
             {
                 Language = language,
                 CommandLineArguments = commandLine,
-                ProjectFilePath = task.GetNearestParent<Microsoft.Build.Logging.StructuredLogger.Project>()?.ProjectFile
+                ProjectFilePath = project?.ProjectFile
             };
 
             // Capture project properties from the project
-            var project = task.GetNearestParent<Microsoft.Build.Logging.StructuredLogger.Project>();
             if (project != null)
             {
+                // Use the simplified approach of visiting children to get property values
                 project.VisitAllChildren<Microsoft.Build.Logging.StructuredLogger.Property>(prop =>
                 {
                     if (!string.IsNullOrEmpty(prop.Name) && !string.IsNullOrEmpty(prop.Value))
