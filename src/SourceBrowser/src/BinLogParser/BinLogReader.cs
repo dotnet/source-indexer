@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Microsoft.Build.Framework;
+using Microsoft.Build.Logging.StructuredLogger;
 using Microsoft.CodeAnalysis;
 
 namespace Microsoft.SourceBrowser.BinLogParser
@@ -150,10 +151,10 @@ namespace Microsoft.SourceBrowser.BinLogParser
                 ProjectFilePath = project?.ProjectFile
             };
 
-            // Capture project properties from the project
+            // Capture project properties from the project evaluation
             if (project != null)
             {
-                // Use the simplified approach of visiting children to get property values
+                // Use VisitAllChildren approach which is compatible with current version
                 project.VisitAllChildren<Microsoft.Build.Logging.StructuredLogger.Property>(prop =>
                 {
                     if (!string.IsNullOrEmpty(prop.Name) && !string.IsNullOrEmpty(prop.Value))
