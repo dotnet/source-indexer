@@ -2,6 +2,7 @@
 using Azure.Identity;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -15,18 +16,44 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
         private TokenCredential credential;
         private string clientId;
 
+        // Service provider for DI resolution when running under Aspire orchestration
+        public static IServiceProvider ServiceProvider { get; set; }
+
         public AzureBlobFileSystem(string uri)
         {
-            if (string.IsNullOrEmpty(clientId) && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ARM_CLIENT_ID")))
-                clientId = Environment.GetEnvironmentVariable("ARM_CLIENT_ID");
-
-            if (string.IsNullOrEmpty(clientId))
-                credential = new AzureCliCredential();
+            // Check if running under Aspire orchestration
+            if (Environment.GetEnvironmentVariable("SOURCE_BROWSER_ASPIRE_ORCHESTRATED") == "true" && ServiceProvider != null)
+            {
+                // Use DI-configured BlobServiceClient and get container client from it
+                var blobServiceClient = ServiceProvider.GetRequiredService<BlobServiceClient>();
+                var containerName = Environment.GetEnvironmentVariable("SOURCE_BROWSER_BLOB_CONTAINER_NAME") ?? "sourceindex";
+                container = blobServiceClient.GetBlobContainerClient(containerName);
+            }
             else
-                credential = new ManagedIdentityCredential(clientId);
+            {
+                // Use the original logic for direct instantiation
+                if (string.IsNullOrEmpty(clientId) && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ARM_CLIENT_ID")))
+                {
+                    clientId = Environment.GetEnvironmentVariable("ARM_CLIENT_ID");
+                }
 
-            container = new BlobContainerClient(new Uri(uri),
-                                                credential);
+                if (string.IsNullOrEmpty(clientId))
+                {
+                    credential = new AzureCliCredential();
+                }
+                else
+                {
+                    credential = new ManagedIdentityCredential(clientId);
+                }
+
+                container = new BlobContainerClient(new Uri(uri), credential);
+            }
+        }
+
+        // Additional constructor for direct DI injection
+        public AzureBlobFileSystem(BlobContainerClient containerClient)
+        {
+            container = containerClient ?? throw new ArgumentNullException(nameof(containerClient));
         }
 
         public bool DirectoryExists(string name)

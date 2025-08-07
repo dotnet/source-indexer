@@ -5,6 +5,21 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
 
+  <!-- Aspire dependencies -->
+  <ItemGroup>
+      <PackageVersion Include="Aspire.Hosting.AppHost" Version="9.4.0" />
+      <PackageVersion Include="Aspire.Hosting.Azure.Storage" Version="9.4.0" />
+      <PackageVersion Include="Aspire.Azure.Storage.Blobs" Version="9.4.0" />
+      <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="9.0.0" />
+      <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="9.0.0" />
+      <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.9.0" />
+      <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.12.0" />
+      <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.9.0" />
+      <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.9.0" />
+      <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.9.0" />
+      <PackageVersion Include="AspNetCore.HealthChecks.Uris" Version="9.0.0" />
+  </ItemGroup>
+
   <ItemGroup>
     <!-- msbuild-->
     <PackageVersion Include="Microsoft.Build.Framework" Version="17.14.8" />
@@ -74,7 +89,7 @@
 
   <!-- dependencies for dotnet/source-browser projects -->
   <ItemGroup>
-      <PackageVersion Include="Azure.Identity" Version="1.14.1" />
+      <PackageVersion Include="Azure.Identity" Version="1.14.2" />
       <PackageVersion Include="Azure.Storage.Blobs" Version="12.24.1" />
       <PackageVersion Include="Mono.Options" Version="6.12.0.148" />
       <PackageVersion Include="SharpZipLib" Version="1.4.2" />
