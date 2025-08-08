@@ -97,7 +97,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
                 if (Configuration.CreateFoldersOnDisk)
                 {
-                    Directory.CreateDirectory(directoryName);
+                    await OutputHelper.CreateDirectoryAsync(directoryName);
                 }
             }
             catch (PathTooLongException)
@@ -108,10 +108,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
             if (Configuration.WriteDocumentsToDisk)
             {
-                using (var streamWriter = new StreamWriter(
-                    documentDestinationFilePath,
-                    append: false,
-                    encoding: Encoding.UTF8))
+                using (var stream = await OutputHelper.OpenWriteStreamAsync(documentDestinationFilePath))
+                using (var streamWriter = new StreamWriter(stream, Encoding.UTF8))
                 {
                     await GenerateHtmlAsync(streamWriter);
                 }

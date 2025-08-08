@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SourceIndexServer\SourceIndexServer.csproj" />
+    <ProjectReference Include="..\HtmlGenerator\HtmlGenerator.csproj" />
   </ItemGroup>
 
 </Project>

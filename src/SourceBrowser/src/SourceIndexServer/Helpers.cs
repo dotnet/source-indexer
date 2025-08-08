@@ -10,6 +10,14 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
 {
     public static class Helpers
     {
+        private static readonly bool shouldLowerCase = Environment.GetEnvironmentVariable("SOURCE_BROWSER_ASPIRE_ORCHESTRATED") != "true";
+
+        private static string NormalizePath(string path)
+        {
+            // Don't lowercase when running under Aspire orchestration
+            return shouldLowerCase ? path.ToLowerInvariant() : path;
+        }
+
         private static async Task ProxyRequestAsync(this HttpContext context, string targetPath, Action<HttpRequestMessage> configureRequest = null)
         {
             var fs = new AzureBlobFileSystem(IndexProxyUrl);
@@ -47,7 +55,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
                 return;
             }
 
-            var proxyRequestPathSuffix = (path.StartsWith("/", StringComparison.Ordinal) ? path : "/" + path).ToLowerInvariant();
+            var proxyRequestPathSuffix = NormalizePath(path.StartsWith("/", StringComparison.Ordinal) ? path : "/" + path);
 
             if (!FileExists(proxyRequestPathSuffix))
             {

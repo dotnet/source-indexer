@@ -16,7 +16,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             var fileName = Path.Combine(rootPath, Constants.Namespaces);
             NamespaceTreeNode root = ConstructTree(types);
 
-            using (var sw = new StreamWriter(fileName))
+            using (var stream = OutputHelper.OpenWriteStreamAsync(fileName).GetAwaiter().GetResult())
+            using (var sw = new StreamWriter(stream))
             {
                 Markup.WriteNamespaceExplorerPrefix(assemblyName, sw, pathPrefix);
                 WriteChildren(root, sw, pathPrefix);

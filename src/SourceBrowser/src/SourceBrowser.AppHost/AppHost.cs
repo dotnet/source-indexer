@@ -16,6 +16,17 @@ if (!builder.ExecutionContext.IsPublishMode)
     });
 }
 
+// Add the HtmlGenerator console app that will populate the blob storage
+// This app is configured to not start automatically and wait for explicit user action from the dashboard
+// Use a resolved full path from the AppHost directory to the Aspire.Hosting project
+var aspireProjectPath = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", "..", "..", "submodules", "aspire", "src", "Aspire.Hosting", "Aspire.Hosting.csproj"));
+var htmlGenerator = builder.AddProject<Projects.HtmlGenerator>("htmlgenerator", launchProfileName: null)
+    .WithReference(blobs)
+    .WaitFor(blobs)
+    .WaitFor(storage)
+    .WithArgs("/azureblob:sourceindex", "/force ", $"{aspireProjectPath}")
+    .WithExplicitStart();
+
 // Start with a simple setup - just the SourceIndexServer
 var sourceIndexServer = builder.AddProject<Projects.SourceIndexServer>("sourceindexserver")
     .WithReference(blobs)

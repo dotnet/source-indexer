@@ -84,6 +84,15 @@ namespace Microsoft.SourceBrowser.Common
         {
             try
             {
+                var directory = Path.GetDirectoryName(filePath);
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+                if (!File.Exists(filePath))
+                {
+                    File.WriteAllText(filePath, string.Empty, Encoding.UTF8);
+                }
                 File.AppendAllText(filePath, SeparatorBar + Environment.NewLine + message + Environment.NewLine, Encoding.UTF8);
             }
             catch (Exception ex)

@@ -1,8 +1,10 @@
 ﻿using Microsoft.SourceBrowser.Common;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace Microsoft.SourceBrowser.HtmlGenerator
 {
@@ -23,7 +25,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             bool loadPlugins,
             bool excludeTests,
             string rootPath,
-            bool includeSourceGeneratedDocuments)
+            bool includeSourceGeneratedDocuments,
+            string azureBlobContainer)
         {
             SolutionDestinationFolder = solutionDestinationFolder;
             Projects = projects;
@@ -40,6 +43,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             ExcludeTests = excludeTests;
             RootPath = rootPath;
             IncludeSourceGeneratedDocuments = includeSourceGeneratedDocuments;
+            AzureBlobContainer = azureBlobContainer;
         }
 
         public string SolutionDestinationFolder { get; }
@@ -57,9 +61,19 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         public bool LoadPlugins { get; }
         public bool ExcludeTests { get; }
         public string RootPath { get; }
+        public string AzureBlobContainer { get; }
 
         public static CommandLineOptions Parse(params string[] args)
         {
+
+            while (!System.Diagnostics.Debugger.IsAttached)
+            {
+                Console.WriteLine($"Attatch to {Process.GetCurrentProcess().Id}");
+                Thread.Sleep(5000);
+            }
+
+            Debugger.Break();
+
             var solutionDestinationFolder = (string)null;
             var projects = new List<string>();
             var properties = new Dictionary<string, string>();
@@ -75,6 +89,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             var excludeTests = false;
             var includeSourceGeneratedDocuments = true;
             var rootPath = (string)null;
+            var azureBlobContainer = (string)null;
 
             foreach (var arg in args)
             {
@@ -232,6 +247,12 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     continue;
                 }
 
+                if (arg.StartsWith("/azureblob:", StringComparison.Ordinal))
+                {
+                    azureBlobContainer = arg.Substring("/azureblob:".Length).StripQuotes();
+                    continue;
+                }
+
                 try
                 {
                     AddProject(projects, arg);
@@ -270,7 +291,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 loadPlugins,
                 excludeTests,
                 rootPath,
-                includeSourceGeneratedDocuments);
+                includeSourceGeneratedDocuments,
+                azureBlobContainer);
         }
 
         private static void AddProject(List<string> projects, string path)

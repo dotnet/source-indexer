@@ -15,12 +15,16 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
         private readonly BlobContainerClient container;
         private TokenCredential credential;
         private string clientId;
+        private readonly bool shouldLowerCase;
 
         // Service provider for DI resolution when running under Aspire orchestration
         public static IServiceProvider ServiceProvider { get; set; }
 
         public AzureBlobFileSystem(string uri)
         {
+            // Determine if we should lowercase blob names (false when running under Aspire orchestration)
+            shouldLowerCase = Environment.GetEnvironmentVariable("SOURCE_BROWSER_ASPIRE_ORCHESTRATED") != "true";
+
             // Check if running under Aspire orchestration
             if (Environment.GetEnvironmentVariable("SOURCE_BROWSER_ASPIRE_ORCHESTRATED") == "true" && ServiceProvider != null)
             {
@@ -54,6 +58,13 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
         public AzureBlobFileSystem(BlobContainerClient containerClient)
         {
             container = containerClient ?? throw new ArgumentNullException(nameof(containerClient));
+            // When using DI injection, assume we're in Aspire orchestration mode
+            shouldLowerCase = Environment.GetEnvironmentVariable("SOURCE_BROWSER_ASPIRE_ORCHESTRATED") != "true";
+        }
+
+        private string NormalizeName(string name)
+        {
+            return shouldLowerCase ? name.ToLowerInvariant() : name;
         }
 
         public bool DirectoryExists(string name)
@@ -63,7 +74,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
 
         public IEnumerable<string> ListFiles(string dirName)
         {
-            dirName = dirName.ToLowerInvariant();
+            dirName = NormalizeName(dirName);
             dirName = dirName.Replace("\\", "/");
             if (!dirName.EndsWith("/", StringComparison.Ordinal))
             {
@@ -78,7 +89,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
 
         public bool FileExists(string name)
         {
-            name = name.ToLowerInvariant();
+            name = NormalizeName(name);
             BlobClient blob = container.GetBlobClient(name);
             
             return blob.Exists();
@@ -86,7 +97,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
 
         public BlobProperties FileProperties(string name)
         {
-            name = name.ToLowerInvariant();
+            name = NormalizeName(name);
             BlobClient blob = container.GetBlobClient(name);
 
             return blob.GetProperties();
@@ -94,7 +105,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
 
         public Stream OpenSequentialReadStream(string name)
         {
-            name = name.ToLowerInvariant();
+            name = NormalizeName(name);
             BlobClient blob = container.GetBlobClient(name);
 
             return blob.OpenRead();
@@ -102,7 +113,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
 
         public IEnumerable<string> ReadLines(string name)
         {
-            name = name.ToLowerInvariant();
+            name = NormalizeName(name);
             BlobClient blob = container.GetBlobClient(name);
 
             using Stream stream = blob.OpenRead();

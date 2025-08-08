@@ -9,15 +9,21 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using Microsoft.Build.Evaluation;
 using Microsoft.Build.Locator;
 using Microsoft.SourceBrowser.BinLogParser;
 using Microsoft.SourceBrowser.Common;
+using Microsoft.Extensions.Hosting;
+using Azure.Storage.Blobs;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Microsoft.SourceBrowser.HtmlGenerator
 {
     public class Program
     {
+        public static IOutputSystem OutputSystem { get; private set; }
+
         private static void Main(string[] args)
         {
             AppDomain.CurrentDomain.AssemblyLoad += (s, e) =>
@@ -41,6 +47,27 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 return;
             }
 
+            // Initialize output system based on options
+            if (!string.IsNullOrEmpty(options.AzureBlobContainer))
+            {
+                BlobServiceClient blobServiceClient = CreateBlobServiceClient("sourceindex-blobs");
+
+                if (blobServiceClient == null)
+                {
+                    Console.WriteLine("ERROR: Azure Blob Storage client not initialized. Please configure the BlobServiceClient.");
+                    Console.WriteLine("Container name: " + options.AzureBlobContainer);
+                    return;
+                }
+
+                OutputSystem = new AzureBlobOutputSystem(blobServiceClient, options.AzureBlobContainer);
+                Console.WriteLine($"Using Azure Blob Storage container: {options.AzureBlobContainer}");    
+            }
+            else
+            {
+                OutputSystem = new LocalFileOutputSystem();
+                Console.WriteLine("Using local file system output");
+            }
+
             var msbuildAssembly = typeof(Project).Assembly;
             var version = FileVersionInfo.GetVersionInfo(msbuildAssembly.Location);
             Console.WriteLine($"Using msbuild version {version.FileVersion} from {msbuildAssembly.Location}");
@@ -51,7 +78,10 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 Console.WriteLine($"MSBuild Assembly: {Path.GetFileName(dll)}");
             }
 
-            Paths.SolutionDestinationFolder = options.SolutionDestinationFolder;
+            if (string.IsNullOrEmpty(options.AzureBlobContainer))
+            {
+                Paths.SolutionDestinationFolder = options.SolutionDestinationFolder;
+            }
             SolutionGenerator.LoadPlugins = options.LoadPlugins;
             SolutionGenerator.ExcludeTests = options.ExcludeTests;
 
@@ -70,7 +100,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
             Paths.SolutionDestinationFolder = Path.Combine(Paths.SolutionDestinationFolder, "index"); //The actual index files need to be written to the "index" subdirectory
 
-            Directory.CreateDirectory(Paths.SolutionDestinationFolder);
+            OutputHelper.CreateDirectory(Paths.SolutionDestinationFolder);
 
             Log.ErrorLogFilePath = Path.Combine(Paths.SolutionDestinationFolder, Log.ErrorLogFile);
             Log.MessageLogFilePath = Path.Combine(Paths.SolutionDestinationFolder, Log.MessageLogFile);
@@ -103,6 +133,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         {
             Console.WriteLine("Usage: HtmlGenerator "
                 + "[/out:<outputdirectory>] "
+                + "[/azureblob:<containername>] "
                 + "[/force] "
                 + "[/useplugins] "
                 + "[/noplugins] "
@@ -117,6 +148,78 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 + "[/excludeSourceGeneratedDocuments]" +
                 "" +
                 "Plugins are now off by default.");
+        }
+
+        /// <summary>
+        /// Creates a BlobServiceClient configured with the connection string from Aspire service discovery.
+        /// This replicates the behavior of AddAzureBlobServiceClient for .NET Framework 4.7.2 compatibility.
+        /// </summary>
+        /// <param name="connectionName">The connection name (e.g., "sourceindex-blobs")</param>
+        /// <returns>A configured BlobServiceClient, or null if no connection string is found</returns>
+        private static BlobServiceClient CreateBlobServiceClient(string connectionName)
+        {
+            if (string.IsNullOrEmpty(connectionName))
+            {
+                throw new ArgumentException("Connection name cannot be null or empty", nameof(connectionName));
+            }
+
+            // Aspire injects connection strings as environment variables in the format:
+            // ConnectionStrings__<connection-name> where hyphens are converted to underscores
+            var environmentVariableName = $"ConnectionStrings__{connectionName}";
+            var connectionString = Environment.GetEnvironmentVariable(environmentVariableName);
+
+            if (!string.IsNullOrEmpty(connectionString))
+            {
+                // Handle both connection string and service URI formats
+                if (Uri.TryCreate(connectionString, UriKind.Absolute, out var serviceUri))
+                {
+                    // If it's a URI, create client with the service URI
+                    Console.WriteLine($"Using service URI: {serviceUri}");
+                    return new BlobServiceClient(serviceUri);
+                }
+                else
+                {
+                    // If it's a connection string, create client with the connection string
+                    Console.WriteLine("Using connection string for BlobServiceClient");
+                    return new BlobServiceClient(connectionString);
+                }
+            }
+
+            // Fallback: try standard ConnectionStrings format (e.g., from appsettings.json)
+            var standardVariableName = $"ConnectionStrings__{connectionName}";
+            connectionString = Environment.GetEnvironmentVariable(standardVariableName);
+            
+            if (!string.IsNullOrEmpty(connectionString))
+            {
+                Console.WriteLine($"Found connection string for '{connectionName}' in environment variable '{standardVariableName}'");
+                return new BlobServiceClient(connectionString);
+            }
+
+            // Final fallback: look for common Azure Storage environment variables
+            var azureStorageConnectionString = Environment.GetEnvironmentVariable("AZURE_STORAGE_CONNECTION_STRING");
+            if (!string.IsNullOrEmpty(azureStorageConnectionString))
+            {
+                Console.WriteLine("Using AZURE_STORAGE_CONNECTION_STRING environment variable");
+                return new BlobServiceClient(azureStorageConnectionString);
+            }
+
+            Console.WriteLine($"WARNING: No connection string found for '{connectionName}'. Tried environment variables:");
+            Console.WriteLine($"  - {environmentVariableName}");
+            Console.WriteLine($"  - {standardVariableName}");
+            Console.WriteLine($"  - AZURE_STORAGE_CONNECTION_STRING");
+            Console.WriteLine("Available environment variables:");
+            
+            // List all environment variables that might be related to connection strings
+            foreach (System.Collections.DictionaryEntry env in Environment.GetEnvironmentVariables())
+            {
+                var key = env.Key.ToString();
+                if (key.Contains("ConnectionString") || key.Contains("STORAGE") || key.Contains("BLOB"))
+                {
+                    Console.WriteLine($"  - {key}");
+                }
+            }
+
+            return null;
         }
 
         private static readonly Folder<ProjectSkeleton> mergedSolutionExplorerRoot = new Folder<ProjectSkeleton>();
@@ -341,7 +444,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             {
                 var text = File.ReadAllText(source);
                 text = StampOverviewHtmlText(text);
-                File.WriteAllText(dst, text);
+                OutputHelper.WriteAllText(dst, text);
             }
         }
 
@@ -358,7 +461,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             {
                 var text = File.ReadAllText(source);
                 text = text.Replace("/*USE_SOLUTION_EXPLORER*/true/*USE_SOLUTION_EXPLORER*/", "false");
-                File.WriteAllText(dst, text);
+                OutputHelper.WriteAllText(dst, text);
             }
         }
 
@@ -385,7 +488,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 {
                     var text = File.ReadAllText(source);
                     text = Regex.Replace(text, @"/\*EXTERNAL_URL_MAP\*/.*/\*EXTERNAL_URL_MAP\*/", sb.ToString());
-                    File.WriteAllText(dst, text);
+                    OutputHelper.WriteAllText(dst, text);
                 }
             }
         }
