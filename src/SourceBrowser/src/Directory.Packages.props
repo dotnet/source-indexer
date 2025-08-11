@@ -67,7 +67,7 @@
     <PackageVersion Include="Microsoft.Extensions.Logging.AzureAppServices" Version="9.0.6" />
     <PackageVersion Include="System.Resources.Extensions" Version="9.0.6" />
     <PackageVersion Include="System.Collections.Immutable" Version="9.0.6" />
-    <PackageVersion Include="System.Text.Encodings.Web" Version="9.0.6" />
+    <PackageVersion Include="System.Text.Encodings.Web" Version="9.0.8" />
     <PackageVersion Include="System.Text.Json" Version="9.0.6" />
     <PackageVersion Include="System.Threading.Tasks.Dataflow" Version="9.0.6" />
   </ItemGroup>
