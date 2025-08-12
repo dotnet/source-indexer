@@ -47,22 +47,27 @@ namespace BinLogToSln
 
             try
             {
+                if (invocation.ProjectProperties is null)
+                {
+                    Console.WriteLine($"Warning: No project properties for {invocation.ProjectFilePath}.");
+                }
+
                 // 1. UseForSourceIndex (highest priority)
-                if (invocation.ProjectProperties.TryGetValue("UseForSourceIndex", out var useForSourceIndex) &&
+                if (invocation.ProjectProperties?.TryGetValue("UseForSourceIndex", out var useForSourceIndex) == true &&
                     bool.TryParse(useForSourceIndex, out var shouldUse) && shouldUse)
                 {
                     return int.MaxValue; // Highest possible score
                 }
 
                 // 2. Not IsPlatformNotSupportedAssembly (second priority)
-                if (invocation.ProjectProperties.TryGetValue("IsPlatformNotSupportedAssembly", out var isPlatformNotSupported) &&
+                if (invocation.ProjectProperties?.TryGetValue("IsPlatformNotSupportedAssembly", out var isPlatformNotSupported) == true &&
                     bool.TryParse(isPlatformNotSupported, out var isNotSupported) && isNotSupported)
                 {
                     score -= 10000; // Heavy penalty for platform not supported assemblies
                 }
 
                 // 3. Newest TargetFramework version (third priority)
-                if (invocation.ProjectProperties.TryGetValue("TargetFramework", out var targetFramework) &&
+                if (invocation.ProjectProperties?.TryGetValue("TargetFramework", out var targetFramework) == true &&
                     !string.IsNullOrEmpty(targetFramework))
                 {
                     try
@@ -74,21 +79,8 @@ namespace BinLogToSln
                         {
                             score += (int)(framework.Version.Major * 1000 + framework.Version.Minor * 100);
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Warning: Could not parse TargetFramework '{targetFramework}': {ex.Message}");
-                    }
-                }
 
-                // 4. Has a platform (fourth priority)
-                if (invocation.ProjectProperties.TryGetValue("TargetFramework", out var targetFrameworkForPlatform) &&
-                    !string.IsNullOrEmpty(targetFrameworkForPlatform))
-                {
-                    try
-                    {
-                        var framework = NuGetFramework.Parse(targetFrameworkForPlatform);
-                        
+                        // 4. Has a platform (fourth priority)
                         // Prefer platform-specific frameworks
                         if (framework.HasPlatform)
                         {
@@ -97,7 +89,7 @@ namespace BinLogToSln
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Warning: Could not parse TargetFramework '{targetFrameworkForPlatform}': {ex.Message}");
+                        Console.WriteLine($"Warning: Could not parse TargetFramework '{targetFramework}': {ex.Message}");
                     }
                 }
 
@@ -225,10 +217,6 @@ namespace BinLogToSln
                     continue;
                 }
 
-                if (!processed.Add(Path.GetFileNameWithoutExtension(invocation.ProjectFilePath)))
-                {
-                    continue;
-                }
                 Console.WriteLine($"Converting Project: {invocation.ProjectFilePath}");
 
                 string repoRelativeProjectPath = Path.GetRelativePath(repoRoot, invocation.ProjectFilePath);
