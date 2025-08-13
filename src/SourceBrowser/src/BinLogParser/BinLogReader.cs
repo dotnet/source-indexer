@@ -7,6 +7,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace Microsoft.SourceBrowser.BinLogParser
 {
@@ -56,7 +57,20 @@ namespace Microsoft.SourceBrowser.BinLogParser
                         projectEvaluationToPropertiesMap.TryGetValue(evaluationId, out var properties))
                     {
                         projectProperties = properties;
+
+                        if (args is PropertyReassignmentEventArgs propertyReassignment)
+                        {
+                            properties[propertyReassignment.PropertyName] = propertyReassignment.NewValue;
+                        }
+                        else if (args is BuildMessageEventArgs messageArgs &&
+                                 Strings.PropertyReassignmentRegex.Match(messageArgs.Message) is Match match &&
+                                 match.Success)
+                        {
+                            // wokaround https://github.com/KirillOsenkov/MSBuildStructuredLog/issues/885
+                            properties[match.Groups["Name"].Value] = match.Groups["NewValue"].Value;
+                        }
                     }
+
 
                     var invocation = TryGetInvocationFromRecord(args, taskIdToInvocationMap, projectProperties);
                     if (invocation != null)
