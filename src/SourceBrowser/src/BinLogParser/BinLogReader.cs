@@ -71,22 +71,29 @@ namespace Microsoft.SourceBrowser.BinLogParser
                     if (e?.BuildEventContext?.EvaluationId >= 0 &&
                         e is ProjectEvaluationFinishedEventArgs projectEvalArgs)
                     {
-                        // Store the project properties for this project instance
-                        var properties = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-                        foreach (KeyValuePair<string, string> property in projectEvalArgs.Properties)
+                        if (projectEvalArgs?.Properties is IDictionary<string, string> propertiesDict)
                         {
-                            properties[property.Key] = property.Value;
+                            projectEvaluationToPropertiesMap[e.BuildEventContext.EvaluationId] =
+                                new Dictionary<string, string>(propertiesDict, StringComparer.OrdinalIgnoreCase);
                         }
+                        else
+                        {
+                            var properties = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-                        projectEvaluationToPropertiesMap[e.BuildEventContext.EvaluationId] = properties;
+                            foreach (KeyValuePair<string, string> property in projectEvalArgs.Properties)
+                            {
+                                properties[property.Key] = property.Value;
+                            }
+
+                            projectEvaluationToPropertiesMap[e.BuildEventContext.EvaluationId] = properties;
+                        }
                     }
                 };
 
                 reader.ProjectStarted += (object sender, ProjectStartedEventArgs e) =>
                 {
-                    if (e?.BuildEventContext?.EvaluationId >= 0 ||
-                        e?.BuildEventContext?.ProjectInstanceId < 0)
+                    if (e?.BuildEventContext?.EvaluationId >= 0 &&
+                        e?.BuildEventContext?.ProjectInstanceId >= 0)
                     {
                         projectInstanceToEvaluationMap[e.BuildEventContext.ProjectInstanceId] = e.BuildEventContext.EvaluationId;
                     }
@@ -192,7 +199,7 @@ namespace Microsoft.SourceBrowser.BinLogParser
                 Language = language,
                 CommandLineArguments = commandLine,
                 ProjectFilePath = project?.ProjectFile,
-                ProjectProperties = project?.GetEvaluation(build).GetProperties() ?? new Dictionary<string, string>(),
+                ProjectProperties = project?.GetEvaluation(build)?.GetProperties() ?? new Dictionary<string, string>(),
             };
 
 
