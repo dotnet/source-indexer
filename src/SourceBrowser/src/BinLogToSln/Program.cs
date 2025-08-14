@@ -85,7 +85,17 @@ namespace BinLogToSln
                         if (framework.HasPlatform)
                         {
                             score += 500;
+
+                            if (framework.Platform.Equals("linux", StringComparison.OrdinalIgnoreCase))
+                            {
+                                score += 100; // Linux is preferred over other platforms
+                            }
+                            else if (framework.Platform.Equals("unix", StringComparison.OrdinalIgnoreCase))
+                            {
+                                score += 50; // Unix is also preferred, but less than Linux
+                            }
                         }
+
                     }
                     catch (Exception ex)
                     {
