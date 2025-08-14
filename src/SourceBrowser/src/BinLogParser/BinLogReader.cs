@@ -62,12 +62,9 @@ namespace Microsoft.SourceBrowser.BinLogParser
                         {
                             properties[propertyReassignment.PropertyName] = propertyReassignment.NewValue;
                         }
-                        else if (args is BuildMessageEventArgs messageArgs &&
-                                 Strings.PropertyReassignmentRegex.Match(messageArgs.Message) is Match match &&
-                                 match.Success)
+                        else if (args is PropertyInitialValueSetEventArgs propertyInitialValueSet)
                         {
-                            // wokaround https://github.com/KirillOsenkov/MSBuildStructuredLog/issues/885
-                            properties[match.Groups["Name"].Value] = match.Groups["NewValue"].Value;
+                            properties[propertyInitialValueSet.PropertyName] = propertyInitialValueSet.PropertyValue;
                         }
                     }
 
