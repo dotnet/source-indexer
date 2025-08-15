@@ -1,6 +1,9 @@
 # source-indexer
 This repo contains the code for building http://source.dot.net
 
+## Documentation
+- [Source Selection Algorithm](docs/source-selection-algorithm.md) - How the indexer chooses the best implementation when multiple builds exist for the same assembly
+
 ## Build Status
 [![Build Status](https://dev.azure.com/dnceng/internal/_apis/build/status/dotnet-source-indexer/dotnet-source-indexer%20CI?branchName=main)](https://dev.azure.com/dnceng/internal/_build/latest?definitionId=612&branchName=main)
 

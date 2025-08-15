@@ -17,5 +17,9 @@ jobs:
         global-json-file: global.json
     - name: Restore source-indexer.sln
       run: dotnet restore src/source-indexer.sln
-    - name: Build source-indexer.sln
-      run: dotnet build --no-restore src/source-indexer.sln
+    - name: Restore SourceBrowser.sln
+      run: dotnet restore src/SourceBrowser/SourceBrowser.sln
+    - name: Build & test source-indexer.sln
+      run: dotnet test --no-restore src/source-indexer.sln
+    - name: Build & test SourceBrowser.sln
+      run: dotnet test --no-restore src/SourceBrowser/SourceBrowser.sln

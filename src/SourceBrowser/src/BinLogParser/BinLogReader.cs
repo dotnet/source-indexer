@@ -1,9 +1,13 @@
+using Microsoft.Build.Framework;
+using Microsoft.Build.Logging.StructuredLogger;
+using Microsoft.CodeAnalysis;
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using Microsoft.Build.Framework;
-using Microsoft.CodeAnalysis;
+using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace Microsoft.SourceBrowser.BinLogParser
 {
@@ -33,24 +37,78 @@ namespace Microsoft.SourceBrowser.BinLogParser
 
             var lazyResult = m_binlogInvocationMap.GetOrAdd(binLogFilePath, new Lazy<List<CompilerInvocation>>(() =>
             {
+                // for old format logs, use the legacy reader - this is less desireable because it loads everything into memory
                 if (binLogFilePath.EndsWith(".buildlog", StringComparison.OrdinalIgnoreCase))
                 {
                     return ExtractInvocationsFromBuild(binLogFilePath);
                 }
 
+                // for new format logs, replay the log to avoid loading everything into memory
                 var invocations = new List<CompilerInvocation>();
                 var reader = new Microsoft.Build.Logging.StructuredLogger.BinLogReader();
                 var taskIdToInvocationMap = new Dictionary<(int, int), CompilerInvocation>();
+                var projectEvaluationToPropertiesMap = new Dictionary<int, Dictionary<string, string>>();
+                var projectInstanceToEvaluationMap = new Dictionary<int, int>();
 
                 void TryGetInvocationFromEvent(object sender, BuildEventArgs args)
                 {
-                    var invocation = TryGetInvocationFromRecord(args, taskIdToInvocationMap);
+                    Dictionary<string, string> projectProperties = null;
+                    if (projectInstanceToEvaluationMap.TryGetValue(args.BuildEventContext?.ProjectInstanceId ?? -1, out var evaluationId) &&
+                        projectEvaluationToPropertiesMap.TryGetValue(evaluationId, out var properties))
+                    {
+                        projectProperties = properties;
+
+                        if (args is PropertyReassignmentEventArgs propertyReassignment)
+                        {
+                            properties[propertyReassignment.PropertyName] = propertyReassignment.NewValue;
+                        }
+                        else if (args is PropertyInitialValueSetEventArgs propertyInitialValueSet)
+                        {
+                            properties[propertyInitialValueSet.PropertyName] = propertyInitialValueSet.PropertyValue;
+                        }
+                    }
+
+
+                    var invocation = TryGetInvocationFromRecord(args, taskIdToInvocationMap, projectProperties);
                     if (invocation != null)
                     {
                         invocation.SolutionRoot = Path.GetDirectoryName(binLogFilePath);
                         invocations.Add(invocation);
                     }
                 }
+
+                reader.StatusEventRaised += (object sender, BuildStatusEventArgs e) =>
+                {
+                    if (e?.BuildEventContext?.EvaluationId >= 0 &&
+                        e is ProjectEvaluationFinishedEventArgs projectEvalArgs)
+                    {
+                        if (projectEvalArgs?.Properties is IDictionary<string, string> propertiesDict)
+                        {
+                            projectEvaluationToPropertiesMap[e.BuildEventContext.EvaluationId] =
+                                new Dictionary<string, string>(propertiesDict, StringComparer.OrdinalIgnoreCase);
+                        }
+                        else
+                        {
+                            var properties = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+                            foreach (KeyValuePair<string, string> property in projectEvalArgs.Properties)
+                            {
+                                properties[property.Key] = property.Value;
+                            }
+
+                            projectEvaluationToPropertiesMap[e.BuildEventContext.EvaluationId] = properties;
+                        }
+                    }
+                };
+
+                reader.ProjectStarted += (object sender, ProjectStartedEventArgs e) =>
+                {
+                    if (e?.BuildEventContext?.EvaluationId >= 0 &&
+                        e?.BuildEventContext?.ProjectInstanceId >= 0)
+                    {
+                        projectInstanceToEvaluationMap[e.BuildEventContext.ProjectInstanceId] = e.BuildEventContext.EvaluationId;
+                    }
+                };
 
                 reader.TargetStarted += TryGetInvocationFromEvent;
                 reader.MessageRaised += TryGetInvocationFromEvent;
@@ -71,7 +129,7 @@ namespace Microsoft.SourceBrowser.BinLogParser
             var invocations = new List<CompilerInvocation>();
             build.VisitAllChildren<Microsoft.Build.Logging.StructuredLogger.Task>(t =>
             {
-                var invocation = TryGetInvocationFromTask(t);
+                var invocation = TryGetInvocationFromTask(t, build);
                 if (invocation != null)
                 {
                     invocations.Add(invocation);
@@ -81,21 +139,26 @@ namespace Microsoft.SourceBrowser.BinLogParser
             return invocations;
         }
 
-        private static CompilerInvocation TryGetInvocationFromRecord(BuildEventArgs args, Dictionary<(int, int), CompilerInvocation> taskIdToInvocationMap)
+        private static CompilerInvocation TryGetInvocationFromRecord(BuildEventArgs args, 
+            Dictionary<(int, int), CompilerInvocation> taskIdToInvocationMap,
+            Dictionary<string,string> projectProperties)
         {
             int targetId = args.BuildEventContext?.TargetId ?? -1;
             int projectId = args.BuildEventContext?.ProjectInstanceId ?? -1;
+
             if (targetId < 0)
             {
                 return null;
             }
 
-            var targetStarted = args as TargetStartedEventArgs;
-            if (targetStarted != null && targetStarted.TargetName == "CoreCompile")
+            if (args is TargetStartedEventArgs targetStarted && targetStarted.TargetName == "CoreCompile")
             {
-                var invocation = new CompilerInvocation();
+                var invocation = new CompilerInvocation()
+                {
+                    ProjectFilePath = targetStarted.ProjectFile,
+                    ProjectProperties = projectProperties,
+                };
                 taskIdToInvocationMap[(targetId, projectId)] = invocation;
-                invocation.ProjectFilePath = targetStarted.ProjectFile;
                 return null;
             }
 
@@ -125,7 +188,7 @@ namespace Microsoft.SourceBrowser.BinLogParser
             }
         }
 
-        private static CompilerInvocation TryGetInvocationFromTask(Microsoft.Build.Logging.StructuredLogger.Task task)
+        private static CompilerInvocation TryGetInvocationFromTask(Microsoft.Build.Logging.StructuredLogger.Task task, Microsoft.Build.Logging.StructuredLogger.Build build)
         {
             var name = task.Name;
             if (name != "Csc" && name != "Vbc" || ((task.Parent as Microsoft.Build.Logging.StructuredLogger.Target)?.Name != "CoreCompile"))
@@ -138,12 +201,20 @@ namespace Microsoft.SourceBrowser.BinLogParser
             commandLine = TrimCompilerExeFromCommandLine(commandLine, name == "Csc"
                 ? CompilerKind.CSharp
                 : CompilerKind.VisualBasic);
-            return new CompilerInvocation
+            
+            // Get the project once and reuse it
+            var project = task.GetNearestParent<Microsoft.Build.Logging.StructuredLogger.Project>();
+            
+            var invocation = new CompilerInvocation
             {
                 Language = language,
                 CommandLineArguments = commandLine,
-                ProjectFilePath = task.GetNearestParent<Microsoft.Build.Logging.StructuredLogger.Project>()?.ProjectFile
+                ProjectFilePath = project?.ProjectFile,
+                ProjectProperties = project?.GetEvaluation(build)?.GetProperties() ?? new Dictionary<string, string>(),
             };
+
+
+            return invocation;
         }
 
         public static string TrimCompilerExeFromCommandLine(string commandLine, CompilerKind language)

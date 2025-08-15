@@ -6,16 +6,146 @@ using System.Linq;
 using System.Numerics;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
+using System.Runtime.CompilerServices;
 using LibGit2Sharp;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.SourceBrowser.BinLogParser;
 using Mono.Options;
+using NuGet.Frameworks;
+
+[assembly: InternalsVisibleTo("BinLogToSln.Tests")]
 
 namespace BinLogToSln
 {
     class Program
     {
+        private static CompilerInvocation SelectBestInvocation(IGrouping<string, CompilerInvocation> invocationGroup)
+        {
+            var invocations = invocationGroup.ToList();
+            if (invocations.Count == 1)
+            {
+                return invocations[0];
+            }
+
+            Console.WriteLine($"Found {invocations.Count} candidates for assembly '{invocationGroup.Key}', selecting best...");
+
+            // Score each invocation based on our criteria
+            var scoredInvocations = invocations.Select(inv => new
+            {
+                Invocation = inv,
+                Score = CalculateInvocationScore(inv)
+            }).ToList();
+
+            // Select the highest scored invocation
+            var best = scoredInvocations.OrderByDescending(x => x.Score).First();
+            
+            Console.WriteLine($"Selected '{best.Invocation.ProjectFilePath}' (score: {best.Score})");
+            return best.Invocation;
+        }
+
+        internal static int CalculateInvocationScore(CompilerInvocation invocation)
+        {
+            int score = 0;
+
+            try
+            {
+                if (invocation.ProjectProperties is null)
+                {
+                    Console.WriteLine($"Warning: No project properties for {invocation.ProjectFilePath}.");
+                }
+
+                // 1. UseForSourceIndex (highest priority)
+                if (invocation.ProjectProperties?.TryGetValue("UseForSourceIndex", out var useForSourceIndex) == true &&
+                    bool.TryParse(useForSourceIndex, out var shouldUse) && shouldUse)
+                {
+                    return int.MaxValue; // Highest possible score
+                }
+
+                // 2. Not IsPlatformNotSupportedAssembly (second priority)
+                if (invocation.ProjectProperties?.TryGetValue("IsPlatformNotSupportedAssembly", out var isPlatformNotSupported) == true &&
+                    bool.TryParse(isPlatformNotSupported, out var isNotSupported) && isNotSupported)
+                {
+                    score -= 10000; // Heavy penalty for platform not supported assemblies
+                }
+
+                // 3. Newest TargetFramework version (third priority)
+                if (invocation.ProjectProperties?.TryGetValue("TargetFramework", out var targetFramework) == true &&
+                    !string.IsNullOrEmpty(targetFramework))
+                {
+                    try
+                    {
+                        var framework = NuGetFramework.Parse(targetFramework);
+                        
+                        // Prefer newer frameworks (high weight)
+                        if (framework.Version != null)
+                        {
+                            score += (int)(framework.Version.Major * 1000 + framework.Version.Minor * 100);
+                        }
+
+                        // 4. Has a platform (fourth priority)
+                        // Prefer platform-specific frameworks
+                        if (framework.HasPlatform)
+                        {
+                            score += 500;
+
+                            if (framework.Platform.Equals("linux", StringComparison.OrdinalIgnoreCase))
+                            {
+                                score += 100; // Linux is preferred over other platforms
+                            }
+                            else if (framework.Platform.Equals("unix", StringComparison.OrdinalIgnoreCase))
+                            {
+                                score += 50; // Unix is also preferred, but less than Linux
+                            }
+                        }
+
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Warning: Could not parse TargetFramework '{targetFramework}': {ex.Message}");
+                    }
+                }
+
+                // 5. More source files (lowest priority)
+                var sourceFiles = invocation.Parsed?.SourceFiles;
+                if (sourceFiles.HasValue)
+                {
+                    int totalSourceFiles = sourceFiles.Value.Length;
+                    score += totalSourceFiles; // Lower weight than other factors
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Warning: Error calculating score for {invocation.ProjectFilePath}: {ex.Message}");
+                // Return a base score so we don't exclude this invocation entirely
+                score = 1;
+            }
+
+            return score;
+        }
+
+        private static bool ShouldExcludeInvocation(CompilerInvocation invocation)
+        {
+            if (string.IsNullOrEmpty(invocation.ProjectDirectory))
+            {
+                return true;
+            }
+
+            string projectFolder = Path.GetFileName(invocation.ProjectDirectory);
+            if (projectFolder == "ref" || projectFolder == "stubs")
+            {
+                Console.WriteLine($"Skipping Ref Assembly project {invocation.ProjectFilePath}");
+                return true;
+            }
+            
+            if (Path.GetFileName(Path.GetDirectoryName(invocation.ProjectDirectory)) == "cycle-breakers")
+            {
+                Console.WriteLine($"Skipping Wpf Cycle-Breaker project {invocation.ProjectFilePath}");
+                return true;
+            }
+            
+            return false;
+        }
         static void Main(string[] args)
         {
             string binlog = null;
@@ -75,24 +205,18 @@ namespace BinLogToSln
             WriteSolutionHeader(sln);
 
             IEnumerable<CompilerInvocation> invocations = BinLogCompilerInvocationsReader.ExtractInvocations(binlog);
+            
+            // Group invocations by assembly name and select the best one for each
+            var invocationGroups = invocations
+                .Where(invocation => !ShouldExcludeInvocation(invocation))
+                .GroupBy(invocation => invocation.AssemblyName)
+                .Select(group => SelectBestInvocation(group));
+
             var processed = new HashSet<string>();
-            foreach (CompilerInvocation invocation in invocations)
+            foreach (CompilerInvocation invocation in invocationGroups)
             {
-                if (string.IsNullOrEmpty(invocation.ProjectDirectory))
+                if (invocation == null)
                 {
-                    continue;
-                }
-
-                string projectFolder = Path.GetFileName(invocation.ProjectDirectory);
-                if (projectFolder == "ref" || projectFolder == "stubs")
-                {
-                    Console.WriteLine($"Skipping Ref Assembly project {invocation.ProjectFilePath}");
-                    continue;
-                }
-
-                if (Path.GetFileName(Path.GetDirectoryName(invocation.ProjectDirectory)) == "cycle-breakers")
-                {
-                    Console.WriteLine($"Skipping Wpf Cycle-Breaker project {invocation.ProjectFilePath}");
                     continue;
                 }
 
@@ -105,6 +229,7 @@ namespace BinLogToSln
                 {
                     continue;
                 }
+
                 Console.WriteLine($"Converting Project: {invocation.ProjectFilePath}");
 
                 string repoRelativeProjectPath = Path.GetRelativePath(repoRoot, invocation.ProjectFilePath);

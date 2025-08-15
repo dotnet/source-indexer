@@ -17,6 +17,7 @@ namespace Microsoft.SourceBrowser.BinLogParser
         public string CommandLineArguments { get; set; }
         public string SolutionRoot { get; set; }
         public IEnumerable<string> TypeScriptFiles { get; set; }
+        public Dictionary<string, string> ProjectProperties { get; set; } = new Dictionary<string, string>();
 
         public string AssemblyName => Path.GetFileNameWithoutExtension(OutputAssemblyPath);
 
@@ -79,6 +80,22 @@ namespace Microsoft.SourceBrowser.BinLogParser
 
                 return parsed;
             }
+        }
+
+        public CompilerInvocation Clone()
+        {
+            return new CompilerInvocation
+            {
+                ProjectFilePath = this.ProjectFilePath,
+                OutputAssemblyPath = this.OutputAssemblyPath,
+                CommandLineArguments = this.CommandLineArguments,
+                SolutionRoot = this.SolutionRoot,
+                TypeScriptFiles = this.TypeScriptFiles?.ToList(), // Create a new list if not null
+                ProjectProperties = this.ProjectProperties != null 
+                    ? new Dictionary<string, string>(this.ProjectProperties) 
+                    : new Dictionary<string, string>(),
+                language = this.language // Copy the backing field if set
+            };
         }
 
         public override string ToString()
