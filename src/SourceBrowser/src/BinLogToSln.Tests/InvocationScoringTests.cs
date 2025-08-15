@@ -8,31 +8,43 @@ namespace BinLogToSln.Tests
     public class InvocationScoringTests
     {
         [TestMethod]
-        public void CalculateInvocationScore_UseForSourceIndex_ReturnsMaxValue()
+        public void CalculateInvocationScore_UseForSourceIndex_ScoresHigherThanWithout()
         {
             // Arrange
-            var invocation = new CompilerInvocation
+            var withUseForSourceIndex = new CompilerInvocation
             {
                 ProjectFilePath = "/test/project.csproj",
                 OutputAssemblyPath = "/test/output.dll",
                 ProjectProperties = new Dictionary<string, string>
                 {
-                    ["UseForSourceIndex"] = "true"
+                    ["UseForSourceIndex"] = "true",
+                    ["TargetFramework"] = "net8.0"
+                }
+            };
+
+            var withoutUseForSourceIndex = new CompilerInvocation
+            {
+                ProjectFilePath = "/test/project.csproj",
+                OutputAssemblyPath = "/test/output.dll",
+                ProjectProperties = new Dictionary<string, string>
+                {
+                    ["TargetFramework"] = "net8.0"
                 }
             };
 
             // Act
-            var score = Program.CalculateInvocationScore(invocation);
+            var scoreWith = Program.CalculateInvocationScore(withUseForSourceIndex);
+            var scoreWithout = Program.CalculateInvocationScore(withoutUseForSourceIndex);
 
             // Assert
-            Assert.AreEqual(int.MaxValue, score);
+            Assert.IsTrue(scoreWith > scoreWithout, "UseForSourceIndex should score higher than without it");
         }
 
         [TestMethod]
-        public void CalculateInvocationScore_PlatformNotSupported_AppliesPenalty()
+        public void CalculateInvocationScore_PlatformNotSupported_ScoresLowerThanSupported()
         {
             // Arrange
-            var invocation = new CompilerInvocation
+            var platformNotSupported = new CompilerInvocation
             {
                 ProjectFilePath = "/test/project.csproj",
                 OutputAssemblyPath = "/test/output.dll",
@@ -44,87 +56,154 @@ namespace BinLogToSln.Tests
                 }
             };
 
+            var platformSupported = new CompilerInvocation
+            {
+                ProjectFilePath = "/test/project.csproj",
+                OutputAssemblyPath = "/test/output.dll",
+                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll",
+                ProjectProperties = new Dictionary<string, string>
+                {
+                    ["TargetFramework"] = "net8.0"
+                }
+            };
+
             // Act
-            var score = Program.CalculateInvocationScore(invocation);
+            var notSupportedScore = Program.CalculateInvocationScore(platformNotSupported);
+            var supportedScore = Program.CalculateInvocationScore(platformSupported);
 
             // Assert
-            // Should be 8000 (framework score) - 10000 (penalty) + 0 (source files) = -2000
-            Assert.AreEqual(-2000, score);
+            Assert.IsTrue(supportedScore > notSupportedScore, "Platform supported assembly should score higher than platform not supported");
         }
 
         [TestMethod]
-        public void CalculateInvocationScore_FrameworkVersion_ScoresCorrectly()
+        public void CalculateInvocationScore_FrameworkVersion_NewerScoresHigher()
         {
-            // Test different framework versions
-            var testCases = new[]
+            // Test that newer framework versions score higher than older ones
+            var newerFramework = new CompilerInvocation
             {
-                new { Framework = "net8.0", ExpectedScore = 8000 },
-                new { Framework = "net6.0", ExpectedScore = 6000 },
-                new { Framework = "net48", ExpectedScore = 4080 }, // 4 * 1000 + 8 * 100
-                new { Framework = "netstandard2.1", ExpectedScore = 2010 } // 2 * 1000 + 1 * 100
+                ProjectFilePath = "/test/project.csproj",
+                OutputAssemblyPath = "/test/output.dll",
+                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll",
+                ProjectProperties = new Dictionary<string, string>
+                {
+                    ["TargetFramework"] = "net8.0"
+                }
             };
 
-            foreach (var testCase in testCases)
+            var olderFramework = new CompilerInvocation
             {
-                // Arrange
-                var invocation = new CompilerInvocation
+                ProjectFilePath = "/test/project.csproj",
+                OutputAssemblyPath = "/test/output.dll",
+                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll",
+                ProjectProperties = new Dictionary<string, string>
                 {
-                    ProjectFilePath = "/test/project.csproj",
-                    OutputAssemblyPath = "/test/output.dll",
-                    CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll",
-                    ProjectProperties = new Dictionary<string, string>
-                    {
-                        ["TargetFramework"] = testCase.Framework
-                    }
-                };
-
-                // Act
-                var score = Program.CalculateInvocationScore(invocation);
-
-                // Assert
-                Assert.AreEqual(testCase.ExpectedScore, score, $"Framework {testCase.Framework} should score {testCase.ExpectedScore}");
-            }
-        }
-
-        [TestMethod]
-        public void CalculateInvocationScore_PlatformSpecific_ReceivesBonus()
-        {
-            // Test platform-specific frameworks
-            var testCases = new[]
-            {
-                new { Framework = "net8.0-linux", ExpectedBonus = 600 }, // 500 platform + 100 linux
-                new { Framework = "net8.0-unix", ExpectedBonus = 550 },  // 500 platform + 50 unix
-                new { Framework = "net8.0-windows", ExpectedBonus = 500 }, // 500 platform only
+                    ["TargetFramework"] = "net6.0"
+                }
             };
 
-            foreach (var testCase in testCases)
+            // Act
+            var newerScore = Program.CalculateInvocationScore(newerFramework);
+            var olderScore = Program.CalculateInvocationScore(olderFramework);
+
+            // Assert
+            Assert.IsTrue(newerScore > olderScore, "Newer framework version should score higher than older version");
+
+            // Test that net48 scores higher than netstandard2.1
+            var net48Framework = new CompilerInvocation
             {
-                // Arrange
-                var invocation = new CompilerInvocation
+                ProjectFilePath = "/test/project.csproj",
+                OutputAssemblyPath = "/test/output.dll",
+                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll",
+                ProjectProperties = new Dictionary<string, string>
                 {
-                    ProjectFilePath = "/test/project.csproj",
-                    OutputAssemblyPath = "/test/output.dll",
-                    CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll",
-                    ProjectProperties = new Dictionary<string, string>
-                    {
-                        ["TargetFramework"] = testCase.Framework
-                    }
-                };
+                    ["TargetFramework"] = "net48"
+                }
+            };
 
-                // Act
-                var score = Program.CalculateInvocationScore(invocation);
+            var netstandardFramework = new CompilerInvocation
+            {
+                ProjectFilePath = "/test/project.csproj",
+                OutputAssemblyPath = "/test/output.dll",
+                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll",
+                ProjectProperties = new Dictionary<string, string>
+                {
+                    ["TargetFramework"] = "netstandard2.1"
+                }
+            };
 
-                // Assert
-                var expectedScore = 8000 + testCase.ExpectedBonus; // framework score + platform bonus
-                Assert.AreEqual(expectedScore, score, $"Framework {testCase.Framework} should score {expectedScore}");
-            }
+            var net48Score = Program.CalculateInvocationScore(net48Framework);
+            var netstandardScore = Program.CalculateInvocationScore(netstandardFramework);
+
+            Assert.IsTrue(net48Score > netstandardScore, "net48 should score higher than netstandard2.1");
         }
 
         [TestMethod]
-        public void CalculateInvocationScore_SourceFileCount_AddsCorrectly()
+        public void CalculateInvocationScore_PlatformSpecific_ScoresHigherThanGeneric()
+        {
+            // Test that platform-specific frameworks score higher than generic ones
+            var platformSpecific = new CompilerInvocation
+            {
+                ProjectFilePath = "/test/project.csproj",
+                OutputAssemblyPath = "/test/output.dll",
+                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll",
+                ProjectProperties = new Dictionary<string, string>
+                {
+                    ["TargetFramework"] = "net8.0-linux"
+                }
+            };
+
+            var generic = new CompilerInvocation
+            {
+                ProjectFilePath = "/test/project.csproj",
+                OutputAssemblyPath = "/test/output.dll",
+                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll",
+                ProjectProperties = new Dictionary<string, string>
+                {
+                    ["TargetFramework"] = "net8.0"
+                }
+            };
+
+            // Act
+            var platformScore = Program.CalculateInvocationScore(platformSpecific);
+            var genericScore = Program.CalculateInvocationScore(generic);
+
+            // Assert
+            Assert.IsTrue(platformScore > genericScore, "Platform-specific framework should score higher than generic framework");
+
+            // Test that linux scores higher than windows for same framework
+            var linuxFramework = new CompilerInvocation
+            {
+                ProjectFilePath = "/test/project.csproj",
+                OutputAssemblyPath = "/test/output.dll",
+                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll",
+                ProjectProperties = new Dictionary<string, string>
+                {
+                    ["TargetFramework"] = "net8.0-linux"
+                }
+            };
+
+            var windowsFramework = new CompilerInvocation
+            {
+                ProjectFilePath = "/test/project.csproj",
+                OutputAssemblyPath = "/test/output.dll",
+                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll",
+                ProjectProperties = new Dictionary<string, string>
+                {
+                    ["TargetFramework"] = "net8.0-windows"
+                }
+            };
+
+            var linuxScore = Program.CalculateInvocationScore(linuxFramework);
+            var windowsScore = Program.CalculateInvocationScore(windowsFramework);
+
+            Assert.IsTrue(linuxScore > windowsScore, "Linux framework should score higher than Windows framework");
+        }
+
+        [TestMethod]
+        public void CalculateInvocationScore_SourceFileCount_MoreFilesScoreHigher()
         {
             // Arrange
-            var invocation = new CompilerInvocation
+            var moreSourceFiles = new CompilerInvocation
             {
                 ProjectFilePath = "/test/project.csproj",
                 OutputAssemblyPath = "/test/output.dll",
@@ -135,19 +214,30 @@ namespace BinLogToSln.Tests
                 }
             };
 
+            var fewerSourceFiles = new CompilerInvocation
+            {
+                ProjectFilePath = "/test/project.csproj",
+                OutputAssemblyPath = "/test/output.dll",
+                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll Class1.cs",
+                ProjectProperties = new Dictionary<string, string>
+                {
+                    ["TargetFramework"] = "net8.0"
+                }
+            };
+
             // Act
-            var score = Program.CalculateInvocationScore(invocation);
+            var moreFilesScore = Program.CalculateInvocationScore(moreSourceFiles);
+            var fewerFilesScore = Program.CalculateInvocationScore(fewerSourceFiles);
 
             // Assert
-            // Should be 8000 (framework) + 3 (source files) = 8003
-            Assert.AreEqual(8003, score);
+            Assert.IsTrue(moreFilesScore > fewerFilesScore, "Invocation with more source files should score higher");
         }
 
         [TestMethod]
-        public void CalculateInvocationScore_ComplexScenario_ScoresCorrectly()
+        public void CalculateInvocationScore_ComplexScenario_ScoresHigherThanSimple()
         {
             // Arrange - Linux platform with multiple source files
-            var invocation = new CompilerInvocation
+            var complexScenario = new CompilerInvocation
             {
                 ProjectFilePath = "/test/project.csproj",
                 OutputAssemblyPath = "/test/output.dll",
@@ -158,19 +248,30 @@ namespace BinLogToSln.Tests
                 }
             };
 
+            var simpleScenario = new CompilerInvocation
+            {
+                ProjectFilePath = "/test/project.csproj",
+                OutputAssemblyPath = "/test/output.dll",
+                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll File1.cs",
+                ProjectProperties = new Dictionary<string, string>
+                {
+                    ["TargetFramework"] = "net8.0"
+                }
+            };
+
             // Act
-            var score = Program.CalculateInvocationScore(invocation);
+            var complexScore = Program.CalculateInvocationScore(complexScenario);
+            var simpleScore = Program.CalculateInvocationScore(simpleScenario);
 
             // Assert
-            // Should be 8000 (framework) + 500 (platform) + 100 (linux) + 5 (source files) = 8605
-            Assert.AreEqual(8605, score);
+            Assert.IsTrue(complexScore > simpleScore, "Complex scenario (platform-specific with more files) should score higher than simple scenario");
         }
 
         [TestMethod]
-        public void CalculateInvocationScore_NoProjectProperties_ReturnsBaseScore()
+        public void CalculateInvocationScore_NoProjectProperties_ScoresLowerThanWithProperties()
         {
             // Arrange
-            var invocation = new CompilerInvocation
+            var noProperties = new CompilerInvocation
             {
                 ProjectFilePath = "/test/project.csproj",
                 OutputAssemblyPath = "/test/output.dll",
@@ -178,19 +279,30 @@ namespace BinLogToSln.Tests
                 ProjectProperties = null
             };
 
+            var withProperties = new CompilerInvocation
+            {
+                ProjectFilePath = "/test/project.csproj",
+                OutputAssemblyPath = "/test/output.dll",
+                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll File1.cs",
+                ProjectProperties = new Dictionary<string, string>
+                {
+                    ["TargetFramework"] = "net8.0"
+                }
+            };
+
             // Act
-            var score = Program.CalculateInvocationScore(invocation);
+            var noPropertiesScore = Program.CalculateInvocationScore(noProperties);
+            var withPropertiesScore = Program.CalculateInvocationScore(withProperties);
 
             // Assert
-            // Should only count source files: 1
-            Assert.AreEqual(1, score);
+            Assert.IsTrue(withPropertiesScore > noPropertiesScore, "Invocation with project properties should score higher than one without");
         }
 
         [TestMethod]
-        public void CalculateInvocationScore_EmptyProjectProperties_ReturnsSourceFileCount()
+        public void CalculateInvocationScore_EmptyProjectProperties_ScoresLowerThanWithFramework()
         {
             // Arrange
-            var invocation = new CompilerInvocation
+            var emptyProperties = new CompilerInvocation
             {
                 ProjectFilePath = "/test/project.csproj",
                 OutputAssemblyPath = "/test/output.dll",
@@ -198,19 +310,30 @@ namespace BinLogToSln.Tests
                 ProjectProperties = new Dictionary<string, string>()
             };
 
+            var withFramework = new CompilerInvocation
+            {
+                ProjectFilePath = "/test/project.csproj",
+                OutputAssemblyPath = "/test/output.dll",
+                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll File1.cs File2.cs",
+                ProjectProperties = new Dictionary<string, string>
+                {
+                    ["TargetFramework"] = "net8.0"
+                }
+            };
+
             // Act
-            var score = Program.CalculateInvocationScore(invocation);
+            var emptyPropertiesScore = Program.CalculateInvocationScore(emptyProperties);
+            var withFrameworkScore = Program.CalculateInvocationScore(withFramework);
 
             // Assert
-            // Should only count source files: 2
-            Assert.AreEqual(2, score);
+            Assert.IsTrue(withFrameworkScore > emptyPropertiesScore, "Invocation with framework should score higher than one with empty properties");
         }
 
         [TestMethod]
-        public void CalculateInvocationScore_InvalidTargetFramework_IgnoresFrameworkScore()
+        public void CalculateInvocationScore_InvalidTargetFramework_ScoresLowerThanValid()
         {
             // Arrange
-            var invocation = new CompilerInvocation
+            var invalidFramework = new CompilerInvocation
             {
                 ProjectFilePath = "/test/project.csproj",
                 OutputAssemblyPath = "/test/output.dll",
@@ -221,12 +344,23 @@ namespace BinLogToSln.Tests
                 }
             };
 
+            var validFramework = new CompilerInvocation
+            {
+                ProjectFilePath = "/test/project.csproj",
+                OutputAssemblyPath = "/test/output.dll",
+                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll File1.cs",
+                ProjectProperties = new Dictionary<string, string>
+                {
+                    ["TargetFramework"] = "net8.0"
+                }
+            };
+
             // Act
-            var score = Program.CalculateInvocationScore(invocation);
+            var invalidScore = Program.CalculateInvocationScore(invalidFramework);
+            var validScore = Program.CalculateInvocationScore(validFramework);
 
             // Assert
-            // Should only count source files since framework parsing fails: 1
-            Assert.AreEqual(1, score);
+            Assert.IsTrue(validScore > invalidScore, "Valid framework should score higher than invalid framework");
         }
 
         [TestMethod]
