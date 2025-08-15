@@ -6,12 +6,15 @@ using System.Linq;
 using System.Numerics;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
+using System.Runtime.CompilerServices;
 using LibGit2Sharp;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.SourceBrowser.BinLogParser;
 using Mono.Options;
 using NuGet.Frameworks;
+
+[assembly: InternalsVisibleTo("BinLogToSln.Tests")]
 
 namespace BinLogToSln
 {
@@ -41,7 +44,7 @@ namespace BinLogToSln
             return best.Invocation;
         }
 
-        private static int CalculateInvocationScore(CompilerInvocation invocation)
+        internal static int CalculateInvocationScore(CompilerInvocation invocation)
         {
             int score = 0;
 
