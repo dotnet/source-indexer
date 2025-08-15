@@ -7,30 +7,29 @@ namespace BinLogToSln.Tests
     [TestClass]
     public class InvocationScoringTests
     {
+        private static CompilerInvocation CreateBaseInvocation()
+        {
+            return new CompilerInvocation
+            {
+                ProjectFilePath = "/test/project.csproj",
+                OutputAssemblyPath = "/test/output.dll",
+                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll File1.cs",
+                ProjectProperties = new Dictionary<string, string>
+                {
+                    ["TargetFramework"] = "net8.0"
+                }
+            };
+        }
+
         [TestMethod]
         public void CalculateInvocationScore_UseForSourceIndex_ScoresHigherThanWithout()
         {
             // Arrange
-            var withUseForSourceIndex = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project.csproj",
-                OutputAssemblyPath = "/test/output.dll",
-                ProjectProperties = new Dictionary<string, string>
-                {
-                    ["UseForSourceIndex"] = "true",
-                    ["TargetFramework"] = "net8.0"
-                }
-            };
+            var baseInvocation = CreateBaseInvocation();
+            var withUseForSourceIndex = baseInvocation.Clone();
+            withUseForSourceIndex.ProjectProperties["UseForSourceIndex"] = "true";
 
-            var withoutUseForSourceIndex = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project.csproj",
-                OutputAssemblyPath = "/test/output.dll",
-                ProjectProperties = new Dictionary<string, string>
-                {
-                    ["TargetFramework"] = "net8.0"
-                }
-            };
+            var withoutUseForSourceIndex = baseInvocation.Clone();
 
             // Act
             var scoreWith = Program.CalculateInvocationScore(withUseForSourceIndex);
@@ -44,28 +43,11 @@ namespace BinLogToSln.Tests
         public void CalculateInvocationScore_PlatformNotSupported_ScoresLowerThanSupported()
         {
             // Arrange
-            var platformNotSupported = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project.csproj",
-                OutputAssemblyPath = "/test/output.dll",
-                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll",
-                ProjectProperties = new Dictionary<string, string>
-                {
-                    ["IsPlatformNotSupportedAssembly"] = "true",
-                    ["TargetFramework"] = "net8.0"
-                }
-            };
+            var baseInvocation = CreateBaseInvocation();
+            var platformNotSupported = baseInvocation.Clone();
+            platformNotSupported.ProjectProperties["IsPlatformNotSupportedAssembly"] = "true";
 
-            var platformSupported = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project.csproj",
-                OutputAssemblyPath = "/test/output.dll",
-                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll",
-                ProjectProperties = new Dictionary<string, string>
-                {
-                    ["TargetFramework"] = "net8.0"
-                }
-            };
+            var platformSupported = baseInvocation.Clone();
 
             // Act
             var notSupportedScore = Program.CalculateInvocationScore(platformNotSupported);
@@ -79,27 +61,12 @@ namespace BinLogToSln.Tests
         public void CalculateInvocationScore_FrameworkVersion_NewerScoresHigher()
         {
             // Test that newer framework versions score higher than older ones
-            var newerFramework = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project.csproj",
-                OutputAssemblyPath = "/test/output.dll",
-                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll",
-                ProjectProperties = new Dictionary<string, string>
-                {
-                    ["TargetFramework"] = "net8.0"
-                }
-            };
+            var baseInvocation = CreateBaseInvocation();
+            var newerFramework = baseInvocation.Clone();
+            newerFramework.ProjectProperties["TargetFramework"] = "net8.0";
 
-            var olderFramework = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project.csproj",
-                OutputAssemblyPath = "/test/output.dll",
-                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll",
-                ProjectProperties = new Dictionary<string, string>
-                {
-                    ["TargetFramework"] = "net6.0"
-                }
-            };
+            var olderFramework = baseInvocation.Clone();
+            olderFramework.ProjectProperties["TargetFramework"] = "net6.0";
 
             // Act
             var newerScore = Program.CalculateInvocationScore(newerFramework);
@@ -109,27 +76,11 @@ namespace BinLogToSln.Tests
             Assert.IsTrue(newerScore > olderScore, "Newer framework version should score higher than older version");
 
             // Test that net48 scores higher than netstandard2.1
-            var net48Framework = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project.csproj",
-                OutputAssemblyPath = "/test/output.dll",
-                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll",
-                ProjectProperties = new Dictionary<string, string>
-                {
-                    ["TargetFramework"] = "net48"
-                }
-            };
+            var net48Framework = baseInvocation.Clone();
+            net48Framework.ProjectProperties["TargetFramework"] = "net48";
 
-            var netstandardFramework = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project.csproj",
-                OutputAssemblyPath = "/test/output.dll",
-                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll",
-                ProjectProperties = new Dictionary<string, string>
-                {
-                    ["TargetFramework"] = "netstandard2.1"
-                }
-            };
+            var netstandardFramework = baseInvocation.Clone();
+            netstandardFramework.ProjectProperties["TargetFramework"] = "netstandard2.1";
 
             var net48Score = Program.CalculateInvocationScore(net48Framework);
             var netstandardScore = Program.CalculateInvocationScore(netstandardFramework);
@@ -141,27 +92,12 @@ namespace BinLogToSln.Tests
         public void CalculateInvocationScore_PlatformSpecific_ScoresHigherThanGeneric()
         {
             // Test that platform-specific frameworks score higher than generic ones
-            var platformSpecific = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project.csproj",
-                OutputAssemblyPath = "/test/output.dll",
-                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll",
-                ProjectProperties = new Dictionary<string, string>
-                {
-                    ["TargetFramework"] = "net8.0-linux"
-                }
-            };
+            var baseInvocation = CreateBaseInvocation();
+            var platformSpecific = baseInvocation.Clone();
+            platformSpecific.ProjectProperties["TargetFramework"] = "net8.0-linux";
 
-            var generic = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project.csproj",
-                OutputAssemblyPath = "/test/output.dll",
-                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll",
-                ProjectProperties = new Dictionary<string, string>
-                {
-                    ["TargetFramework"] = "net8.0"
-                }
-            };
+            var generic = baseInvocation.Clone();
+            generic.ProjectProperties["TargetFramework"] = "net8.0";
 
             // Act
             var platformScore = Program.CalculateInvocationScore(platformSpecific);
@@ -171,27 +107,11 @@ namespace BinLogToSln.Tests
             Assert.IsTrue(platformScore > genericScore, "Platform-specific framework should score higher than generic framework");
 
             // Test that linux scores higher than windows for same framework
-            var linuxFramework = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project.csproj",
-                OutputAssemblyPath = "/test/output.dll",
-                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll",
-                ProjectProperties = new Dictionary<string, string>
-                {
-                    ["TargetFramework"] = "net8.0-linux"
-                }
-            };
+            var linuxFramework = baseInvocation.Clone();
+            linuxFramework.ProjectProperties["TargetFramework"] = "net8.0-linux";
 
-            var windowsFramework = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project.csproj",
-                OutputAssemblyPath = "/test/output.dll",
-                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll",
-                ProjectProperties = new Dictionary<string, string>
-                {
-                    ["TargetFramework"] = "net8.0-windows"
-                }
-            };
+            var windowsFramework = baseInvocation.Clone();
+            windowsFramework.ProjectProperties["TargetFramework"] = "net8.0-windows";
 
             var linuxScore = Program.CalculateInvocationScore(linuxFramework);
             var windowsScore = Program.CalculateInvocationScore(windowsFramework);
@@ -203,27 +123,12 @@ namespace BinLogToSln.Tests
         public void CalculateInvocationScore_SourceFileCount_MoreFilesScoreHigher()
         {
             // Arrange
-            var moreSourceFiles = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project.csproj",
-                OutputAssemblyPath = "/test/output.dll",
-                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll Class1.cs Class2.cs Class3.cs",
-                ProjectProperties = new Dictionary<string, string>
-                {
-                    ["TargetFramework"] = "net8.0"
-                }
-            };
+            var baseInvocation = CreateBaseInvocation();
+            var moreSourceFiles = baseInvocation.Clone();
+            moreSourceFiles.CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll Class1.cs Class2.cs Class3.cs";
 
-            var fewerSourceFiles = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project.csproj",
-                OutputAssemblyPath = "/test/output.dll",
-                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll Class1.cs",
-                ProjectProperties = new Dictionary<string, string>
-                {
-                    ["TargetFramework"] = "net8.0"
-                }
-            };
+            var fewerSourceFiles = baseInvocation.Clone();
+            fewerSourceFiles.CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll Class1.cs";
 
             // Act
             var moreFilesScore = Program.CalculateInvocationScore(moreSourceFiles);
@@ -237,27 +142,14 @@ namespace BinLogToSln.Tests
         public void CalculateInvocationScore_ComplexScenario_ScoresHigherThanSimple()
         {
             // Arrange - Linux platform with multiple source files
-            var complexScenario = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project.csproj",
-                OutputAssemblyPath = "/test/output.dll",
-                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll File1.cs File2.cs File3.cs File4.cs File5.cs",
-                ProjectProperties = new Dictionary<string, string>
-                {
-                    ["TargetFramework"] = "net8.0-linux"
-                }
-            };
+            var baseInvocation = CreateBaseInvocation();
+            var complexScenario = baseInvocation.Clone();
+            complexScenario.CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll File1.cs File2.cs File3.cs File4.cs File5.cs";
+            complexScenario.ProjectProperties["TargetFramework"] = "net8.0-linux";
 
-            var simpleScenario = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project.csproj",
-                OutputAssemblyPath = "/test/output.dll",
-                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll File1.cs",
-                ProjectProperties = new Dictionary<string, string>
-                {
-                    ["TargetFramework"] = "net8.0"
-                }
-            };
+            var simpleScenario = baseInvocation.Clone();
+            simpleScenario.CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll File1.cs";
+            simpleScenario.ProjectProperties["TargetFramework"] = "net8.0";
 
             // Act
             var complexScore = Program.CalculateInvocationScore(complexScenario);
@@ -271,24 +163,11 @@ namespace BinLogToSln.Tests
         public void CalculateInvocationScore_NoProjectProperties_ScoresLowerThanWithProperties()
         {
             // Arrange
-            var noProperties = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project.csproj",
-                OutputAssemblyPath = "/test/output.dll",
-                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll File1.cs",
-                ProjectProperties = null
-            };
+            var baseInvocation = CreateBaseInvocation();
+            var noProperties = baseInvocation.Clone();
+            noProperties.ProjectProperties = null;
 
-            var withProperties = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project.csproj",
-                OutputAssemblyPath = "/test/output.dll",
-                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll File1.cs",
-                ProjectProperties = new Dictionary<string, string>
-                {
-                    ["TargetFramework"] = "net8.0"
-                }
-            };
+            var withProperties = baseInvocation.Clone();
 
             // Act
             var noPropertiesScore = Program.CalculateInvocationScore(noProperties);
@@ -302,24 +181,13 @@ namespace BinLogToSln.Tests
         public void CalculateInvocationScore_EmptyProjectProperties_ScoresLowerThanWithFramework()
         {
             // Arrange
-            var emptyProperties = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project.csproj",
-                OutputAssemblyPath = "/test/output.dll",
-                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll File1.cs File2.cs",
-                ProjectProperties = new Dictionary<string, string>()
-            };
+            var baseInvocation = CreateBaseInvocation();
+            var emptyProperties = baseInvocation.Clone();
+            emptyProperties.ProjectProperties.Clear();
+            emptyProperties.CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll File1.cs File2.cs";
 
-            var withFramework = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project.csproj",
-                OutputAssemblyPath = "/test/output.dll",
-                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll File1.cs File2.cs",
-                ProjectProperties = new Dictionary<string, string>
-                {
-                    ["TargetFramework"] = "net8.0"
-                }
-            };
+            var withFramework = baseInvocation.Clone();
+            withFramework.CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll File1.cs File2.cs";
 
             // Act
             var emptyPropertiesScore = Program.CalculateInvocationScore(emptyProperties);
@@ -333,27 +201,12 @@ namespace BinLogToSln.Tests
         public void CalculateInvocationScore_InvalidTargetFramework_ScoresLowerThanValid()
         {
             // Arrange
-            var invalidFramework = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project.csproj",
-                OutputAssemblyPath = "/test/output.dll",
-                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll File1.cs",
-                ProjectProperties = new Dictionary<string, string>
-                {
-                    ["TargetFramework"] = "invalid-framework-name"
-                }
-            };
+            var baseInvocation = CreateBaseInvocation();
+            var invalidFramework = baseInvocation.Clone();
+            invalidFramework.ProjectProperties["TargetFramework"] = "invalid-framework-name";
 
-            var validFramework = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project.csproj",
-                OutputAssemblyPath = "/test/output.dll",
-                CommandLineArguments = "/noconfig /nowarn:1701,1702 /nostdlib+ /target:library /out:output.dll File1.cs",
-                ProjectProperties = new Dictionary<string, string>
-                {
-                    ["TargetFramework"] = "net8.0"
-                }
-            };
+            var validFramework = baseInvocation.Clone();
+            validFramework.ProjectProperties["TargetFramework"] = "net8.0";
 
             // Act
             var invalidScore = Program.CalculateInvocationScore(invalidFramework);
@@ -367,52 +220,34 @@ namespace BinLogToSln.Tests
         public void CalculateInvocationScore_PrioritiesWork_CorrectOrdering()
         {
             // Create invocations with different priority features
-            var useForSourceIndexInvocation = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project1.csproj",
-                OutputAssemblyPath = "/test/output1.dll",
-                CommandLineArguments = "/noconfig /target:library /out:output1.dll",
-                ProjectProperties = new Dictionary<string, string>
-                {
-                    ["UseForSourceIndex"] = "true",
-                    ["IsPlatformNotSupportedAssembly"] = "true", // Should be ignored due to UseForSourceIndex
-                    ["TargetFramework"] = "net6.0"
-                }
-            };
+            var baseInvocation = CreateBaseInvocation();
+            
+            var useForSourceIndexInvocation = baseInvocation.Clone();
+            useForSourceIndexInvocation.ProjectFilePath = "/test/project1.csproj";
+            useForSourceIndexInvocation.OutputAssemblyPath = "/test/output1.dll";
+            useForSourceIndexInvocation.CommandLineArguments = "/noconfig /target:library /out:output1.dll";
+            useForSourceIndexInvocation.ProjectProperties["UseForSourceIndex"] = "true";
+            useForSourceIndexInvocation.ProjectProperties["IsPlatformNotSupportedAssembly"] = "true"; // Should be ignored due to UseForSourceIndex
+            useForSourceIndexInvocation.ProjectProperties["TargetFramework"] = "net6.0";
 
-            var notSupportedInvocation = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project2.csproj",
-                OutputAssemblyPath = "/test/output2.dll",
-                CommandLineArguments = "/noconfig /target:library /out:output2.dll File1.cs File2.cs File3.cs File4.cs File5.cs",
-                ProjectProperties = new Dictionary<string, string>
-                {
-                    ["IsPlatformNotSupportedAssembly"] = "true",
-                    ["TargetFramework"] = "net8.0"
-                }
-            };
+            var notSupportedInvocation = baseInvocation.Clone();
+            notSupportedInvocation.ProjectFilePath = "/test/project2.csproj";
+            notSupportedInvocation.OutputAssemblyPath = "/test/output2.dll";
+            notSupportedInvocation.CommandLineArguments = "/noconfig /target:library /out:output2.dll File1.cs File2.cs File3.cs File4.cs File5.cs";
+            notSupportedInvocation.ProjectProperties["IsPlatformNotSupportedAssembly"] = "true";
+            notSupportedInvocation.ProjectProperties["TargetFramework"] = "net8.0";
 
-            var newerFrameworkInvocation = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project3.csproj",
-                OutputAssemblyPath = "/test/output3.dll",
-                CommandLineArguments = "/noconfig /target:library /out:output3.dll File1.cs",
-                ProjectProperties = new Dictionary<string, string>
-                {
-                    ["TargetFramework"] = "net8.0"
-                }
-            };
+            var newerFrameworkInvocation = baseInvocation.Clone();
+            newerFrameworkInvocation.ProjectFilePath = "/test/project3.csproj";
+            newerFrameworkInvocation.OutputAssemblyPath = "/test/output3.dll";
+            newerFrameworkInvocation.CommandLineArguments = "/noconfig /target:library /out:output3.dll File1.cs";
+            newerFrameworkInvocation.ProjectProperties["TargetFramework"] = "net8.0";
 
-            var olderFrameworkInvocation = new CompilerInvocation
-            {
-                ProjectFilePath = "/test/project4.csproj",
-                OutputAssemblyPath = "/test/output4.dll",
-                CommandLineArguments = "/noconfig /target:library /out:output4.dll File1.cs",
-                ProjectProperties = new Dictionary<string, string>
-                {
-                    ["TargetFramework"] = "net6.0"
-                }
-            };
+            var olderFrameworkInvocation = baseInvocation.Clone();
+            olderFrameworkInvocation.ProjectFilePath = "/test/project4.csproj";
+            olderFrameworkInvocation.OutputAssemblyPath = "/test/output4.dll";
+            olderFrameworkInvocation.CommandLineArguments = "/noconfig /target:library /out:output4.dll File1.cs";
+            olderFrameworkInvocation.ProjectProperties["TargetFramework"] = "net6.0";
 
             // Act
             var useForSourceIndexScore = Program.CalculateInvocationScore(useForSourceIndexInvocation);

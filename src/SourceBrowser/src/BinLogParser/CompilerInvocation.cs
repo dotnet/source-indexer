@@ -82,6 +82,22 @@ namespace Microsoft.SourceBrowser.BinLogParser
             }
         }
 
+        public CompilerInvocation Clone()
+        {
+            return new CompilerInvocation
+            {
+                ProjectFilePath = this.ProjectFilePath,
+                OutputAssemblyPath = this.OutputAssemblyPath,
+                CommandLineArguments = this.CommandLineArguments,
+                SolutionRoot = this.SolutionRoot,
+                TypeScriptFiles = this.TypeScriptFiles?.ToList(), // Create a new list if not null
+                ProjectProperties = this.ProjectProperties != null 
+                    ? new Dictionary<string, string>(this.ProjectProperties) 
+                    : new Dictionary<string, string>(),
+                language = this.language // Copy the backing field if set
+            };
+        }
+
         public override string ToString()
         {
             return CommandLineArguments;
