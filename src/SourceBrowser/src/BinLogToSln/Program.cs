@@ -360,7 +360,7 @@ namespace BinLogToSln
                 {
                     if (!File.Exists(path))
                     {
-                        Console.WriteLine($"Could not find analyzer '{path}'");
+                        Console.WriteLine($"Could not find {kind} '{path}'");
                         return;
                     }
 
