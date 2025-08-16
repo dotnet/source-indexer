@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using System.Numerics;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Runtime.CompilerServices;
@@ -146,6 +145,7 @@ namespace BinLogToSln
             
             return false;
         }
+
         static void Main(string[] args)
         {
             string binlog = null;
@@ -205,7 +205,7 @@ namespace BinLogToSln
             WriteSolutionHeader(sln);
 
             IEnumerable<CompilerInvocation> invocations = BinLogCompilerInvocationsReader.ExtractInvocations(binlog);
-            
+
             // Group invocations by assembly name and select the best one for each
             var invocationGroups = invocations
                 .Where(invocation => !ShouldExcludeInvocation(invocation))
@@ -255,6 +255,7 @@ namespace BinLogToSln
                 project.WriteLine("    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>");
                 project.WriteLine("    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>");
                 project.WriteLine("    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>");
+                project.WriteLine("    <_SkipAnalyzers>true</_SkipAnalyzers>"); // we only need source generators
                 project.WriteLine($"    <AssemblyName>{invocation.AssemblyName}</AssemblyName>");
                 int idx = 1;
                 if (invocation.Parsed.CompilationOptions is CSharpCompilationOptions cSharpOptions)
@@ -290,18 +291,33 @@ namespace BinLogToSln
                 project.WriteLine("  <ItemGroup>");
                 foreach (CommandLineReference reference in invocation.Parsed.MetadataReferences)
                 {
-                    string path = reference.Reference;
-                    if (!File.Exists(path))
-                    {
-                        Console.WriteLine($"Could not find reference '{path}'");
-                        continue;
-                    }
-                    string projToRepoPath = Path.GetRelativePath(invocation.ProjectDirectory, repoRoot);
-                    string projToOutputPath = Path.Join(projToRepoPath, "..");
-                    string refPath = DedupeReference(output, path);
-                    project.WriteLine($"    <ReferencePath Include=\"{Path.Join(projToOutputPath, refPath)}\"/>");
+                    includeReference("ReferencePath", reference.Reference);
                 }
                 project.WriteLine("  </ItemGroup>");
+
+                // Add source generators.
+                if (!invocation.Parsed.AnalyzerReferences.IsDefaultOrEmpty)
+                {
+                    project.WriteLine("  <ItemGroup>");
+                    foreach (CommandLineAnalyzerReference analyzer in invocation.Parsed.AnalyzerReferences)
+                    {
+                        includeReference("Analyzer", analyzer.FilePath);
+                    }
+                    project.WriteLine("  </ItemGroup>");
+                }
+
+                // Add additional files (might be used by source generators).
+                if (!invocation.Parsed.AdditionalFiles.IsDefaultOrEmpty)
+                {
+                    project.WriteLine("  <ItemGroup>");
+                    foreach (CommandLineSourceFile additionalFile in invocation.Parsed.AdditionalFiles)
+                    {
+                        includeFile(additionalFile.Path, out string projectRelativePath, out _);
+                        project.WriteLine($"    <AdditionalFiles Include=\"{projectRelativePath}\"/>");
+                    }
+                    project.WriteLine("  </ItemGroup>");
+                }
+
                 project.WriteLine("</Project>");
                 if (!string.IsNullOrEmpty(invocation.OutputAssemblyPath))
                 {
@@ -338,6 +354,20 @@ namespace BinLogToSln
                     {
                         File.Copy(filePath, outputFile);
                     }
+                }
+
+                void includeReference(string kind, string path)
+                {
+                    if (!File.Exists(path))
+                    {
+                        Console.WriteLine($"Could not find analyzer '{path}'");
+                        return;
+                    }
+
+                    string projToRepoPath = Path.GetRelativePath(invocation.ProjectDirectory, repoRoot);
+                    string projToOutputPath = Path.Join(projToRepoPath, "..");
+                    string refPath = DedupeReference(output, path);
+                    project.WriteLine($"    <{kind} Include=\"{Path.Join(projToOutputPath, refPath)}\"/>");
                 }
             }
 
