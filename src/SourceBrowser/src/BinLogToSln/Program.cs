@@ -1,17 +1,20 @@
+using LibGit2Sharp;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Emit;
+using Microsoft.CodeAnalysis.Text;
+using Microsoft.SourceBrowser.BinLogParser;
+using Mono.Options;
+using NuGet.Frameworks;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Runtime.CompilerServices;
-using LibGit2Sharp;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.SourceBrowser.BinLogParser;
-using Mono.Options;
-using NuGet.Frameworks;
 
 [assembly: InternalsVisibleTo("BinLogToSln.Tests")]
 
@@ -240,11 +243,10 @@ namespace BinLogToSln
                 using var projFile = new FileStream(projectFilePath, FileMode.Create);
                 using var project = new StreamWriter(projFile);
 
-                string typeGuid = invocation.Language switch
+                (string typeGuid, Guid languageGuid, string languageExtension) = invocation.Language switch
                 {
-                    LanguageNames.CSharp => CSharpProjectTypeGuid,
-                    LanguageNames.VisualBasic => VBProjectTypeGuid,
-                    _ => CSharpProjectTypeGuid,
+                    LanguageNames.VisualBasic => (VBProjectTypeGuid, VBLanguageGuid, ".vb"),
+                    _ => (CSharpProjectTypeGuid, CSharpLanguageGuid, ".cs"),
                 };
                 sln.WriteLine($"Project(\"{typeGuid}\") = \"{projectName}\", \"{Path.Join("src", repoRelativeProjectPath)}\", \"{GetProjectGuid()}\"");
                 sln.WriteLine("EndProject");
@@ -295,28 +297,23 @@ namespace BinLogToSln
                 }
                 project.WriteLine("  </ItemGroup>");
 
-                // Add source generators.
-                if (!invocation.Parsed.AnalyzerReferences.IsDefaultOrEmpty)
+                // Add generated files.
+                project.WriteLine("  <ItemGroup>");
+                foreach (var generatedFile in getGeneratedFiles())
                 {
-                    project.WriteLine("  <ItemGroup>");
-                    foreach (CommandLineAnalyzerReference analyzer in invocation.Parsed.AnalyzerReferences)
+                    string filePath = generatedFile.FilePath;
+                    if (!File.Exists(filePath))
                     {
-                        includeReference("Analyzer", analyzer.FilePath);
+                        Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+                        var stream = generatedFile.Stream;
+                        stream.Position = 0;
+                        using var fileStream = File.OpenWrite(filePath);
+                        stream.CopyTo(fileStream);
                     }
-                    project.WriteLine("  </ItemGroup>");
+                    includeFile(filePath, out string projectRelativePath, out string link);
+                    project.WriteLine($"    <Compile Include=\"{projectRelativePath}\"{(link != null ? $" Link=\"{link}\"" : "")}/>");
                 }
-
-                // Add additional files (might be used by source generators).
-                if (!invocation.Parsed.AdditionalFiles.IsDefaultOrEmpty)
-                {
-                    project.WriteLine("  <ItemGroup>");
-                    foreach (CommandLineSourceFile additionalFile in invocation.Parsed.AdditionalFiles)
-                    {
-                        includeFile(additionalFile.Path, out string projectRelativePath, out _);
-                        project.WriteLine($"    <AdditionalFiles Include=\"{projectRelativePath}\"/>");
-                    }
-                    project.WriteLine("  </ItemGroup>");
-                }
+                project.WriteLine("  </ItemGroup>");
 
                 project.WriteLine("</Project>");
                 if (!string.IsNullOrEmpty(invocation.OutputAssemblyPath))
@@ -369,6 +366,128 @@ namespace BinLogToSln
                     string refPath = DedupeReference(output, path);
                     project.WriteLine($"    <{kind} Include=\"{Path.Join(projToOutputPath, refPath)}\"/>");
                 }
+
+#nullable enable
+                // From https://github.com/jaredpar/complog/blob/a629fb3c05e40ebe673410144e8911bd5f86bdf2/src/Basic.CompilerLog.Util/RoslynUtil.cs#L440.
+                IEnumerable<(string FilePath, MemoryStream Stream)> getGeneratedFiles()
+                {
+                    try
+                    {
+                        if (!invocation.Parsed.EmitPdb)
+                        {
+                            throw new InvalidOperationException($"{nameof(CommandLineArguments.EmitPdb)} is {false}.");
+                        }
+
+                        if (invocation.Parsed.EmitOptions.DebugInformationFormat is not (DebugInformationFormat.Embedded or DebugInformationFormat.PortablePdb) and var format)
+                        {
+                            throw new InvalidOperationException($"Unsupported {nameof(DebugInformationFormat)}={format}.");
+                        }
+
+                        using var reader = File.OpenRead(invocation.OutputAssemblyPath);
+                        using var peReader = new PEReader(reader);
+                        if (!peReader.TryOpenAssociatedPortablePdb(invocation.OutputAssemblyPath, pdbFileStreamProvider, out var pdbReaderProvider, out var pdbPath))
+                        {
+                            throw new InvalidOperationException($"Could not open PDB for '{invocation.OutputAssemblyPath}'.");
+                        }
+
+                        var pdbReader = pdbReaderProvider!.GetMetadataReader();
+                        var generatedFiles = new List<(string FilePath, MemoryStream Stream)>();
+                        foreach (var documentHandle in pdbReader.Documents.Skip(invocation.Parsed.SourceFiles.Length))
+                        {
+                            if (getContentStream(languageGuid, languageExtension, pdbReader, documentHandle) is { } tuple)
+                            {
+                                generatedFiles.Add(tuple);
+                            }
+                        }
+                        return generatedFiles;
+                    }
+                    catch (Exception ex)
+                    {
+                        // We don't want to fail official builds during stage 1, so just log a warning.
+                        Console.WriteLine($"##vso[task.logissue type=warning;]Error processing generated files for '{invocation.ProjectFilePath}': {ex}");
+                        return [];
+                    }
+
+                    static Stream? pdbFileStreamProvider(string filePath)
+                    {
+                        if (!File.Exists(filePath))
+                        {
+                            return null;
+                        }
+
+                        return File.OpenRead(filePath);
+                    }
+
+                    static (string FilePath, MemoryStream Stream)? getContentStream(
+                        Guid languageGuid,
+                        string languageExtension,
+                        MetadataReader pdbReader,
+                        DocumentHandle documentHandle)
+                    {
+                        var document = pdbReader.GetDocument(documentHandle);
+                        if (pdbReader.GetGuid(document.Language) != languageGuid)
+                        {
+                            return null;
+                        }
+
+                        var filePath = pdbReader.GetString(document.Name);
+
+                        if (Path.GetExtension(filePath) != languageExtension)
+                        {
+                            return null;
+                        }
+
+                        foreach (var cdiHandle in pdbReader.GetCustomDebugInformation(documentHandle))
+                        {
+                            var cdi = pdbReader.GetCustomDebugInformation(cdiHandle);
+                            if (pdbReader.GetGuid(cdi.Kind) != EmbeddedSourceGuid)
+                            {
+                                continue;
+                            }
+
+                            var hashAlgorithmGuid = pdbReader.GetGuid(document.HashAlgorithm);
+                            var hashAlgorithm =
+                                hashAlgorithmGuid == HashAlgorithmSha1 ? SourceHashAlgorithm.Sha1
+                                : hashAlgorithmGuid == HashAlgorithmSha256 ? SourceHashAlgorithm.Sha256
+                                : SourceHashAlgorithm.None;
+                            if (hashAlgorithm == SourceHashAlgorithm.None)
+                            {
+                                continue;
+                            }
+
+                            var bytes = pdbReader.GetBlobBytes(cdi.Value);
+                            if (bytes is null)
+                            {
+                                continue;
+                            }
+
+                            int uncompressedSize = BitConverter.ToInt32(bytes, 0);
+                            var stream = new MemoryStream(bytes, sizeof(int), bytes.Length - sizeof(int));
+
+                            if (uncompressedSize != 0)
+                            {
+                                var decompressed = new MemoryStream(uncompressedSize);
+                                using (var deflateStream = new DeflateStream(stream, CompressionMode.Decompress))
+                                {
+                                    deflateStream.CopyTo(decompressed);
+                                }
+
+                                if (decompressed.Length != uncompressedSize)
+                                {
+                                    throw new InvalidOperationException("Stream did not decompress to expected size");
+                                }
+
+                                stream = decompressed;
+                            }
+
+                            stream.Position = 0;
+                            return (filePath, stream);
+                        }
+
+                        return null;
+                    }
+                }
+#nullable disable
             }
 
             Console.WriteLine("Finished");
@@ -416,7 +535,12 @@ namespace BinLogToSln
             return Guid.NewGuid().ToString("B");
         }
 
-        private static string CSharpProjectTypeGuid = "{9A19103F-16F7-4668-BE54-9A1E7A4F7556}";
-        private static string VBProjectTypeGuid = "{F184B08F-C81C-45F6-A57F-5ABD9991F28F}";
+        private static readonly string CSharpProjectTypeGuid = "{9A19103F-16F7-4668-BE54-9A1E7A4F7556}";
+        private static readonly string VBProjectTypeGuid = "{F184B08F-C81C-45F6-A57F-5ABD9991F28F}";
+        private static readonly Guid CSharpLanguageGuid = new("{3f5162f8-07c6-11d3-9053-00c04fa302a1}");
+        private static readonly Guid VBLanguageGuid = new("{3a12d0b8-c26c-11d0-b442-00a0244a1dd2}");
+        private static readonly Guid EmbeddedSourceGuid = new("0E8A571B-6926-466E-B4AD-8AB04611F5FE");
+        private static readonly Guid HashAlgorithmSha1 = unchecked(new Guid((int)0xff1816ec, (short)0xaa5e, 0x4d10, 0x87, 0xf7, 0x6f, 0x49, 0x63, 0x83, 0x34, 0x60));
+        private static readonly Guid HashAlgorithmSha256 = unchecked(new Guid((int)0x8829d00f, 0x11b8, 0x4213, 0x87, 0x8b, 0x77, 0x0e, 0x85, 0x97, 0xac, 0x16));
     }
 }
