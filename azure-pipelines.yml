@@ -142,7 +142,7 @@ extends:
               -OutFile bin/index.url
 
         - task: AzureFileCopy@6
-          displayName: Upload index to Azure Stroage
+          displayName: Upload index to Azure Storage
           inputs:
             azureSubscription: SourceDotNet-Deployment-ARM
             SourcePath: "bin/index/index/*"
@@ -204,7 +204,7 @@ extends:
 
         - task: AzureCLI@2
           displayName: Swap Staging Slot into Production
-          condition: eq(variables['isOfficialBuild'], 'True')
+          condition: and(succeeded(), eq(variables['isOfficialBuild'], 'True'))
           inputs:
             azureSubscription: SourceDotNet-Deployment-ARM
             scriptLocation: inlineScript
@@ -218,7 +218,7 @@ extends:
 
         - task: AzureCLI@2
           displayName: Cleanup Old Storage Containers
-          condition: eq(variables['isOfficialBuild'], 'True')
+          condition: and(succeeded(), eq(variables['isOfficialBuild'], 'True'))
           inputs:
             azureSubscription: SourceDotNet-Deployment-ARM
             scriptLocation: inlineScript
