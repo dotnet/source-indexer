@@ -254,7 +254,7 @@ namespace BinLogToSln
                 project.WriteLine("    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>");
                 project.WriteLine("    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>");
                 project.WriteLine("    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>");
-                project.WriteLine("    <_SkipAnalyzers>true</_SkipAnalyzers>"); // we only need source generators
+                project.WriteLine("    <_SkipAnalyzers>true</_SkipAnalyzers>");
                 project.WriteLine($"    <AssemblyName>{invocation.AssemblyName}</AssemblyName>");
                 int idx = 1;
                 if (invocation.Parsed.CompilationOptions is CSharpCompilationOptions cSharpOptions)
