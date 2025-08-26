@@ -269,7 +269,7 @@ namespace BinLogToSln
                     }
                     if (cSharpOptions.CryptoKeyFile != null)
                     {
-                        includeFile(cSharpOptions.CryptoKeyFile, out string projectRelativePath, out _);
+                        string projectRelativePath = includeFile(cSharpOptions.CryptoKeyFile, includeCompile: false);
                         project.WriteLine($"    <KeyOriginatorFile>{projectRelativePath}</KeyOriginatorFile>");
                     }
                 }
@@ -283,8 +283,7 @@ namespace BinLogToSln
                 project.WriteLine("  <ItemGroup>");
                 foreach (CommandLineSourceFile sourceFile in invocation.Parsed.SourceFiles)
                 {
-                    includeFile(sourceFile.Path, out string projectRelativePath, out string link);
-                    project.WriteLine($"    <Compile Include=\"{projectRelativePath}\"{(link != null ? $" Link=\"{link}\"" : "")}/>");
+                    includeFile(sourceFile.Path);
                 }
                 project.WriteLine("  </ItemGroup>");
                 project.WriteLine("  <ItemGroup>");
@@ -307,8 +306,7 @@ namespace BinLogToSln
                         using var fileStream = File.OpenWrite(filePath);
                         stream.CopyTo(fileStream);
                     }
-                    includeFile(filePath, out string projectRelativePath, out string link);
-                    project.WriteLine($"    <Compile Include=\"{projectRelativePath}\"{(link != null ? $" Link=\"{link}\"" : "")}/>");
+                    includeFile(filePath);
                 }
                 project.WriteLine("  </ItemGroup>");
 
@@ -321,12 +319,13 @@ namespace BinLogToSln
                     File.Copy(invocation.OutputAssemblyPath, outputFilePath, true);
                 }
 
-                void includeFile(string originalPath, out string projectRelativePath, out string link)
+                string includeFile(string originalPath, bool includeCompile = true)
                 {
                     string filePath = Path.GetFullPath(originalPath);
                     string repoRelativePath = Path.GetRelativePath(repoRoot, filePath);
                     string outputFile;
-                    link = null;
+                    string link = null;
+                    string projectRelativePath;
                     if (repoRelativePath.StartsWith("..\\", StringComparison.Ordinal) || repoRelativePath.StartsWith("../", StringComparison.Ordinal) || Path.IsPathRooted(repoRelativePath))
                     {
                         string externalPath = Path.Join("_external", idx++.ToString(), Path.GetFileName(filePath));
@@ -348,6 +347,13 @@ namespace BinLogToSln
                     {
                         File.Copy(filePath, outputFile);
                     }
+
+                    if (includeCompile)
+                    {
+                        project.WriteLine($"    <Compile Include=\"{projectRelativePath}\"{(link != null ? $" Link=\"{link}\"" : "")}/>");
+                    }
+
+                    return projectRelativePath;
                 }
 
                 void includeReference(string kind, string path)
