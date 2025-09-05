@@ -10,6 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Basic.CompilerLog.Util" />
     <PackageReference Include="LibGit2Sharp" />
     <PackageReference Include="Mono.Options" />
     <PackageReference Include="NuGet.Frameworks" />

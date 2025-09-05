@@ -1,18 +1,17 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Linq;
-using System.Numerics;
-using System.Reflection.Metadata;
-using System.Reflection.PortableExecutable;
-using System.Runtime.CompilerServices;
 using LibGit2Sharp;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.SourceBrowser.BinLogParser;
 using Mono.Options;
 using NuGet.Frameworks;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
+using System.Reflection.Metadata;
+using System.Reflection.PortableExecutable;
+using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("BinLogToSln.Tests")]
 
@@ -146,6 +145,7 @@ namespace BinLogToSln
             
             return false;
         }
+
         static void Main(string[] args)
         {
             string binlog = null;
@@ -205,7 +205,7 @@ namespace BinLogToSln
             WriteSolutionHeader(sln);
 
             IEnumerable<CompilerInvocation> invocations = BinLogCompilerInvocationsReader.ExtractInvocations(binlog);
-            
+
             // Group invocations by assembly name and select the best one for each
             var invocationGroups = invocations
                 .Where(invocation => !ShouldExcludeInvocation(invocation))
@@ -240,11 +240,10 @@ namespace BinLogToSln
                 using var projFile = new FileStream(projectFilePath, FileMode.Create);
                 using var project = new StreamWriter(projFile);
 
-                string typeGuid = invocation.Language switch
+                (string typeGuid, bool isCSharp) = invocation.Language switch
                 {
-                    LanguageNames.CSharp => CSharpProjectTypeGuid,
-                    LanguageNames.VisualBasic => VBProjectTypeGuid,
-                    _ => CSharpProjectTypeGuid,
+                    LanguageNames.VisualBasic => (VBProjectTypeGuid, false),
+                    _ => (CSharpProjectTypeGuid, true),
                 };
                 sln.WriteLine($"Project(\"{typeGuid}\") = \"{projectName}\", \"{Path.Join("src", repoRelativeProjectPath)}\", \"{GetProjectGuid()}\"");
                 sln.WriteLine("EndProject");
@@ -255,6 +254,7 @@ namespace BinLogToSln
                 project.WriteLine("    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>");
                 project.WriteLine("    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>");
                 project.WriteLine("    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>");
+                project.WriteLine("    <_SkipAnalyzers>true</_SkipAnalyzers>");
                 project.WriteLine($"    <AssemblyName>{invocation.AssemblyName}</AssemblyName>");
                 int idx = 1;
                 if (invocation.Parsed.CompilationOptions is CSharpCompilationOptions cSharpOptions)
@@ -269,7 +269,7 @@ namespace BinLogToSln
                     }
                     if (cSharpOptions.CryptoKeyFile != null)
                     {
-                        includeFile(cSharpOptions.CryptoKeyFile, out string projectRelativePath, out _);
+                        string projectRelativePath = includeFile(cSharpOptions.CryptoKeyFile, includeCompile: false);
                         project.WriteLine($"    <KeyOriginatorFile>{projectRelativePath}</KeyOriginatorFile>");
                     }
                 }
@@ -283,25 +283,33 @@ namespace BinLogToSln
                 project.WriteLine("  <ItemGroup>");
                 foreach (CommandLineSourceFile sourceFile in invocation.Parsed.SourceFiles)
                 {
-                    includeFile(sourceFile.Path, out string projectRelativePath, out string link);
-                    project.WriteLine($"    <Compile Include=\"{projectRelativePath}\"{(link != null ? $" Link=\"{link}\"" : "")}/>");
+                    includeFile(sourceFile.Path);
                 }
                 project.WriteLine("  </ItemGroup>");
                 project.WriteLine("  <ItemGroup>");
                 foreach (CommandLineReference reference in invocation.Parsed.MetadataReferences)
                 {
-                    string path = reference.Reference;
-                    if (!File.Exists(path))
-                    {
-                        Console.WriteLine($"Could not find reference '{path}'");
-                        continue;
-                    }
-                    string projToRepoPath = Path.GetRelativePath(invocation.ProjectDirectory, repoRoot);
-                    string projToOutputPath = Path.Join(projToRepoPath, "..");
-                    string refPath = DedupeReference(output, path);
-                    project.WriteLine($"    <ReferencePath Include=\"{Path.Join(projToOutputPath, refPath)}\"/>");
+                    includeReference("ReferencePath", reference.Reference);
                 }
                 project.WriteLine("  </ItemGroup>");
+
+                // Add generated files.
+                project.WriteLine("  <ItemGroup>");
+                foreach (var generatedFile in getGeneratedFiles())
+                {
+                    string filePath = generatedFile.FilePath;
+                    if (!File.Exists(filePath))
+                    {
+                        Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+                        var stream = generatedFile.Stream;
+                        stream.Position = 0;
+                        using var fileStream = File.OpenWrite(filePath);
+                        stream.CopyTo(fileStream);
+                    }
+                    includeFile(filePath);
+                }
+                project.WriteLine("  </ItemGroup>");
+
                 project.WriteLine("</Project>");
                 if (!string.IsNullOrEmpty(invocation.OutputAssemblyPath))
                 {
@@ -311,12 +319,13 @@ namespace BinLogToSln
                     File.Copy(invocation.OutputAssemblyPath, outputFilePath, true);
                 }
 
-                void includeFile(string originalPath, out string projectRelativePath, out string link)
+                string includeFile(string originalPath, bool includeCompile = true)
                 {
                     string filePath = Path.GetFullPath(originalPath);
                     string repoRelativePath = Path.GetRelativePath(repoRoot, filePath);
                     string outputFile;
-                    link = null;
+                    string link = null;
+                    string projectRelativePath;
                     if (repoRelativePath.StartsWith("..\\", StringComparison.Ordinal) || repoRelativePath.StartsWith("../", StringComparison.Ordinal) || Path.IsPathRooted(repoRelativePath))
                     {
                         string externalPath = Path.Join("_external", idx++.ToString(), Path.GetFileName(filePath));
@@ -337,6 +346,44 @@ namespace BinLogToSln
                     if (!File.Exists(outputFile))
                     {
                         File.Copy(filePath, outputFile);
+                    }
+
+                    if (includeCompile)
+                    {
+                        project.WriteLine($"    <Compile Include=\"{projectRelativePath}\"{(link != null ? $" Link=\"{link}\"" : "")}/>");
+                    }
+
+                    return projectRelativePath;
+                }
+
+                void includeReference(string kind, string path)
+                {
+                    if (!File.Exists(path))
+                    {
+                        Console.WriteLine($"Could not find {kind} '{path}'");
+                        return;
+                    }
+
+                    string projToRepoPath = Path.GetRelativePath(invocation.ProjectDirectory, repoRoot);
+                    string projToOutputPath = Path.Join(projToRepoPath, "..");
+                    string refPath = DedupeReference(output, path);
+                    project.WriteLine($"    <{kind} Include=\"{Path.Join(projToOutputPath, refPath)}\"/>");
+                }
+
+                IEnumerable<(string FilePath, MemoryStream Stream)> getGeneratedFiles()
+                {
+                    try
+                    {
+                        return Basic.CompilerLog.Util.RoslynUtil.ReadGeneratedFilesFromPdb(
+                            isCSharp: isCSharp,
+                            diagnosticName: invocation.ProjectFilePath,
+                            invocation.Parsed);
+                    }
+                    catch (Exception ex)
+                    {
+                        // We don't want to fail official builds during stage 1, so just log a warning.
+                        Console.WriteLine($"##vso[task.logissue type=warning;]Error processing generated files for '{invocation.ProjectFilePath}': {ex}");
+                        return [];
                     }
                 }
             }
@@ -386,7 +433,7 @@ namespace BinLogToSln
             return Guid.NewGuid().ToString("B");
         }
 
-        private static string CSharpProjectTypeGuid = "{9A19103F-16F7-4668-BE54-9A1E7A4F7556}";
-        private static string VBProjectTypeGuid = "{F184B08F-C81C-45F6-A57F-5ABD9991F28F}";
+        private static readonly string CSharpProjectTypeGuid = "{9A19103F-16F7-4668-BE54-9A1E7A4F7556}";
+        private static readonly string VBProjectTypeGuid = "{F184B08F-C81C-45F6-A57F-5ABD9991F28F}";
     }
 }
