@@ -63,7 +63,7 @@
     <PackageVersion Include="ExceptionAnalysis.Diagnostics" Version="1.0.0.39796" />
     <PackageVersion Include="GuiLabs.Language.Xml" Version="1.2.88" />
 
-    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.7" />
+    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.9" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.WindowsServices" Version="9.0.6" />
     <PackageVersion Include="Microsoft.Extensions.Logging.AzureAppServices" Version="9.0.6" />
     <PackageVersion Include="System.Resources.Extensions" Version="9.0.7" />
