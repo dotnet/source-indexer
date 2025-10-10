@@ -228,3 +228,14 @@ extends:
               -ResourceGroup source.dot.net
               -WebappName netsourceindex
               -StorageAccountName $(storageAccount)
+
+        - task: CopyFiles@2
+          displayName: Copy binlogs for upload
+          inputs:
+            SourceFolder: '$(Build.SourcesDirectory)'
+            Contents: |
+              **/*.binlog
+            TargetFolder: $(Build.ArtifactStagingDirectory)/logs/src
+            CleanTargetFolder: false
+          continueOnError: true
+          condition: succeededOrFailed()
