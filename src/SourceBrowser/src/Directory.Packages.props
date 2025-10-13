@@ -41,7 +41,7 @@
     <PackageVersion Include="Shouldly" Version="4.3.0" />
 
     <!-- other dependencies -->
-    <PackageVersion Include="Basic.CompilerLog.Util" Version="0.9.17" />
+    <PackageVersion Include="Basic.CompilerLog.Util" Version="0.9.19" />
     <PackageVersion Include="LibGit2Sharp" Version="0.30.0" />
     <PackageVersion Include="MSBuild.StructuredLogger" Version="2.3.45" />
     <PackageVersion Include="ManagedEsent" Version="2.0.0" />
