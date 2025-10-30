@@ -7,7 +7,7 @@
 
   <ItemGroup>
     <!-- msbuild-->
-    <PackageVersion Include="Microsoft.Build.Framework" Version="17.14.8" />
+    <PackageVersion Include="Microsoft.Build.Framework" Version="17.14.28" />
     <PackageVersion Include="Microsoft.Build.Tasks.Core" Version="17.14.8" />
     <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="17.14.8" />
     <PackageVersion Include="Microsoft.Build" Version="17.14.8" />
@@ -36,12 +36,12 @@
     <PackageVersion Include="nunit" Version="3.12.0" />
     <PackageVersion Include="NUnit3TestAdapter" Version="3.15.1" />
     <PackageVersion Include="xunit" Version="2.9.3" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.1" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
 
     <!-- other dependencies -->
-    <PackageVersion Include="Basic.CompilerLog.Util" Version="0.9.17" />
+    <PackageVersion Include="Basic.CompilerLog.Util" Version="0.9.19" />
     <PackageVersion Include="LibGit2Sharp" Version="0.30.0" />
     <PackageVersion Include="MSBuild.StructuredLogger" Version="2.3.45" />
     <PackageVersion Include="ManagedEsent" Version="2.0.0" />
@@ -55,7 +55,7 @@
     <PackageVersion Include="System.Threading.Tasks.Extensions" Version="4.6.3" />
     <PackageVersion Include="System.ValueTuple" Version="4.6.1" />
 
-    <PackageVersion Include="Microsoft.Build.Locator" Version="1.9.1" />
+    <PackageVersion Include="Microsoft.Build.Locator" Version="1.10.2" />
     <PackageVersion Include="Microsoft.NET.StringTools" Version="17.14.8" />
     <PackageVersion Include="Microsoft.VisualStudio.Language.Intellisense" Version="17.14.249" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
@@ -63,9 +63,9 @@
     <PackageVersion Include="ExceptionAnalysis.Diagnostics" Version="1.0.0.39796" />
     <PackageVersion Include="GuiLabs.Language.Xml" Version="1.2.88" />
 
-    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.7" />
+    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.WindowsServices" Version="9.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.AzureAppServices" Version="9.0.6" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.AzureAppServices" Version="9.0.10" />
     <PackageVersion Include="System.Resources.Extensions" Version="9.0.7" />
     <PackageVersion Include="System.Collections.Immutable" Version="9.0.7" />
     <PackageVersion Include="System.Text.Encodings.Web" Version="9.0.7" />
@@ -75,7 +75,7 @@
   
   <!-- dependencies for dotnet/source-browser projects -->
   <ItemGroup>
-      <PackageVersion Include="Azure.Identity" Version="1.14.1" />
+      <PackageVersion Include="Azure.Identity" Version="1.17.0" />
       <PackageVersion Include="Azure.Storage.Blobs" Version="12.24.1" />
       <PackageVersion Include="Mono.Options" Version="6.12.0.148" />
       <PackageVersion Include="NuGet.Frameworks" Version="6.13.1" />
