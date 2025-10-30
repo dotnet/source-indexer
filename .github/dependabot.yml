@@ -9,3 +9,7 @@ updates:
     directory: "/src/SourceBrowser/" # Location of package manifests
     schedule:
       interval: "weekly"
+    groups:
+      microsoft-build-deps:
+        patterns:
+          - "Microsoft.Build.*"
