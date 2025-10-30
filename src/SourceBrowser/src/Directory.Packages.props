@@ -64,7 +64,7 @@
     <PackageVersion Include="GuiLabs.Language.Xml" Version="1.2.88" />
 
     <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.7" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting.WindowsServices" Version="9.0.6" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.WindowsServices" Version="9.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Logging.AzureAppServices" Version="9.0.6" />
     <PackageVersion Include="System.Resources.Extensions" Version="9.0.7" />
     <PackageVersion Include="System.Collections.Immutable" Version="9.0.7" />
