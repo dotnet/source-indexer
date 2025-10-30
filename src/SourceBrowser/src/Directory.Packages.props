@@ -43,7 +43,7 @@
     <!-- other dependencies -->
     <PackageVersion Include="Basic.CompilerLog.Util" Version="0.9.19" />
     <PackageVersion Include="LibGit2Sharp" Version="0.30.0" />
-    <PackageVersion Include="MSBuild.StructuredLogger" Version="2.3.45" />
+    <PackageVersion Include="MSBuild.StructuredLogger" Version="2.3.71" />
     <PackageVersion Include="ManagedEsent" Version="2.0.0" />
     <PackageVersion Include="System.Reactive" Version="6.0.0" />
     <PackageVersion Include="System.Composition" Version="9.0.7" />
