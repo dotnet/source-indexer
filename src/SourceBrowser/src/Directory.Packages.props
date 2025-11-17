@@ -28,7 +28,7 @@
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="4.14.0" />
 
     <!-- test dependencies -->
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.0" />
     <PackageVersion Include="MSTest.TestAdapter" Version="3.9.3" />
     <PackageVersion Include="MSTest.TestFramework" Version="3.9.3" />
     <PackageVersion Include="Selenium.WebDriver" Version="3.14.0" />
