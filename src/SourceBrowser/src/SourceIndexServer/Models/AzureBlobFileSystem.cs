@@ -12,18 +12,14 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
     public class AzureBlobFileSystem : IFileSystem
     {
         private readonly BlobContainerClient container;
-        private TokenCredential credential;
-        private string clientId;
+        private readonly TokenCredential credential;
 
         public AzureBlobFileSystem(string uri)
         {
-            if (string.IsNullOrEmpty(clientId) && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ARM_CLIENT_ID")))
-                clientId = Environment.GetEnvironmentVariable("ARM_CLIENT_ID");
-
-            if (string.IsNullOrEmpty(clientId))
-                credential = new AzureCliCredential();
-            else
-                credential = new ManagedIdentityCredential(clientId);
+            var clientId = Environment.GetEnvironmentVariable("AZURE_CLIENT_ID");
+            credential = string.IsNullOrEmpty(clientId)
+                            ? new AzureCliCredential()
+                            : new ManagedIdentityCredential(clientId);
 
             container = new BlobContainerClient(new Uri(uri),
                                                 credential);
