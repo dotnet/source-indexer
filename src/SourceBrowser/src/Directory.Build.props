@@ -5,6 +5,7 @@
   <PropertyGroup>
     <AnalysisLevel>5</AnalysisLevel>
     <LangVersion>latest</LangVersion>
+    <DefineConstants Condition="'$(EnableDebugLogging)' == 'true'">$(DefineConstants);DEBUG_LOGGING</DefineConstants>
   </PropertyGroup>
 
 </Project>

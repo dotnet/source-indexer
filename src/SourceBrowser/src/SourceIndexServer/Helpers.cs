@@ -75,6 +75,12 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
             await context.ProxyRequestAsync(proxyRequestPathSuffix).ConfigureAwait(false);
         }
 
+#if DEBUG_LOGGING
+        public readonly static bool DebugLoggingEnabled = true;
+#else
+        public readonly static bool DebugLoggingEnabled;
+#endif
+
         public static string IndexProxyUrl => Environment.GetEnvironmentVariable("SOURCE_BROWSER_INDEX_PROXY_URL");
     }
 }
