@@ -162,9 +162,8 @@ extends:
             azureSubscription: ${{ variables.azureSubscriptionForStorageAndWebAppSlot }}
             scriptLocation: inlineScript
             scriptType: ps
-            inlineScript: >
-              deployment/create-container.ps1
-              -StorageAccountName $(storageAccountName)
+            inlineScript: deployment/create-container.ps1 -StorageAccountName $(storageAccountName)
+            workingDirectory: $(Build.SourcesDirectory)
 
         - task: AzureFileCopy@6
           displayName: 🟣Upload index to Azure Storage
@@ -213,12 +212,11 @@ extends:
             inlineScript: |
               az webapp restart --name $(webAppName) --slot $(temporaryDeploymentSlot) --resource-group $(resourceGroupName)
 
+        # FIXME: Health endpoints disabled till they can be audited: "https://$(stagingHost)/health", "https://$(stagingHost)/health/alive"
         - pwsh: |
             Start-Sleep 60
             $urls = @(
               "https://$(stagingHost)"
-              "https://$(stagingHost)/health"
-              "https://$(stagingHost)/health/alive"
               "https://$(stagingHost)/System.Private.CoreLib/src/libraries/System.Private.CoreLib/src/System/String.cs.html"
             )
             foreach ($url in $urls) {

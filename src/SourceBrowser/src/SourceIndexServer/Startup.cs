@@ -4,11 +4,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.FileProviders.Physical;
 using Microsoft.Extensions.Hosting;
@@ -43,14 +41,14 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
             services.AddRazorPages();
 
             // Add health checks
-            services.AddHealthChecks()
-                .AddCheck<HealthChecks.StorageHealthCheck>(
-                    name: "storage",
-                    tags: ["ready"])
-                .AddCheck(
-                    name: "startup",
-                    check: () => HealthCheckResult.Healthy("Application is running"),
-                    tags: ["alive"]);
+            //services.AddHealthChecks()
+                //.AddCheck<HealthChecks.StorageHealthCheck>(
+                    //name: "storage",
+                    //tags: ["ready"])
+                //.AddCheck(
+                    //name: "startup",
+                    //check: () => HealthCheckResult.Healthy("Application is running"),
+                    //tags: ["alive"]);
         }
 
         public string RootPath { get; set; }
@@ -94,47 +92,47 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
 
             app.UseEndpoints(endPoints =>
             {
-                const int healthCacheSeconds = 30;
+                //const int healthCacheSeconds = 30;
 
-                static Task CacheableMinimalResponse(HttpContext context, HealthReport report)
-                {
-                    context.Response.Headers.CacheControl = $"public,max-age={healthCacheSeconds}";
-                    context.Response.Headers.Pragma = "public";
-                    context.Response.Headers.Expires = "0";
-                    return HealthChecks.HealthCheckResponseWriter.WriteMinimalResponse(context, report);
-                }
+                //static Task CacheableMinimalResponse(HttpContext context, HealthReport report)
+                //{
+                    //context.Response.Headers.CacheControl = $"public,max-age={healthCacheSeconds}";
+                    //context.Response.Headers.Pragma = "public";
+                    //context.Response.Headers.Expires = "0";
+                    //return HealthChecks.HealthCheckResponseWriter.WriteMinimalResponse(context, report);
+                //}
 
-                // Health check endpoints
-                // Basic health check with minimal information (cached by default)
-                endPoints.MapHealthChecks("/health", new HealthCheckOptions
-                {
-                    Predicate = _ => true,
-                    ResponseWriter = CacheableMinimalResponse
-                });
+                //// Health check endpoints
+                //// Basic health check with minimal information (cached by default)
+                //endPoints.MapHealthChecks("/health", new HealthCheckOptions
+                //{
+                    //Predicate = _ => true,
+                    //ResponseWriter = CacheableMinimalResponse
+                //});
 
-                // Liveness probe (always healthy if app is running)
-                endPoints.MapHealthChecks("/health/alive", new HealthCheckOptions
-                {
-                    Predicate = check => check.Tags.Contains("alive"),
-                    ResponseWriter = HealthChecks.HealthCheckResponseWriter.WriteMinimalResponse
-                });
+                //// Liveness probe (always healthy if app is running)
+                //endPoints.MapHealthChecks("/health/alive", new HealthCheckOptions
+                //{
+                    //Predicate = check => check.Tags.Contains("alive"),
+                    //ResponseWriter = HealthChecks.HealthCheckResponseWriter.WriteMinimalResponse
+                //});
 
-                if (env.IsDevelopment() || Helpers.DebugLoggingEnabled)
-                {
-                    // Detailed health check with full diagnostics
-                    endPoints.MapHealthChecks("/health/detailed", new HealthCheckOptions
-                    {
-                        Predicate = _ => true,
-                        ResponseWriter = HealthChecks.HealthCheckResponseWriter.WriteResponse
-                    });
+                //if (env.IsDevelopment() || Helpers.DebugLoggingEnabled)
+                //{
+                    //// Detailed health check with full diagnostics
+                    //endPoints.MapHealthChecks("/health/detailed", new HealthCheckOptions
+                    //{
+                        //Predicate = _ => true,
+                        //ResponseWriter = HealthChecks.HealthCheckResponseWriter.WriteResponse
+                    //});
 
-                    // Readiness probe (checks storage)
-                    endPoints.MapHealthChecks("/health/ready", new HealthCheckOptions
-                    {
-                        Predicate = check => check.Tags.Contains("ready"),
-                        ResponseWriter = HealthChecks.HealthCheckResponseWriter.WriteMinimalResponse
-                    });
-                }
+                    //// Readiness probe (checks storage)
+                    //endPoints.MapHealthChecks("/health/ready", new HealthCheckOptions
+                    //{
+                        //Predicate = check => check.Tags.Contains("ready"),
+                        //ResponseWriter = HealthChecks.HealthCheckResponseWriter.WriteMinimalResponse
+                    //});
+                //}
 
                 endPoints.MapRazorPages();
                 endPoints.MapControllers();
