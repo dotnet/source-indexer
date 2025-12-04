@@ -12,22 +12,39 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
     {
         private static async Task ProxyRequestAsync(this HttpContext context, string targetPath, Action<HttpRequestMessage> configureRequest = null)
         {
-            var fs = new AzureBlobFileSystem(IndexProxyUrl);
-            var props = fs.FileProperties(targetPath);
-            context.Response.Headers.Append("Content-Md5", Convert.ToBase64String(props.ContentHash));
-            context.Response.Headers.Append("Content-Type", props.ContentType);
-            context.Response.Headers.Append("Etag", props.ETag.ToString());
-            context.Response.Headers.Append("Last-Modified", props.LastModified.ToString("R"));
-            using (var data = fs.OpenSequentialReadStream(targetPath))
+            try
             {
-                await data.CopyToAsync(context.Response.Body).ConfigureAwait(false);
+                var fs = new AzureBlobFileSystem(IndexProxyUrl);
+                var props = fs.FileProperties(targetPath);
+
+                context.Response.Headers.Append("Content-Md5", Convert.ToBase64String(props.ContentHash));
+                context.Response.Headers.Append("Content-Type", props.ContentType);
+                context.Response.Headers.Append("Etag", props.ETag.ToString());
+                context.Response.Headers.Append("Last-Modified", props.LastModified.ToString("R"));
+                using (var data = fs.OpenSequentialReadStream(targetPath))
+                {
+                    await data.CopyToAsync(context.Response.Body).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                Program.Logger?.LogError(ex, $"ProxyRequestAsync: Failed to serve '{targetPath}' from '{IndexProxyUrl}'");
+                throw new InvalidOperationException($"Failed to proxy file '{targetPath}' from storage. IndexProxyUrl: '{IndexProxyUrl}'", ex);
             }
         }
 
         private static bool FileExists(string proxyRequestPath)
         {
-            var fs = new AzureBlobFileSystem(IndexProxyUrl);
-            return fs.FileExists(proxyRequestPath);
+            try
+            {
+                var fs = new AzureBlobFileSystem(IndexProxyUrl);
+                return fs.FileExists(proxyRequestPath);
+            }
+            catch (Exception ex)
+            {
+                Program.Logger?.LogError(ex, $"FileExists: Error checking '{proxyRequestPath}' in '{IndexProxyUrl}'");
+                return false;
+            }
         }
 
         public static async Task ServeProxiedIndex(HttpContext context, Func<Task> next)
@@ -57,6 +74,12 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
 
             await context.ProxyRequestAsync(proxyRequestPathSuffix).ConfigureAwait(false);
         }
+
+#if DEBUG_LOGGING
+        public readonly static bool DebugLoggingEnabled = true;
+#else
+        public readonly static bool DebugLoggingEnabled;
+#endif
 
         public static string IndexProxyUrl => Environment.GetEnvironmentVariable("SOURCE_BROWSER_INDEX_PROXY_URL");
     }

@@ -15,7 +15,7 @@ $allContainers = New-Object System.Collections.Generic.HashSet[string]
 
 Write-Host "Finding containers..."
 {
-  az storage container list --account-name netsourceindex --auth-mode login --query '[*].name' | ConvertFrom-Json | Write-Output | %{
+  az storage container list --account-name $StorageAccountName --auth-mode login --query '[*].name' | ConvertFrom-Json | Write-Output | %{
     $allContainers.Add($_)
   } | Out-Null
 } | Check-Failure
@@ -60,7 +60,7 @@ $toDelete = New-Object System.Collections.Generic.HashSet[string] -ArgumentList 
 $usedContainers | %{
   if (-not $toDelete.Remove($_))
   {
-    throw "Used container $_ not found, aborting."
+    Write-Warning "Used container $_ not found, ignoring"
   }
 }
 

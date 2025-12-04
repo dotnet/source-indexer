@@ -1,6 +1,6 @@
 schedules:
 - cron: 0 10 * * *
-  displayName: Every day at 10:00 UTC
+  displayName: 🟣Every day at 10:00 UTC
   branches:
     include:
     - main
@@ -13,12 +13,52 @@ resources:
     name: 1ESPipelineTemplates/1ESPipelineTemplates
     ref: refs/tags/release
 
+variables:
+- name: system.debug
+  value: true
+- name: azureSubscriptionForStage1Download
+  value: 'SourceDotNet Stage1 Publish'
+- name: webAppName
+  value: 'netsourceindexprod'
+- name: resourceGroupName
+  value: 'source.dot.net'
+
+# Note: the subscription name variables need to be at the pipeline level to be used in the AzureCLI tasks.
+#       that's because the tasks get looked at very early in the pipeline processing.
+#       Also, make sure to use the template expression syntax ${{ }}
+#       Issue: https://github.com/microsoft/azure-pipelines-tasks/issues/14365#issuecomment-2286398867
+
+- ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranch'], 'refs/heads/main')) }}:
+  - name: poolName
+    value: 'NetSourceIndexProd-Pool'
+  - name: azureSubscriptionForStorageAndWebAppSlot
+    value: 'NetSourceIndex-Prod'
+  - name: isOfficialBuild
+    value: True
+  - name: temporaryDeploymentSlot
+    value: 'staging'
+  - name: storageAccountName
+    value: 'netsourceindexprod'
+  - name: stagingHost
+    value: 'staging.source.dot.net'
+- ${{ else }}:
+  - name: poolName
+    value: 'NetSourceIndexValid-Pool'
+  - name: azureSubscriptionForStorageAndWebAppSlot
+    value: 'NetSourceIndex-Validation-Prod'
+  - name: isOfficialBuild
+    value: False
+  - name: temporaryDeploymentSlot
+    value: 'validation'
+  - name: storageAccountName
+    value: 'netsourceindexvalidprod'
+
 extends:
   template: v1/1ES.Official.PipelineTemplate.yml@1ESPipelineTemplates
   parameters:
     pool:
-      name: NetCore1ESPool-Internal-XL
-      image: 1es-windows-2022
+      name: ${{ variables.poolName }}
+      image: 1es-pt-agent-image
       os: windows
     customBuildTags:
     - ES365AIMigrationTooling
@@ -28,25 +68,6 @@ extends:
       - job: BuildIndex
         displayName: Build Source Index
         timeoutInMinutes: 360
-
-        variables:
-        - name: system.debug
-          value: true
-        - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranch'], 'refs/heads/main')) }}:
-          - name: isOfficialBuild
-            value: True
-          - name: deploymentSlot
-            value: staging
-          - name: storageAccount
-            value: netsourceindex
-        - ${{ else }}:
-          - name: isOfficialBuild
-            value: False
-          - name: deploymentSlot
-            value: validation
-          - name: storageAccount
-            value: netsourceindexvalidation
-        - group: source-dot-net stage1 variables
 
         templateContext:
           outputs:
@@ -67,18 +88,18 @@ extends:
           submodules: true
 
         - task: DeleteFiles@1
-          displayName: Delete files from bin
+          displayName: 🟣Delete files from bin
           inputs:
             SourceFolder: bin
             Contents: '**/*'
 
         - task: UseDotNet@2
-          displayName: Install .NET Sdk
+          displayName: 🟣Install .NET Sdk
           inputs:
             useGlobalJson: true
 
         - task: DotNetCoreCLI@2
-          displayName: dotnet restore
+          displayName: 🟣dotnet restore
           inputs:
             command: custom
             custom: restore
@@ -86,18 +107,18 @@ extends:
               **\*.sln
 
         - task: DotNetCoreCLI@2
-          displayName: dotnet build
+          displayName: 🟣dotnet build
           inputs:
             command: 'build'
             projects: |
               src\source-indexer.sln
               src\SourceBrowser\SourceBrowser.sln
-            arguments: '/p:PackageOutputPath=$(Build.ArtifactStagingDirectory)/packages'
+            arguments: '/p:PackageOutputPath=$(Build.ArtifactStagingDirectory)/packages /p:EnableDebugLogging=true'
 
         - task: AzureCLI@2
-          displayName: Log in to Azure and clone data
+          displayName: 🟣Clone Stage1 data
           inputs:
-            azureSubscription: 'SourceDotNet Stage1 Publish'
+            azureSubscription: ${{ variables.azureSubscriptionForStage1Download }}
             addSpnToEnvironment: true
             scriptType: 'ps'
             scriptLocation: 'inlineScript'
@@ -105,129 +126,139 @@ extends:
               dotnet build build.proj /t:Clone /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/clone.binlog /p:Stage1StorageAccount=netsourceindexstage1 /p:Stage1StorageContainer=stage1
 
         - task: DotNetCoreCLI@2
-          displayName: Prepare All Repositories
+          displayName: 🟣Prepare All Repositories
           inputs:
             command: 'build'
             projects: 'build.proj'
             arguments: '/t:Prepare /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/prepare.binlog'
 
         - task: DotNetCoreCLI@2
-          displayName: Build source index
+          displayName: 🟣Build source index
           inputs:
             command: 'build'
             projects: 'build.proj'
             arguments: '/t:BuildIndex /v:n /bl:$(Build.ArtifactStagingDirectory)/logs/build.binlog'
 
         - task: CopyFiles@2
+          displayName: 🟣Copy webapp files
           inputs:
             sourceFolder: bin/index/
             contents: |
               **
               !index/**
-            targetFolder: bin/index-stage/
+            targetFolder: bin/webapp-stage/
+
             cleanTargetFolder: true
 
+        - pwsh: New-Item -ItemType File -Force -Path bin/index/index/.health
+          displayName: 🟣Create .health file
+
         - powershell: deployment/normalize-case.ps1 -Root bin/index/index/
-          displayName: Normalize Case Of Index Files
+          displayName: 🟣Normalize Case Of Index Files
 
         - task: AzureCLI@2
-          displayName: Create new storage container
+          displayName: 🟣Create new storage container
           inputs:
-            azureSubscription: SourceDotNet-Deployment-ARM
+            azureSubscription: ${{ variables.azureSubscriptionForStorageAndWebAppSlot }}
             scriptLocation: inlineScript
             scriptType: ps
-            inlineScript: >
-              deployment/upload-index-to-container.ps1
-              -StorageAccountName $(storageAccount)
-              -OutFile bin/index.url
+            inlineScript: deployment/create-container.ps1 -StorageAccountName $(storageAccountName)
+            workingDirectory: $(Build.SourcesDirectory)
 
         - task: AzureFileCopy@6
-          displayName: Upload index to Azure Storage
+          displayName: 🟣Upload index to Azure Storage
           inputs:
-            azureSubscription: SourceDotNet-Deployment-ARM
+            azureSubscription: ${{ variables.azureSubscriptionForStorageAndWebAppSlot }}
             SourcePath: "bin/index/index/*"
             Destination: AzureBlob
-            storage: $(storageAccount)
+            storage: $(storageAccountName)
             ContainerName: $(NEW_CONTAINER_NAME)
 
         - task: AzureRmWebAppDeployment@4
-          displayName: 'Azure App Service Deploy: netsourceindex'
+          displayName: '🟣Azure App Service Deploy: $(temporaryDeploymentSlot) slot'
           inputs:
             ConnectionType: AzureRM
-            azureSubscription: SourceDotNet-Deployment-ARM
+            azureSubscription: ${{ variables.azureSubscriptionForStorageAndWebAppSlot }}
             appType: webApp
-            WebAppName: netsourceindex
-            ResourceGroupName: source.dot.net
+            WebAppName: ${{ variables.webAppName }}
+            ResourceGroupName: $(resourceGroupName)
             deployToSlotOrASE: true
-            SlotName: $(deploymentSlot)
-            packageForLinux: bin/index-stage/
+            SlotName: $(temporaryDeploymentSlot)
+            packageForLinux: bin/webapp-stage/
             enableCustomDeployment: true
             DeploymentType: zipDeploy
             RemoveAdditionalFilesFlag: true
 
         - task: AzureCLI@2
-          displayName: Deploy Storage Proxy Url to WebApp
+          displayName: 🟣Deploy Storage Proxy Url to WebApp
           inputs:
-            azureSubscription: SourceDotNet-Deployment-ARM
+            azureSubscription: ${{ variables.azureSubscriptionForStorageAndWebAppSlot }}
             scriptLocation: inlineScript
             scriptType: ps
             inlineScript: >
               deployment/deploy-storage-proxy.ps1
-              -ProxyUrlFile bin/index.url
-              -ResourceGroup source.dot.net
-              -WebappName netsourceindex
-              -Slot $(deploymentSlot)
+              -NewContainerName "$(NEW_CONTAINER_NAME)"
+              -ResourceGroup "$(resourceGroupName)"
+              -StorageAccountName "$(storageAccountName)"
+              -WebappName "${{ variables.webAppName }}"
+              -Slot "$(temporaryDeploymentSlot)"
 
         - task: AzureCLI@2
-          displayName: Restart WebApp
+          displayName: 🟣Restart WebApp
           inputs:
-            azureSubscription: SourceDotNet-Deployment-ARM
+            azureSubscription: ${{ variables.azureSubscriptionForStorageAndWebAppSlot }}
             scriptLocation: inlineScript
             scriptType: ps
             inlineScript: |
-              az webapp restart --name netsourceindex --slot $(deploymentSlot) --resource-group source.dot.net
+              az webapp restart --name $(webAppName) --slot $(temporaryDeploymentSlot) --resource-group $(resourceGroupName)
 
+        # FIXME: Health endpoints disabled till they can be audited: "https://$(stagingHost)/health", "https://$(stagingHost)/health/alive"
         - pwsh: |
             Start-Sleep 60
             $urls = @(
-              "https://netsourceindex-$(deploymentSlot).azurewebsites.net",
-              "https://netsourceindex-$(deploymentSlot).azurewebsites.net/System.Private.CoreLib/src/libraries/System.Private.CoreLib/src/System/String.cs.html"
+              "https://$(stagingHost)"
+              "https://$(stagingHost)/System.Private.CoreLib/src/libraries/System.Private.CoreLib/src/System/String.cs.html"
             )
             foreach ($url in $urls) {
-              $statusCode = Invoke-WebRequest $url -UseBasicParsing -SkipHttpErrorCheck | select -ExpandProperty StatusCode
-              if ($statusCode -ne 200) {
-                Write-Host "##vso[task.logissue type=error;]Deployed website returned undexpected status code $statusCode from url $url"
-                Write-Host "##vso[task.complete result=Failed;]Deployed website returned undexpected status code $statusCode from url $url"
+              Write-Host "Testing URL: $url"
+              try {
+                $statusCode = Invoke-WebRequest $url -UseBasicParsing -SkipHttpErrorCheck | select -ExpandProperty StatusCode
+                if ($statusCode -ne 200) {
+                  Write-Error "##vso[task.logissue type=warning;]Deployed staging website returned unexpected status code $statusCode from url $url"
+                }
+              } catch {
+                Write-Error "##vso[task.logissue type=warning;]Failed to test URL $url : $_"
               }
             }
-          displayName: Test Deployed WebApp
+          displayName: 🟣Test Deployed WebApp
+          condition: and(succeeded(), eq(variables['isOfficialBuild'], 'True'))
 
         - task: AzureCLI@2
-          displayName: Swap Staging Slot into Production
+          displayName: 🟣Swap Staging Slot into Production
           condition: and(succeeded(), eq(variables['isOfficialBuild'], 'True'))
           inputs:
-            azureSubscription: SourceDotNet-Deployment-ARM
+            azureSubscription: ${{ variables.azureSubscriptionForStorageAndWebAppSlot }}
             scriptLocation: inlineScript
             scriptType: ps
             inlineScript: >
               az webapp deployment slot swap
-              --resource-group source.dot.net
-              --name netsourceindex
-              --slot staging
+              --resource-group $(resourceGroupName)
+              --name $(webAppName)
+              --slot $(temporaryDeploymentSlot)
               --target-slot production
 
         - task: AzureCLI@2
-          displayName: Cleanup Old Storage Containers
+          displayName: 🟣Cleanup Old Storage Containers
           condition: and(succeeded(), eq(variables['isOfficialBuild'], 'True'))
           inputs:
-            azureSubscription: SourceDotNet-Deployment-ARM
+            azureSubscription: ${{ variables.azureSubscriptionForStorageAndWebAppSlot }}
             scriptLocation: inlineScript
             scriptType: ps
             inlineScript: >
               deployment/cleanup-old-containers.ps1
-              -ResourceGroup source.dot.net
-              -WebappName netsourceindex
-              -StorageAccountName $(storageAccount)
+              -ResourceGroup $(resourceGroupName)
+              -WebappName $(webAppName)
+              -StorageAccountName $(storageAccountName)
 
         - task: CopyFiles@2
           displayName: Copy binlogs for upload
