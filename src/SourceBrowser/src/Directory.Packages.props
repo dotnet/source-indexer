@@ -10,7 +10,7 @@
     <PackageVersion Include="Microsoft.Build.Framework" Version="17.14.28" />
     <PackageVersion Include="Microsoft.Build.Tasks.Core" Version="17.14.8" />
     <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="17.14.8" />
-    <PackageVersion Include="Microsoft.Build" Version="17.14.8" />
+    <PackageVersion Include="Microsoft.Build" Version="17.14.28" />
 
     <!-- roslyn -->
     <PackageVersion Include="Microsoft.CodeAnalysis" Version="4.14.0" />
@@ -55,7 +55,7 @@
     <PackageVersion Include="System.Threading.Tasks.Extensions" Version="4.6.3" />
     <PackageVersion Include="System.ValueTuple" Version="4.6.1" />
 
-    <PackageVersion Include="Microsoft.Build.Locator" Version="1.10.2" />
+    <PackageVersion Include="Microsoft.Build.Locator" Version="1.11.2" />
     <PackageVersion Include="Microsoft.NET.StringTools" Version="18.0.2" />
     <PackageVersion Include="Microsoft.VisualStudio.Language.Intellisense" Version="17.14.249" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
