@@ -8,9 +8,9 @@
   <ItemGroup>
     <!-- msbuild-->
     <PackageVersion Include="Microsoft.Build.Framework" Version="17.14.28" />
-    <PackageVersion Include="Microsoft.Build.Tasks.Core" Version="17.14.8" />
-    <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="17.14.8" />
-    <PackageVersion Include="Microsoft.Build" Version="17.14.8" />
+    <PackageVersion Include="Microsoft.Build.Tasks.Core" Version="17.14.28" />
+    <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="17.14.28" />
+    <PackageVersion Include="Microsoft.Build" Version="17.14.28" />
 
     <!-- roslyn -->
     <PackageVersion Include="Microsoft.CodeAnalysis" Version="4.14.0" />
