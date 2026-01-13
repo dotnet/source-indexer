@@ -56,6 +56,8 @@ variables:
 extends:
   template: v1/1ES.Official.PipelineTemplate.yml@1ESPipelineTemplates
   parameters:
+    settings:
+      networkIsolationPolicy: Permissive,CFSClean2
     pool:
       name: ${{ variables.poolName }}
       image: 1es-pt-agent-image
