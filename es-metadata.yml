@@ -1,0 +1,8 @@
+schemaVersion: 0.0.1
+isProduction: true
+accountableOwners:
+  service: 7184e7a4-cbf4-4b46-ba07-0963dfc01a36
+routing:
+  defaultAreaPath:
+    org: devdiv
+    path: DevDiv\ASP.NET Core\Source.Dot.Net
