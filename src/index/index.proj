@@ -120,7 +120,7 @@
   <Target Name="Clone" DependsOnTargets="CloneV1;CloneV2">
   </Target>
 
-  <Target Name="PrepareV1" DependsOnTargets="PrepareOutput;ResolveHashV1" Outputs="%(ClonedRepository.Identity)" Condition="@(ClonedRepository->Count()) > 0">
+  <Target Name="PrepareV1" DependsOnTargets="PrepareOutput;ResolveHashV1" Outputs="%(ClonedRepository.Identity)">
     <PropertyGroup>
       <PrepareCommand>$([System.String]::Copy('%(ClonedRepository.PrepareCommand)').Trim())</PrepareCommand>
     </PropertyGroup>
@@ -134,7 +134,7 @@
   <Target Name="Prepare" DependsOnTargets="PrepareV1;PrepareV2">
   </Target>
 
-  <Target Name="FindBinlogs" DependsOnTargets="ResolveHashV1" Outputs="%(ClonedRepository.Identity)" Condition="@(ClonedRepository->Count()) > 0">
+  <Target Name="FindBinlogs" DependsOnTargets="ResolveHashV1" Outputs="%(ClonedRepository.Identity)">
     <ItemGroup>
       <BinlogToIndex Include="%(ClonedRepository.LocalPath)\**\*.binlog"/>
     </ItemGroup>
