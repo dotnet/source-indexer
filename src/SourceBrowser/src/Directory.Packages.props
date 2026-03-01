@@ -61,7 +61,7 @@
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
 
     <PackageVersion Include="ExceptionAnalysis.Diagnostics" Version="1.0.0.39796" />
-    <PackageVersion Include="GuiLabs.Language.Xml" Version="1.2.88" />
+    <PackageVersion Include="GuiLabs.Language.Xml" Version="1.2.119" />
 
     <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.WindowsServices" Version="9.0.10" />
