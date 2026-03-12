@@ -123,9 +123,22 @@
   <Target Name="PrepareV1" DependsOnTargets="PrepareOutput;ResolveHashV1" Outputs="%(ClonedRepository.Identity)">
     <PropertyGroup>
       <PrepareCommand>$([System.String]::Copy('%(ClonedRepository.PrepareCommand)').Trim())</PrepareCommand>
+      <InheritedDotnetHostPath>$([System.Environment]::GetEnvironmentVariable('DOTNET_HOST_PATH'))</InheritedDotnetHostPath>
+      <InheritedDotnetRoot>$([System.Environment]::GetEnvironmentVariable('DOTNET_ROOT'))</InheritedDotnetRoot>
+      <InheritedDotnetInstallDir>$([System.Environment]::GetEnvironmentVariable('DOTNET_INSTALL_DIR'))</InheritedDotnetInstallDir>
     </PropertyGroup>
     <Message Importance="High" Text="Preparing Repository %(ClonedRepository.Identity)"/>
-    <Exec Command="cmd /c &quot;$(PrepareCommand)&quot;" WorkingDirectory="%(ClonedRepository.LocalPath)" ContinueOnError="true" IgnoreStandardErrorWarningFormat="true" LogStandardErrorAsError="false" IgnoreExitCode="true"/>
+    <Message Importance="High" Text="Prepare environment before isolation for %(ClonedRepository.Identity): DOTNET_HOST_PATH='$(InheritedDotnetHostPath)', DOTNET_ROOT='$(InheritedDotnetRoot)', DOTNET_INSTALL_DIR='$(InheritedDotnetInstallDir)'"/>
+    <Exec Command="cmd /d /c &quot;set &quot;DOTNET_HOST_PATH=&quot; &amp; set &quot;DOTNET_ROOT=&quot; &amp; set &quot;DOTNET_INSTALL_DIR=&quot; &amp; set &quot;DOTNET_MULTILEVEL_LOOKUP=0&quot; &amp; where dotnet &amp; $(PrepareCommand)&quot;"
+          WorkingDirectory="%(ClonedRepository.LocalPath)"
+          ContinueOnError="true"
+          IgnoreStandardErrorWarningFormat="true"
+          LogStandardErrorAsError="false"
+          IgnoreExitCode="true">
+      <Output TaskParameter="ExitCode" PropertyName="PrepareExitCode"/>
+    </Exec>
+    <Warning Condition="'$(PrepareExitCode)' != '0'"
+             Text="Preparing repository %(ClonedRepository.Identity) failed with exit code $(PrepareExitCode)."/>
   </Target>
 
   <Target Name="PrepareV2" DependsOnTargets="ResolveHashV2" Outputs="%(ClonedRepositoryV2.Identity)">

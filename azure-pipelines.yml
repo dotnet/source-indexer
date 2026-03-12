@@ -100,6 +100,14 @@ extends:
           inputs:
             useGlobalJson: true
 
+        - pwsh: |
+            Write-Host "DOTNET_ROOT=$env:DOTNET_ROOT"
+            Write-Host "DOTNET_HOST_PATH=$env:DOTNET_HOST_PATH"
+            Write-Host "DOTNET_INSTALL_DIR=$env:DOTNET_INSTALL_DIR"
+            where.exe dotnet
+            dotnet --info
+          displayName: 🟣Show .NET SDK info
+
         - task: DotNetCoreCLI@2
           displayName: 🟣dotnet restore
           inputs:
