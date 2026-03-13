@@ -125,7 +125,16 @@
       <PrepareCommand>$([System.String]::Copy('%(ClonedRepository.PrepareCommand)').Trim())</PrepareCommand>
     </PropertyGroup>
     <Message Importance="High" Text="Preparing Repository %(ClonedRepository.Identity)"/>
-    <Exec Command="cmd /c &quot;$(PrepareCommand)&quot;" WorkingDirectory="%(ClonedRepository.LocalPath)" ContinueOnError="true" IgnoreStandardErrorWarningFormat="true" LogStandardErrorAsError="false" IgnoreExitCode="true"/>
+    <Exec Command="cmd /c &quot;$(PrepareCommand)&quot;"
+          WorkingDirectory="%(ClonedRepository.LocalPath)"
+          ContinueOnError="true"
+          IgnoreStandardErrorWarningFormat="true"
+          LogStandardErrorAsError="false"
+          IgnoreExitCode="true">
+      <Output TaskParameter="ExitCode" PropertyName="PrepareExitCode"/>
+    </Exec>
+    <Warning Condition="'$(PrepareExitCode)' != '0'"
+             Text="Preparing repository %(ClonedRepository.Identity) failed with exit code $(PrepareExitCode)."/>
   </Target>
 
   <Target Name="PrepareV2" DependsOnTargets="ResolveHashV2" Outputs="%(ClonedRepositoryV2.Identity)">
