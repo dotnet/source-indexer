@@ -6,41 +6,19 @@
     </ArcadeBuildCmd>
   </PropertyGroup>
   <ItemGroup>
-    <RepositoryV2 Include="arcade">
-      <RepoName>dotnet-arcade</RepoName>
-      <Url>https://github.com/dotnet/arcade</Url>
+    <!-- Repos indexed via the dotnet/dotnet VMR build (source-build + Windows vertical) -->
+    <RepositoryV2 Include="dotnet">
+      <RepoName>dotnet-dotnet</RepoName>
+      <Url>https://github.com/dotnet/dotnet</Url>
     </RepositoryV2>
-    <RepositoryV2 Include="roslyn">
-      <RepoName>dotnet-roslyn</RepoName>
-      <Url>https://github.com/dotnet/roslyn</Url>
+    <RepositoryV2 Include="dotnet-win">
+      <RepoName>dotnet-dotnet-windows</RepoName>
+      <Url>https://github.com/dotnet/dotnet</Url>
+      <ExtractPath>$(RepositoryPath)dotnet/</ExtractPath>
+      <LocalPath>$(RepositoryPath)dotnet/src/</LocalPath>
     </RepositoryV2>
-    <RepositoryV2 Include="runtime">
-      <RepoName>dotnet-runtime</RepoName>
-      <Url>https://github.com/dotnet/runtime</Url>
-    </RepositoryV2>
-    <RepositoryV2 Include="winforms">
-      <RepoName>dotnet-winforms</RepoName>
-      <Url>https://github.com/dotnet/winforms</Url>
-    </RepositoryV2>
-    <RepositoryV2 Include="wpf">
-      <RepoName>dotnet-wpf</RepoName>
-      <Url>https://github.com/dotnet/wpf</Url>
-    </RepositoryV2>
-    <Repository Include="iot">
-      <Url>https://github.com/dotnet/iot</Url>
-      <PrepareCommand>
-        $(ArcadeBuildCmd)
-      </PrepareCommand>
-      <Branch>main</Branch>
-    </Repository>
-    <Repository Include="msbuild">
-      <Url>https://github.com/dotnet/msbuild</Url>
-      <Branch>main</Branch>
-      <DeepClone>true</DeepClone>
-      <PrepareCommand>
-        $(ArcadeBuildCmd)
-      </PrepareCommand>
-    </Repository>
+
+    <!-- Repos not in the VMR that still upload their own stage 1 data -->
     <RepositoryV2 Include="maui">
       <RepoName>dotnet-maui</RepoName>
       <Url>https://github.com/dotnet/maui</Url>
@@ -53,22 +31,6 @@
       <RepoName>dotnet-wcf</RepoName>
       <Url>https://github.com/dotnet/wcf</Url>
     </RepositoryV2>
-    <RepositoryV2 Include="aspnetcore">
-      <RepoName>dotnet-aspnetcore</RepoName>
-      <Url>https://github.com/dotnet/aspnetcore</Url>
-    </RepositoryV2>
-    <Repository Include="performance">
-      <Url>https://github.com/dotnet/performance</Url>
-      <PrepareCommand>
-        $(ArcadeBuildCmd) -projects src\benchmarks\micro\MicroBenchmarks.sln
-      </PrepareCommand>
-    </Repository>
-    <Repository Include="sdk">
-      <Url>https://github.com/dotnet/sdk</Url>
-      <PrepareCommand>
-        $(ArcadeBuildCmd) -projects src\benchmarks\micro\MicroBenchmarks.sln
-      </PrepareCommand>
-    </Repository>
     <RepositoryV2 Include="aspire">
       <RepoName>dotnet-aspire</RepoName>
       <Url>https://github.com/dotnet/aspire</Url>
@@ -77,5 +39,20 @@
       <RepoName>dotnet-extensions</RepoName>
       <Url>https://github.com/dotnet/extensions</Url>
     </RepositoryV2>
+
+    <!-- Repos that clone and build locally (no stage 1 upload) -->
+    <Repository Include="iot">
+      <Url>https://github.com/dotnet/iot</Url>
+      <PrepareCommand>
+        $(ArcadeBuildCmd)
+      </PrepareCommand>
+      <Branch>main</Branch>
+    </Repository>
+    <Repository Include="performance">
+      <Url>https://github.com/dotnet/performance</Url>
+      <PrepareCommand>
+        $(ArcadeBuildCmd) -projects src\benchmarks\micro\MicroBenchmarks.sln
+      </PrepareCommand>
+    </Repository>
   </ItemGroup>
 </Project>
