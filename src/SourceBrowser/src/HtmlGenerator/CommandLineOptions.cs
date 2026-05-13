@@ -109,7 +109,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                         continue;
                     }
 
-                    serverPathMappings.Add(Path.GetFullPath(match.Groups["from"].Value), match.Groups["to"].Value);
+                    serverPathMappings[Path.GetFullPath(match.Groups["from"].Value)] = match.Groups["to"].Value;
                     continue;
                 }
 
