@@ -1,5 +1,16 @@
 # 07 — Deployment scripts and rollback
 
+> ⚠️ **TODO @radical — please validate before relying on this doc.** Like [doc 06](./06-azure-infrastructure.md), this was derived by reading the PowerShell scripts under [`deployment/`](../../deployment/), the steps in [`azure-pipelines.yml`](../../azure-pipelines.yml), and inferring behavior from script names + `az` CLI invocations. **No deploy or rollback was actually executed end-to-end to verify the playbooks below.** Specific items most likely to need correction:
+>
+> - **Rollback procedure correctness** — the "how to roll back" steps are reconstructed from what the scripts do during a forward deploy, not from a real rollback drill. The order of operations, slot-swap mechanics, and any out-of-band manual steps you actually perform during an incident need your eyes.
+> - **`az login` / role assignments needed for local invocation** — claimed in passing but not validated against an actual lower-privilege account.
+> - **Resource names referenced by the scripts** — pulled verbatim from the scripts where possible, but anything stated about *which* slot/container/resource is the current "live" one is a best guess.
+> - **Anything implicit you do by hand during a deploy** (warm-up requests, smoke checks, monitoring you watch, on-call handoff) — this doc has no way to know about and is the highest-value thing for you to add.
+>
+> Same offer as on doc 06: happy to regenerate cleanly from a deploy/rollback walkthrough you narrate, rather than spot-fix.
+
+---
+
 This document describes the PowerShell scripts under [`deployment/`](../../deployment/) that the build pipeline invokes, and the playbook for rolling back or recovering from a bad deploy. For the end-to-end pipeline walkthrough (stage ordering, triggers, slot mechanics), see [`05-azure-pipeline.md`](./05-azure-pipeline.md).
 
 ## Deployment scripts
