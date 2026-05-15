@@ -69,15 +69,17 @@ flowchart LR
 
 ## Key moving parts
 
-| Component | Lives in | Purpose |
-|---|---|---|
-| **HtmlGenerator** (`Microsoft.SourceBrowser.HtmlGenerator.exe`) | `src/SourceBrowser/src/HtmlGenerator` | The .NET Framework tool that turns binlogs/solutions into the static HTML index. |
-| **SourceIndexServer** | `src/SourceBrowser/src/SourceIndexServer` | ASP.NET Core app hosted on `netsourceindexprod`. Reads index files from blob storage at runtime (via `SOURCE_BROWSER_INDEX_PROXY_URL`). |
-| **`Microsoft.SourceIndexer.Tasks`** | `src/Microsoft.SourceIndexer.Tasks` | Custom MSBuild tasks consumed by `build.proj` (`DownloadStage1Index`, `SelectProjects`, `ResolveLivePackageReferences`). |
-| **`UploadIndexStage1`** dotnet tool | `src/UploadIndexStage1` | `dotnet tool` published as a NuGet package. Other dotnet repos consume it inside Arcade to push stage1 bundles to `netsourceindexstage1`. |
-| **`build.proj` / `src/index/index.proj`** | repo root + `src/index` | MSBuild orchestration targets: `Clone`, `Prepare`, `BuildIndex`, `Build`, `Rebuild`, `Clean`, `SelectProjects`. |
-| **`azure-pipelines.yml`** | repo root | 1ES Azure DevOps pipeline that runs daily and deploys the result. |
-| **`deployment/*.ps1`** | `deployment/` | Helper scripts for slot deployment: create container, set app setting, normalize case, cleanup. |
+| Component | Lives in | Purpose | Where it runs / which phase |
+|---|---|---|---|
+| **HtmlGenerator** (`Microsoft.SourceBrowser.HtmlGenerator.exe`) | `src/SourceBrowser/src/HtmlGenerator` | The .NET Framework tool that turns binlogs/solutions into the static HTML index. | source-indexer pipeline · **③ BuildIndex** phase only. |
+| **SourceIndexServer** | `src/SourceBrowser/src/SourceIndexServer` | ASP.NET Core app hosted on `netsourceindexprod`. Reads index files from blob storage at runtime (via `SOURCE_BROWSER_INDEX_PROXY_URL`). | Not a pipeline phase — runs **continuously** on the App Service after deployment serves `source.dot.net`. |
+| **`Microsoft.SourceIndexer.Tasks`** | `src/Microsoft.SourceIndexer.Tasks` | Custom MSBuild tasks consumed by `build.proj` (`DownloadStage1Index`, `SelectProjects`, `ResolveLivePackageReferences`). | source-indexer pipeline · **① Clone** phase (`DownloadStage1Index` pulls V2 bundles) and **③ BuildIndex** phase (`SelectProjects`). |
+| **`BinLogToSln`** dotnet tool | `src/SourceBrowser/src/BinLogToSln` | Converts an MSBuild binlog into an indexable `.sln` + source tree. Published to the `dnceng/public` `dotnet-tools` feed. | **Runs in V2 upstream repos**, inside Arcade's `source-index-stage1.yml` job when `enableSourceIndex: true` is set. (Not run in our pipeline.) |
+| **`UploadIndexStage1`** dotnet tool | `src/UploadIndexStage1` | `dotnet tool` published as a NuGet package. Pushes a stage1 tarball to `netsourceindexstage1`. | **Runs in V2 upstream repos**, paired with `BinLogToSln` in Arcade's `source-index-stage1-publish.yml` step. (Not run in our pipeline.) |
+| **`build.proj` / `src/index/index.proj`** | repo root + `src/index` | MSBuild orchestration targets: `Clone`, `Prepare`, `BuildIndex`, `Build`, `Rebuild`, `Clean`, `SelectProjects`. | source-indexer pipeline · **drives all three phases (①②③)**. |
+| **`azure-pipelines.yml`** | repo root | 1ES Azure DevOps pipeline that runs daily and deploys the result. | source-indexer pipeline · the **outer shell** that invokes `build.proj` and then runs the deployment/slot-swap steps. |
+| **`deployment/*.ps1`** | `deployment/` | Helper scripts for slot deployment: create container, set app setting, normalize case, cleanup. | source-indexer pipeline · runs **after** the three phases, during the deploy + slot-swap stage. |
+| **Arcade `enableSourceIndex` templates** | upstream `dotnet/arcade` (`eng/common/core-templates/.../source-index-stage1*.yml`) | Inject the `SourceIndexStage1` job into V2 upstream repos' pipelines; install + invoke `BinLogToSln` and `UploadIndexStage1`. | **Runs in V2 upstream repos.** This is the "remote Clone+Prepare" half of the V2 path — see [doc 04 §3.2](04-arcade-and-dotnet-integration.md#32-how-an-upstream-repo-uses-it-via-arcades-enablesourceindex). |
 
 ## Glossary
 
