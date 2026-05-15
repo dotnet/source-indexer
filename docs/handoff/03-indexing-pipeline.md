@@ -255,6 +255,17 @@ Aggregate: `DependsOnTargets="DownloadRepositoryV2;ResolveHashV2"`, conditioned 
 
 `DependsOnTargets="CloneV1;CloneV2"`. This is the public entry point invoked from `build.proj` and from CI's "🟣Clone Stage1 data" step. Note that the CI step also sets `Stage1StorageAccount=netsourceindexstage1` and `Stage1StorageContainer=stage1` on the command line.
 
+#### How the commit SHA gets picked — V1 vs V2
+
+This is one of the most important contrasts between the two paths and is worth calling out explicitly:
+
+| Path | What SHA gets indexed | Who controls it | Escape hatch |
+|---|---|---|---|
+| **V1** | Tip of `<Branch>` on the upstream repo **at the moment the source-indexer pipeline runs `git pull`**. Resolved via `git rev-parse HEAD` after the pull (see `ResolveHashV1` above). | The source-indexer pipeline schedule. There is **no pinning** by default — every nightly run picks up whatever commit is at the branch tip when it executes. | Set `<OldCommit>` metadata on the `<Repository>` item in [`repositories.props`](../../src/index/repositories.props) to pin to a specific SHA. `CheckoutSources` will then run `git checkout <OldCommit>` instead of `git checkout HEAD`. As of this writing, **no V1 repo in `repositories.props` uses `OldCommit`** — it exists purely as an emergency lever for "this branch is broken, pin us back". |
+| **V2** | Whatever SHA was indexed by the upstream repo's own pipeline the last time it uploaded a bundle. Read from the `hash` file inside the bundle (see `ResolveHashV2` above). | The upstream repo's pipeline schedule and any commit/branch filters they put on their `enableSourceIndex` job. Source-indexer just downloads the newest blob lexicographically (which equals newest by upload time, since blob names are ISO-8601 timestamps). | The source-indexer pipeline can't override this. To change what V2 SHA gets indexed, the upstream repo has to publish a new bundle. |
+
+In short: **V1 SHAs follow the source-indexer schedule** ("whatever's on `main` of dotnet/msbuild when our nightly runs"), while **V2 SHAs follow the upstream's schedule** ("whatever dotnet/runtime's pipeline last uploaded"). There's no central manifest pinning V1 SHAs across runs — the freshness of any given V1 repo's index is simply a function of when its upstream branch last got a commit vs. when this pipeline last ran.
+
 ### 3.7 `PrepareV1`
 
 For each `ClonedRepository` produced by `ResolveHashV1`:
