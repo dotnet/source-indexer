@@ -75,6 +75,21 @@ $env:SOURCE_BROWSER_INDEX_PROXY_URL = "https://netsourceindexprod.blob.core.wind
 
 ## Updating the vendored SourceBrowser
 
+> **⚠️ Heads up — the fork has diverged. Re-syncing from upstream is no longer recommended.**
+>
+> The original design intent was to vendor SourceBrowser and periodically sync from upstream via the patch-based helper below. In practice we have not run that workflow since [PR #184 on 2025-05-12](https://github.com/dotnet/source-indexer/pull/184) (which pinned us to upstream commit [`bf64cd8`](https://github.com/KirillOsenkov/SourceBrowser/commit/bf64cd8ac09f60e605e1a86784da47cc2c034a89)). Since then we've made **~21 local commits** touching `src/SourceBrowser/`, including substantive feature work that is *not* upstream — notably:
+>
+> - [#183](https://github.com/dotnet/source-indexer/pull/183) — Include signing key in `BinLogToSln`
+> - [#192](https://github.com/dotnet/source-indexer/pull/192) — Prefer real implementation over `*.notsupported.cs` in dedup
+> - [#193](https://github.com/dotnet/source-indexer/pull/193) — Support source-generated files
+> - [#255](https://github.com/dotnet/source-indexer/pull/255) — Update to .NET 10 (target framework changes throughout)
+> - [#257](https://github.com/dotnet/source-indexer/pull/257) — `BinLogReader` Linux binlog fix + `HtmlGenerator` duplicate `serverPath` fix
+> - …plus build/target updates and ~12 Dependabot bumps.
+>
+> Bumping `SourceBrowser.hash` blindly will overwrite these via the patch step (`.rej` files will likely flag the conflicts, but it's easy to silently lose features). **Treat the vendored copy as a hard fork now.** If a fix is needed, prefer cherry-picking the specific upstream commit into `src/SourceBrowser/` directly, rather than running `update-source-browser.ps1` against current upstream `HEAD`. If a full re-sync is genuinely required (e.g. a major upstream refactor we want), expect it to be a multi-day rebase effort and plan to re-apply the PRs above by hand.
+>
+> The workflow below is preserved for historical reference and for the cherry-pick case (where you point the script at a specific upstream commit rather than `HEAD`).
+
 The repo carries a full copy of [KirillOsenkov/SourceBrowser](https://github.com/KirillOsenkov/SourceBrowser) under `src/SourceBrowser/`, plus a `SourceBrowser.hash` file recording the upstream commit, plus a local patch (the dotnet-specific additions). To roll forward:
 
 ```pwsh
