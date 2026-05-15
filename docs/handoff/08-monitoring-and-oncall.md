@@ -1,5 +1,20 @@
 # 08 — Monitoring and on-call
 
+> ⚠️ **TODO @radical + outgoing team — please validate before relying on this doc.** Source-by-source provenance for the major claims:
+>
+> | Section | Source | Confidence |
+> |---|---|---|
+> | "Application Insights `dotnet-eng`" + Grafana availability dashboard URL | **Repo [`README.md` "Monitoring" section](../../README.md)** — copied verbatim, this is the *one* monitoring claim that has an in-repo source. | High that the resources exist (it's documented). Low on everything else about them (rotation, paging, SLOs, who owns the AI resource, which subscription it lives in) — all of that is the long `TODO (tribal knowledge)` list under each section. |
+> | App Service logs via `AddAzureWebAppDiagnostics()` | Read directly from [`Program.cs`](../../src/SourceBrowser/src/SourceIndexServer/Program.cs). | High (the line is in the code). |
+> | `az webapp log tail` / `log download` commands | Generic Azure CLI knowledge; *not* validated against the actual resource. | Medium — commands are correct in form; resource group name `source.dot.net` is a guess pulled through from [doc 06](./06-azure-infrastructure.md) and inherits any errors there. |
+> | `.health` marker mechanism + `StorageHealthCheck` behavior | Read from [`azure-pipelines.yml`](../../azure-pipelines.yml) and [`HealthChecks/StorageHealthCheck.cs`](../../src/SourceBrowser/src/SourceIndexServer/HealthChecks/StorageHealthCheck.cs). | High. |
+> | Pipeline smoke tests + the "FIXME: Health endpoints disabled" call-out | Read directly from [`azure-pipelines.yml`](../../azure-pipelines.yml). | High. |
+> | Common failure modes / runbook entries | Reverse-engineered from the scripts they reference. No actual incident was replayed. | Medium — the symptoms and "where to look" are grounded, but "Resolution" steps are inferred. |
+>
+> If you (joperezr) weren't aware of the App Insights / Grafana setup, that's a strong signal that **whoever wrote the README's Monitoring section is the right person to fill the gaps** — likely Radical, or whoever was on-call previously. Same standing offer as docs 06 and 07: happy to regenerate from a narrated walkthrough rather than spot-fix.
+
+---
+
 This document covers what observability exists for `https://source.dot.net`, where to look first when things break, and the watch-outs the outgoing team has called out. The authoritative high-level pointer is the **Monitoring** section of the repo [`README.md`](../../README.md); this document expands on it.
 
 A lot of the operational context (alert routing, who is paged, SLO targets, who has access to the monitoring estate) is tribal knowledge that is **not** discoverable from this repo. Those gaps are marked `**TODO (tribal knowledge):**` below and need to be filled in by the outgoing team before handoff is complete.
