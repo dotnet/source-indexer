@@ -1,5 +1,25 @@
 # 02 — Build & local dev
 
+> **TODO @radical:** the entire content of this doc was reverse-engineered from
+> [`azure-pipelines.yml`](../../azure-pipelines.yml), [`build.proj`](../../build.proj),
+> [`src/index/index.proj`](../../src/index/index.proj), [`global.json`](../../global.json),
+> [`src/index/repositories.props`](../../src/index/repositories.props), and the
+> two .cs task files — there is no `CONTRIBUTING.md` or build README in this
+> repo to source from. **Please confirm your actual day-to-day local build
+> workflow** (which MSBuild you use, whether `az login` is sufficient for the
+> stage1 storage account, anything you do differently from what's written
+> below), and flag anything here that's wrong or that doesn't match how the
+> previous team actually worked. Specifically suspect spots:
+>
+> - The hardcoded `MSBuild.exe` path under VS 2022 Enterprise — should this
+>   be `vswhere`-derived or are you fine assuming the conventional install?
+> - The "fully local build with `az login`" alternative under
+>   [First-time build](#first-time-build) — never validated end-to-end; the
+>   storage ACLs may not grant individual devs read access.
+> - The "Updating the vendored SourceBrowser" section below is now mostly a
+>   warning against re-syncing — confirm that matches your intent for the
+>   receiving team.
+
 ## Platform requirements
 
 - **Windows only.** The HtmlGenerator is a .NET Framework 4.7.2+ executable and `index.proj` enforces this via:
