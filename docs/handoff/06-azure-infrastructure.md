@@ -1,5 +1,16 @@
 # 06 — Azure Infrastructure Inventory
 
+> ⚠️ **TODO @radical — please validate before relying on this doc.** Most of the content below was derived by reading [`azure-pipelines.yml`](../../azure-pipelines.yml), the scripts under [`deployment/`](../../deployment/), and inferring resource shapes from the names/parameters those scripts use. **No live `az` queries were run against the actual subscriptions to confirm resource group names, region pinning, SKUs, RBAC assignments, or networking configuration.** Specific items most likely to need correction:
+>
+> - **Subscription IDs / resource group names** — only those that appear verbatim in pipeline YAML or deployment scripts are listed; anything labelled "presumed" or "see Azure portal" is unverified.
+> - **Service connection ↔ identity mapping** — the `AzureCLI@2` task names and `serviceConnection` values were read from the pipeline, but which workload identity / federated credential they resolve to in dnceng was not independently verified.
+> - **Storage account ACLs / RBAC roles** on `netsourceindexstage1` and the website's hosting account — listed based on what the publishing task and `DownloadStage1Index.cs` *need* to work, not based on actual role assignments visible in the portal.
+> - **App Service / hosting account names and regions** for [source.dot.net](https://source.dot.net) itself — partly inferred; please confirm against the actual resource in the portal.
+>
+> If you'd rather start from a clean inventory and have me regenerate this from `az` output you paste in, that's probably faster than spot-fixing.
+
+---
+
 This is the inventory of every Azure resource referenced — directly or
 indirectly — by [`azure-pipelines.yml`](../../azure-pipelines.yml) and the
 scripts under [`deployment/`](../../deployment/). It is meant to give a new
