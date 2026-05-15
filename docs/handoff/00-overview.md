@@ -12,42 +12,60 @@ The actual rendering engine is [KirillOsenkov/SourceBrowser](https://github.com/
 
 ## End-to-end data flow
 
+The diagram below maps each box to one of the three orchestration targets from `build.proj` (**Clone** / **Prepare** / **BuildIndex**) and shows *where* each step actually runs — the V1 path does everything inside the source-indexer pipeline, while the V2 path offloads `Clone+Prepare` to each upstream repo's own Arcade-driven pipeline.
+
 ```mermaid
 flowchart LR
-    subgraph upstream[Other dotnet repos]
-        R1[runtime / aspnetcore / roslyn / winforms / wpf / maui / ...]
+    subgraph v2_upstream["V2 upstream repos (runtime, aspnetcore, roslyn, …)"]
+        direction TB
+        V2BUILD["Their own Arcade pipeline<br/>with <b>enableSourceIndex: true</b><br/><i>= remote Clone + Prepare</i><br/>(BinLogToSln + UploadIndexStage1)"]
     end
 
-    subgraph stage1[Azure Storage: netsourceindexstage1]
-        S1[(stage1 container<br/>per-repo .tar.gz<br/>binlogs + src)]
+    subgraph stage1["Azure Storage: netsourceindexstage1"]
+        S1[("stage1 container<br/>per-repo .tar.gz<br/>binlog + src")]
     end
 
-    subgraph build[source-indexer pipeline 1ES, daily 10:00 UTC]
-        C[Clone V1 repos<br/>+ run Arcade build<br/>to produce binlogs]
-        D[Download V2 stage1 bundles<br/>via DownloadStage1Index task]
-        I[HtmlGenerator.exe<br/>builds searchable HTML index]
+    subgraph build["source-indexer pipeline (1ES, daily 10:00 UTC) — runs build.proj"]
+        direction TB
+        subgraph step_clone["① Clone target"]
+            CV1["V1 repos: git clone here"]
+            CV2["V2 repos: <b>DownloadStage1Index</b> MSBuild task<br/>downloads .tar.gz from stage1"]
+        end
+        subgraph step_prepare["② Prepare target"]
+            P["V1 repos only:<br/>run each repo's Arcade build locally<br/>to produce binlogs<br/><i>(V2 repos already have binlogs from stage1)</i>"]
+        end
+        subgraph step_index["③ BuildIndex target"]
+            I["HtmlGenerator.exe<br/>indexes V1 binlogs + V2 stage1 solutions<br/>→ searchable HTML"]
+        end
+        step_clone --> step_prepare --> step_index
     end
 
-    subgraph storage[Azure Storage: netsourceindexprod]
-        BLOB[(index-GUID container<br/>per build)]
+    subgraph storage["Azure Storage: netsourceindexprod"]
+        BLOB[("index-GUID container<br/>per build")]
     end
 
-    subgraph app[Azure App Service: netsourceindexprod]
-        STG[staging slot]
-        PRD[production slot]
+    subgraph app["Azure App Service: netsourceindexprod"]
+        STG["staging slot"]
+        PRD["production slot"]
     end
 
-    R1 -- their Arcade build invokes<br/>UploadIndexStage1 tool --> S1
-    S1 --> D
-    R1 -- some repos cloned directly --> C
-    C --> I
-    D --> I
-    I -- index files --> BLOB
-    I -- web app binaries --> STG
-    BLOB -- SOURCE_BROWSER_INDEX_PROXY_URL --> STG
-    STG -- slot swap --> PRD
-    PRD -- serves --> User([source.dot.net])
+    V2BUILD -- "upload via UploadIndexStage1" --> S1
+    S1 --> CV2
+    CV1 --> P
+    CV2 --> I
+    P --> I
+    I -- "index files" --> BLOB
+    I -- "web app binaries" --> STG
+    BLOB -- "SOURCE_BROWSER_INDEX_PROXY_URL" --> STG
+    STG -- "slot swap" --> PRD
+    PRD -- "serves" --> User(["source.dot.net"])
 ```
+
+**How to read this:**
+
+- **V1 path** (legacy, source-indexer-pipeline-owned): the source-indexer pipeline performs *all three* targets — `Clone` (git clone), `Prepare` (run their Arcade build to make a binlog), then `BuildIndex`. Everything happens on our agents.
+- **V2 path** (preferred, distributed via Arcade): the upstream repo opts in by setting `enableSourceIndex: true` on Arcade's `jobs.yml` template. Their pipeline runs `BinLogToSln` + `UploadIndexStage1` to push a tarball to `netsourceindexstage1`. Our pipeline's `Clone` target then just downloads that bundle (via the `DownloadStage1Index` MSBuild task) — the `Prepare` step is skipped because the binlog already exists — and `BuildIndex` runs as normal.
+- The classification of which repo uses which path lives in [`src/index/repositories.props`](../../src/index/repositories.props) (`V1Repository` vs `V2Repository` items). See [03 — Indexing pipeline](03-indexing-pipeline.md) for the per-target deep dive and [04 — Arcade integration](04-arcade-and-dotnet-integration.md#32-how-an-upstream-repo-uses-it-via-arcades-enablesourceindex) for the V2 onboarding flow.
 
 ## Key moving parts
 
