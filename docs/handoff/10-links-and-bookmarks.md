@@ -111,5 +111,5 @@ All prod resources live in resource group **`source.dot.net`**.
 | Step-by-step pipeline walkthrough | [`05-azure-pipeline.md`](./05-azure-pipeline.md) |
 | Azure resource inventory | [`06-azure-infrastructure.md`](./06-azure-infrastructure.md) |
 | Deployment + rollback playbook | [`07-deployment-and-rollback.md`](./07-deployment-and-rollback.md) |
-| Monitoring + on-call | [`08-monitoring-and-oncall.md`](./08-monitoring-and-oncall.md) |
+| Monitoring + runbook | [`08-monitoring-and-runbook.md`](./08-monitoring-and-runbook.md) |
 | Service connections + RBAC checklist | [`09-access-and-permissions.md`](./09-access-and-permissions.md) |

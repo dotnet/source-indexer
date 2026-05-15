@@ -14,7 +14,7 @@ It is written assuming the new owners are .NET engineers familiar with Azure Dev
 6. [05 — Azure pipeline](05-azure-pipeline.md) — walk-through of `azure-pipelines.yml`.
 7. [06 — Azure infrastructure](06-azure-infrastructure.md) — App Service, storage accounts, slots, app settings.
 8. [07 — Deployment & rollback](07-deployment-and-rollback.md) — the deployment PowerShell scripts and recovery paths.
-9. [08 — Monitoring & on-call](08-monitoring-and-oncall.md) — availability tests, Grafana, logs.
+9. [08 — Monitoring & runbook](08-monitoring-and-runbook.md) — observability surfaces, log access, common failure modes.
 10. [09 — Access & permissions](09-access-and-permissions.md) — service connections and Azure RBAC needed to operate the service.
 11. [10 — Links & bookmarks](10-links-and-bookmarks.md) — single-page "open these tabs on day one" reference.
 

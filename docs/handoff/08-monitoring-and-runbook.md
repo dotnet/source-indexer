@@ -1,4 +1,6 @@
-# 08 — Monitoring and on-call
+# 08 — Monitoring and runbook
+
+> **Note on scope:** despite the original filename suggesting otherwise, this doc does **not** describe an on-call rotation, paging policy, or SLO commitments — none of those exist in any form discoverable from this repo. It covers (a) what observability surfaces the code/pipeline actually wires up, (b) the application/pipeline log surfaces a responder would consult, and (c) a runbook of common failure modes with pointers to investigate them. If there is or should be an on-call rotation, that's a separate organizational decision and is **not** documented here.
 
 > 🚨 **DISCLAIMER: The "Application Insights" + "Grafana dashboard" claims below are likely OUTDATED — verify before trusting.**
 >

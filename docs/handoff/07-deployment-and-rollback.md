@@ -225,4 +225,4 @@ az webapp log download \
   --log-file webapp-logs.zip
 ```
 
-For monitoring/alerting context once a deploy is suspect, see [`08-monitoring-and-oncall.md`](./08-monitoring-and-oncall.md).
+For monitoring/alerting context once a deploy is suspect, see [`08-monitoring-and-runbook.md`](./08-monitoring-and-runbook.md).

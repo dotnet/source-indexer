@@ -2,7 +2,7 @@
 
 This document inventories the service connections, role assignments, and accounts a new owner needs to operate `source.dot.net`. Where information is not discoverable from this repo, it is flagged as `**TODO (tribal knowledge):**` and needs to be filled in by the outgoing team.
 
-For pipeline mechanics that consume these, see [`05-azure-pipeline.md`](./05-azure-pipeline.md). For incident-time use of the same credentials, see [`07-deployment-and-rollback.md`](./07-deployment-and-rollback.md) and [`08-monitoring-and-oncall.md`](./08-monitoring-and-oncall.md).
+For pipeline mechanics that consume these, see [`05-azure-pipeline.md`](./05-azure-pipeline.md). For incident-time use of the same credentials, see [`07-deployment-and-rollback.md`](./07-deployment-and-rollback.md) and [`08-monitoring-and-runbook.md`](./08-monitoring-and-runbook.md).
 
 ## Azure DevOps service connections
 
@@ -71,7 +71,7 @@ The public hostname `source.dot.net` is bound to the `netsourceindexprod` web ap
 
 ## App Insights and Grafana access
 
-Per [`08-monitoring-and-oncall.md`](./08-monitoring-and-oncall.md), monitoring data flows through the `dotnet-eng` Application Insights resource and surfaces on `dotnet-eng-grafana.westus2.cloudapp.azure.com`.
+Per [`08-monitoring-and-runbook.md`](./08-monitoring-and-runbook.md), monitoring data flows through the `dotnet-eng` Application Insights resource and surfaces on `dotnet-eng-grafana.westus2.cloudapp.azure.com`.
 
 **TODO (tribal knowledge):**
 - The subscription and resource group hosting the `dotnet-eng` Application Insights resource.
