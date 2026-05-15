@@ -1,17 +1,37 @@
 # 08 — Monitoring and on-call
 
+> 🚨 **DISCLAIMER: The "Application Insights" + "Grafana dashboard" claims below are likely OUTDATED — verify before trusting.**
+>
+> These references were sourced verbatim from this repo's [`README.md` "Monitoring" section](../../README.md), which says:
+>
+> > "https://source.dot.net is monitored using availability tests from the dotnet-eng application insights resource. Alerting is handled through grafana here https://dotnet-eng-grafana.westus2.cloudapp.azure.com/d/arcadeAvailability/service-availability"
+>
+> **However, the outgoing team (joperezr) has spot-checked the linked Grafana dashboard and reports that it now appears to be Helix/Arcade observability — there is no source.dot.net content on it.** It is possible that:
+>
+> 1. Dashboards/probes existed at one point and have since been removed or migrated elsewhere, and the README was never updated; or
+> 2. They still exist but on a different dashboard/resource than what the README points at; or
+> 3. There is no live observability for source.dot.net today.
+>
+> **Action items before this doc can be trusted:**
+> - Confirm whether the `dotnet-eng` Application Insights resource still has availability tests targeting `source.dot.net`. If not — delete the "Availability tests" section below and the corresponding nodes from the diagram.
+> - Confirm whether any Grafana dashboard (current URL or new one) hosts source.dot.net availability/alerting today. If not — delete the "Grafana dashboard" section.
+> - Once confirmed, **update [`README.md`](../../README.md)** to reflect reality, then update this doc to match.
+> - If no observability exists today, that is itself a finding worth raising with the incoming team — `AddAzureWebAppDiagnostics()` logs and pipeline binlogs would be the only signals available.
+
+---
+
 > ⚠️ **TODO @radical + outgoing team — please validate before relying on this doc.** Source-by-source provenance for the major claims:
 >
 > | Section | Source | Confidence |
 > |---|---|---|
-> | "Application Insights `dotnet-eng`" + Grafana availability dashboard URL | **Repo [`README.md` "Monitoring" section](../../README.md)** — copied verbatim, this is the *one* monitoring claim that has an in-repo source. | High that the resources exist (it's documented). Low on everything else about them (rotation, paging, SLOs, who owns the AI resource, which subscription it lives in) — all of that is the long `TODO (tribal knowledge)` list under each section. |
+> | "Application Insights `dotnet-eng`" + Grafana availability dashboard URL | **Repo [`README.md` "Monitoring" section](../../README.md)** — copied verbatim. **Likely outdated, see disclaimer above.** | Low — needs live verification. |
 > | App Service logs via `AddAzureWebAppDiagnostics()` | Read directly from [`Program.cs`](../../src/SourceBrowser/src/SourceIndexServer/Program.cs). | High (the line is in the code). |
 > | `az webapp log tail` / `log download` commands | Generic Azure CLI knowledge; *not* validated against the actual resource. | Medium — commands are correct in form; resource group name `source.dot.net` is a guess pulled through from [doc 06](./06-azure-infrastructure.md) and inherits any errors there. |
 > | `.health` marker mechanism + `StorageHealthCheck` behavior | Read from [`azure-pipelines.yml`](../../azure-pipelines.yml) and [`HealthChecks/StorageHealthCheck.cs`](../../src/SourceBrowser/src/SourceIndexServer/HealthChecks/StorageHealthCheck.cs). | High. |
 > | Pipeline smoke tests + the "FIXME: Health endpoints disabled" call-out | Read directly from [`azure-pipelines.yml`](../../azure-pipelines.yml). | High. |
 > | Common failure modes / runbook entries | Reverse-engineered from the scripts they reference. No actual incident was replayed. | Medium — the symptoms and "where to look" are grounded, but "Resolution" steps are inferred. |
 >
-> If you (joperezr) weren't aware of the App Insights / Grafana setup, that's a strong signal that **whoever wrote the README's Monitoring section is the right person to fill the gaps** — likely Radical, or whoever was on-call previously. Same standing offer as docs 06 and 07: happy to regenerate from a narrated walkthrough rather than spot-fix.
+> Same standing offer as docs 06 and 07: happy to regenerate from a narrated walkthrough rather than spot-fix.
 
 ---
 
@@ -49,6 +69,8 @@ flowchart LR
 
 ## Availability tests
 
+> 🚨 **Likely outdated — see disclaimer at top of this doc.** The outgoing team has checked the linked Grafana dashboard and found only Helix/Arcade content, no source.dot.net availability data. Confirm whether these probes still exist before relying on this section.
+
 Per the [`README.md`](../../README.md): availability is monitored from the **`dotnet-eng` Application Insights** resource. Probes hit `https://source.dot.net` and surface availability data into Grafana (below).
 
 **TODO (tribal knowledge):**
@@ -60,6 +82,8 @@ Per the [`README.md`](../../README.md): availability is monitored from the **`do
 - The Application Insights resource name and `dotnet-eng` workspace owner.
 
 ## Grafana dashboard
+
+> 🚨 **Likely outdated — see disclaimer at top of this doc.** The outgoing team checked the dashboard linked below and reports it now hosts Helix/Arcade observability, *not* source.dot.net. The dashboard may have been repurposed, or source.dot.net panels may have been removed. Confirm and either find the current dashboard, or remove this section entirely if no Grafana surface exists today.
 
 The primary alerting/visualization surface is:
 
