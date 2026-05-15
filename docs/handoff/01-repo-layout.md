@@ -35,11 +35,11 @@ src/
 
 `net472` MSBuild tasks library, referenced from `build.proj` via `SourceIndexerTasksAssembly`.
 
-| File | Task | Used by |
+| File | Task | What it does |
 |---|---|---|
-| `DownloadStage1Index.cs` | `DownloadStage1Index` | `src/index/index.proj` target `DownloadRepositoryV2` to pull stage1 bundles. Auth via `Azure.Identity.DefaultAzureCredential` (optionally pinned to a `ClientId`). |
-| `SelectProjects.cs` | `SelectProjects` | `build.proj` target `SelectProjects`. Implements the source-selection scoring algorithm. See [`docs/source-selection-algorithm.md`](../source-selection-algorithm.md). |
-| `Extensions.cs` | helpers | shared utility code. |
+| `DownloadStage1Index.cs` | `DownloadStage1Index` | Downloads a V2 upstream repo's stage1 `.tar.gz` bundle from `netsourceindexstage1/stage1/<RepoName>/`, then gunzips + untars it into `OutputDirectory`. This is **the V2 repo equivalent of `git clone`** — instead of cloning + building the repo locally, the pipeline pulls the prebuilt binlog/src tree that the upstream Arcade pipeline already produced. Auth uses `Azure.Identity.DefaultAzureCredential` (optionally pinned to a `ClientId` for the PROD MSI). Called from `src/index/index.proj` target `DownloadRepositoryV2`. Deep dive: [03 — Indexing pipeline §3 (Clone phase)](03-indexing-pipeline.md#31-clone-phase). |
+| `SelectProjects.cs` | `SelectProjects` | Implements the source-selection scoring algorithm — given an overlapping set of repos that all ship the same project/assembly (e.g. several repos that all redistribute `System.Text.Json`), picks the *single* repo that should "own" the indexed version of that file. Exposed via `build.proj` target `SelectProjects` for diagnostic runs; **not part of the production build path** today. Deep dive: [03 — Indexing pipeline §3.15](03-indexing-pipeline.md#315-selectprojects) and the algorithm spec in [`docs/source-selection-algorithm.md`](../source-selection-algorithm.md). |
+| `Extensions.cs` | _(no task)_ | Shared utility helpers used by the two tasks above (e.g. logging, path handling). Nothing pipeline-facing. |
 
 There's also a third task referenced from `src/index/SourceIndex.targets`: `ResolveLivePackageReferences`. (TODO tribal knowledge: confirm whether this task is defined inside this assembly or pulled in via a SourceBrowser file.)
 
