@@ -2,8 +2,8 @@
 
 `dotnet/source-indexer` is not a self-contained product — it's wired into the rest of the .NET engineering system in two directions:
 
-1. **Inbound (V1 model):** this pipeline calls into each cloned repo's Arcade build script to produce binlogs.
-2. **Outbound (V2 model):** other `dotnet/*` repos call into a NuGet tool that this repo publishes, to push prebuilt index bundles into Azure Blob Storage where this pipeline later picks them up.
+1. **Inbound (V1 model):** the source-indexer pipeline calls into the Arcade `eng/common/build.ps1` script (or `build.cmd`) of each cloned V1 repo to produce binlogs locally.
+2. **Outbound (V2 model):** other `dotnet/*` repos call into a NuGet tool that this repo publishes (from their own Arcade-driven pipelines), to push prebuilt index bundles into Azure Blob Storage where the source-indexer pipeline later picks them up.
 
 Sibling docs:
 
