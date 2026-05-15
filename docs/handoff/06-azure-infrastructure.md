@@ -24,10 +24,10 @@ flowchart LR
       STAGE1[(Storage account<br/>netsourceindexstage1<br/>container: stage1)]
     end
 
-    subgraph ADO[Azure DevOps — dnceng/internal]
+    subgraph ADO[Azure DevOps]
       direction TB
-      PIPE[Build definition 612<br/>azure-pipelines.yml]
-      FEED[Internal NuGet feed<br/>9ee6d478.../d1622942...]
+      PIPE[dnceng/internal<br/>Build definition 612<br/>azure-pipelines.yml]
+      FEED[dnceng/public<br/>dotnet-tools NuGet feed<br/>9ee6d478.../d1622942...]
       POOL_P[Agent pool<br/>NetSourceIndexProd-Pool]
       POOL_V[Agent pool<br/>NetSourceIndexValid-Pool]
     end
@@ -276,14 +276,17 @@ Configured as a `templateContext` `nuget` output in
 
 | Property | Value |
 | --- | --- |
-| Feed type | `internal` (Azure Artifacts) |
-| Feed ID | `9ee6d478-d288-47f7-aacc-f6e6d082ae6d/d1622942-d16f-48e5-bc83-96f4539e7601` (`<projectId>/<feedId>`, both in `dnceng`) |
-| Packages pushed | Everything matching `$(Build.ArtifactStagingDirectory)/packages/*.nupkg` — produced by the `dotnet build` step. Today that is at least:<br/>• `Microsoft.SourceIndexer.Tasks` — the MSBuild tasks consumed by `build.proj` (notably `DownloadStage1Index` and the upload counterpart).<br/>• `UploadIndexStage1` — used by upstream repos to push their per-repo bundles into the `stage1` container. |
+| Feed type | `internal` in the AzDO-task sense (an AzDO Artifacts feed, not nuget.org). The pipeline runs in `dnceng/internal`, but cross-project-publishes to a feed in `dnceng/public`. |
+| AzDO org / project / feed | `dnceng` / `public` / **`dotnet-tools`** |
+| Feed URL | `https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet-tools/nuget/v3/index.json` |
+| Feed ID | `9ee6d478-d288-47f7-aacc-f6e6d082ae6d/d1622942-d16f-48e5-bc83-96f4539e7601` (`<projectId>/<feedId>`) |
+| Packages pushed | Everything matching `$(Build.ArtifactStagingDirectory)/packages/*.nupkg` — produced by the `dotnet build` step. Today that is at least:<br/>• `Microsoft.SourceIndexer.Tasks` — the MSBuild tasks consumed by `build.proj` (notably `DownloadStage1Index`).<br/>• `UploadIndexStage1` — used by upstream repos to push their per-repo bundles into the `stage1` container.<br/>• `BinLogToSln` — packed from the vendored SourceBrowser (`src/SourceBrowser/src/BinLogToSln/`); converts an MSBuild binlog into an indexable `.sln` + source tree. Arcade installs both `UploadIndexStage1` and `BinLogToSln` from this feed when upstream repos set `enableSourceIndex: true`. |
 | Push cadence | Every build (PROD and validation alike — the `templateContext.outputs.nuget` block is unconditional) |
+| Why a public feed | Arcade's `eng/common/core-templates/steps/source-index-stage1-publish.yml` pins the tool source to this URL by default. Publishing here is what makes `enableSourceIndex: true` "just work" for any downstream repo — see [`04-arcade-and-dotnet-integration.md §3.2`](./04-arcade-and-dotnet-integration.md#32-how-an-upstream-repo-uses-it-via-arcades-enablesourceindex). |
 
-**TODO (tribal knowledge):** the human-readable name of this feed in the
-dnceng AzDO UI is not in the repo. Resolve from
-`https://dev.azure.com/dnceng/internal/_apis/packaging/feeds/d1622942-d16f-48e5-bc83-96f4539e7601`
+**TODO @radical:** confirm the human-readable feed name (`dotnet-tools`) in the
+dnceng AzDO UI matches; resolve from
+`https://dev.azure.com/dnceng/public/_apis/packaging/feeds/d1622942-d16f-48e5-bc83-96f4539e7601`
 or by browsing the project's *Artifacts* tab.
 
 ---

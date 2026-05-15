@@ -6,9 +6,9 @@
 
 The actual rendering engine is [KirillOsenkov/SourceBrowser](https://github.com/KirillOsenkov/SourceBrowser). This repo:
 
-1. **Vendors a fork** of SourceBrowser under [`src/SourceBrowser/`](../../src/SourceBrowser) (kept in sync via a patch-based workflow — see [02 — Build & local dev](02-build-and-local-dev.md)).
-2. Adds MSBuild orchestration (clone → prepare → index) on top.
-3. Ships a daily Azure DevOps pipeline that produces and deploys a new index.
+1. **Vendors (copies) a fork of SourceBrowser** into this repo under [`src/SourceBrowser/`](../../src/SourceBrowser). Yes — the SourceBrowser source code is physically checked in here rather than referenced as a NuGet package or git submodule. The exact upstream commit it was copied from is recorded in [`src/SourceBrowser.hash`](../../src/SourceBrowser.hash), and a patch-based helper script ([`src/update-source-browser.ps1`](../../src/update-source-browser.ps1)) is used to pull in newer upstream changes when we need to roll forward. Full mechanics are in [02 — Build & local dev](02-build-and-local-dev.md#updating-the-vendored-sourcebrowser).
+2. **Adds MSBuild orchestration (clone → prepare → index) on top of the vendored SourceBrowser.** SourceBrowser by itself only knows how to turn a single solution/binlog into HTML. To produce `source.dot.net` we need to drive that across ~15 dotnet repos. So this repo layers an MSBuild project ([`build.proj`](../../build.proj) → [`src/index/index.proj`](../../src/index/index.proj)) that runs three steps in order: **Clone** (git-clone the V1 repos and download the V2 stage1 bundles from blob storage), **Prepare** (run each V1 repo's Arcade build to produce binlogs), and **BuildIndex** (feed all of those binlogs/solutions into SourceBrowser's `HtmlGenerator.exe` to produce the static HTML index). Each step is its own MSBuild target so the pipeline can interleave Azure auth between them. See [03 — Indexing pipeline](03-indexing-pipeline.md) for the deep dive.
+3. **Ships a daily Azure DevOps pipeline** ([`azure-pipelines.yml`](../../azure-pipelines.yml)) that runs those three steps, uploads the resulting index to Azure blob storage, deploys the web app, and swaps slots so `source.dot.net` serves the fresh data.
 
 ## End-to-end data flow
 

@@ -45,7 +45,7 @@ There's also a third task referenced from `src/index/SourceIndex.targets`: `Reso
 
 ### `src/UploadIndexStage1/`
 
-A `net10.0` console app marked `PackAsTool` with `<VersionPrefix>2.0.0</VersionPrefix>`. Published to the `dnceng/internal` NuGet feed (`9ee6d478-d288-47f7-aacc-f6e6d082ae6d/d1622942-d16f-48e5-bc83-96f4539e7601`) by the pipeline.
+A `net10.0` console app marked `PackAsTool` with `<VersionPrefix>2.0.0</VersionPrefix>`. Published to the **`dnceng/public` `dotnet-tools`** NuGet feed (`9ee6d478-d288-47f7-aacc-f6e6d082ae6d/d1622942-d16f-48e5-bc83-96f4539e7601`) by the pipeline. This is the same public feed Arcade pulls from when an upstream repo opts into `enableSourceIndex: true` — see [`04-arcade-and-dotnet-integration.md`](./04-arcade-and-dotnet-integration.md#32-how-an-upstream-repo-uses-it-via-arcades-enablesourceindex).
 
 `Program.cs` accepts these CLI options (parsed with `Mono.Options`):
 

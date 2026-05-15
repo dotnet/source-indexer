@@ -28,8 +28,9 @@ Items tagged **`TODO @radical`** are values that aren't discoverable from the re
 | CodeQL pipeline YAML in repo | [`azure-pipelines-codeql.yml`](../../azure-pipelines-codeql.yml) |
 | CodeQL pipeline definition | **TODO @radical** — definition ID + URL for the CodeQL pipeline in `dnceng/internal`. |
 | Build status badge | See top of [`README.md`](../../README.md) |
-| Internal NuGet feed (raw GUIDs from YAML) | `9ee6d478-d288-47f7-aacc-f6e6d082ae6d / d1622942-d16f-48e5-bc83-96f4539e7601` in `dnceng/internal` |
-| Internal NuGet feed (human-readable URL) | **TODO @radical** — the `https://dev.azure.com/dnceng/internal/_artifacts/feed/<name>` URL and the feed's human name. |
+| Internal NuGet feed (raw GUIDs from YAML) | `9ee6d478-d288-47f7-aacc-f6e6d082ae6d / d1622942-d16f-48e5-bc83-96f4539e7601` — resolves to **`dnceng/public` / `dotnet-tools`** feed. |
+| Internal NuGet feed URL | [https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet-tools/nuget/v3/index.json](https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet-tools/nuget/v3/index.json) (this is the URL Arcade's `enableSourceIndex` template defaults to as `sourceIndexPackageSource`). |
+| Feed UI page | **TODO @radical** — `https://dev.azure.com/dnceng/public/_artifacts/feed/dotnet-tools` (verify the slug matches the feed-name URL fragment). |
 | Agent pool (prod) | `NetSourceIndexProd-Pool` — **TODO @radical** add portal link to the pool admin page in `dnceng`. |
 | Agent pool (validation) | `NetSourceIndexValid-Pool` — **TODO @radical** add portal link. |
 | Service connections (in `dnceng/internal`) | `SourceDotNet Stage1 Publish`, `NetSourceIndex-Prod`, `NetSourceIndex-Validation-Prod` — **TODO @radical** add deep-link to the service-connections admin page in `dnceng/internal`. |

@@ -93,7 +93,7 @@ The 1ES template wraps the job and reads two outputs from `templateContext`:
 
 | Output | Purpose |
 | --- | --- |
-| `nuget` push | Pushes everything in `$(Build.ArtifactStagingDirectory)/packages/*.nupkg` to the internal `dnceng` feed `9ee6d478-d288-47f7-aacc-f6e6d082ae6d/d1622942-d16f-48e5-bc83-96f4539e7601`. These packages are produced by the `dotnet build` step below and include `Microsoft.SourceIndexer.Tasks` and `UploadIndexStage1`. |
+| `nuget` push | Pushes everything in `$(Build.ArtifactStagingDirectory)/packages/*.nupkg` to the **`dnceng/public` `dotnet-tools`** feed (`9ee6d478-d288-47f7-aacc-f6e6d082ae6d/d1622942-d16f-48e5-bc83-96f4539e7601`). The pipeline runs in `dnceng/internal` but cross-project-publishes to the public feed because that's what Arcade's `enableSourceIndex` job templates pull from. Packages: `Microsoft.SourceIndexer.Tasks`, `UploadIndexStage1`, and `BinLogToSln`. See [`04-arcade-and-dotnet-integration.md §3.1`](./04-arcade-and-dotnet-integration.md#31-what-this-repo-publishes). |
 | `pipelineArtifact` `logs` | Always (`condition: always()`) publishes `$(Build.ArtifactStagingDirectory)/logs` as a pipeline artifact named `logs`. This contains the MSBuild binary logs (`clone.binlog`, `prepare.binlog`, `build.binlog`, plus every other `*.binlog` produced under the sources directory). |
 
 ---

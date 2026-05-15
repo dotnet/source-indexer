@@ -49,9 +49,9 @@ Pipeline definition **612** in `dnceng/internal` (build status badge in [`README
 [`azure-pipelines.yml`](../../azure-pipelines.yml) pushes packages from `$(Build.ArtifactStagingDirectory)/packages/*.nupkg` to the internal feed:
 
 - Project + Feed GUIDs: `9ee6d478-d288-47f7-aacc-f6e6d082ae6d/d1622942-d16f-48e5-bc83-96f4539e7601`
-- Hosted in `dnceng/internal`.
+- Hosted in `dnceng/public` as the **`dotnet-tools`** feed (`https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet-tools/nuget/v3/index.json`). The pipeline runs in `dnceng/internal` but cross-project-publishes here so Arcade's `enableSourceIndex: true` template can install the tools without internal-feed credentials.
 
-The primary published artifact is the `UploadIndexStage1` global tool, which downstream repos consume with something like `dotnet tool install UploadIndexStage1 --add-source <feed>` in their own publish pipelines.
+The primary published artifacts are `UploadIndexStage1` and `BinLogToSln` (both `PackAsTool` global tools) plus `Microsoft.SourceIndexer.Tasks` (an MSBuild tasks assembly). Downstream consumption today is *not* a manual `dotnet tool install` line in each repo — Arcade ships a first-class `enableSourceIndex: true` parameter on its `jobs.yml` template, which installs both tools from this feed automatically. See [`04-arcade-and-dotnet-integration.md §3.2`](./04-arcade-and-dotnet-integration.md#32-how-an-upstream-repo-uses-it-via-arcades-enablesourceindex).
 
 **TODO (tribal knowledge):**
 - The human-readable feed name (the YAML only carries the GUID pair).
@@ -114,5 +114,5 @@ A new owning team should confirm each of the following before the outgoing team 
 - [ ] **Admin** on the [`dotnet/source-indexer`](https://github.com/dotnet/source-indexer) GitHub repo (so the new team can manage branch protection, CODEOWNERS, and webhooks).
 - [ ] Listed as a contact on any availability-test alerting routes (PagerDuty rotation, Teams webhook destination, or email DL) so probe failures actually page the new team.
 - [ ] Service-connection administrator on `dnceng/internal` for the three connections listed above, so credentials can be rotated and federated identities re-bound when needed.
-- [ ] Owner / contributor on the **internal NuGet feed** `9ee6d478-d288-47f7-aacc-f6e6d082ae6d/d1622942-d16f-48e5-bc83-96f4539e7601` so the `UploadIndexStage1` tool can be re-published.
+- [ ] Owner / contributor on the **`dnceng/public` `dotnet-tools` NuGet feed** (`9ee6d478-d288-47f7-aacc-f6e6d082ae6d/d1622942-d16f-48e5-bc83-96f4539e7601`) so the `UploadIndexStage1`, `BinLogToSln`, and `Microsoft.SourceIndexer.Tasks` packages can be re-published. This is the feed Arcade pulls from in its `enableSourceIndex` template — losing publish access here silently freezes every downstream V2 repo on the last-known-good version.
 - [ ] Documented owner of the `source.dot.net` DNS record and the TLS certificate that fronts the site.
