@@ -73,7 +73,20 @@ The output of the Arcade build is one or more `*.binlog` files inside `bin/repo/
 
 #### `<Repository>` schema (V1)
 
-`ItemDefinitionGroup` defaults in [`index.proj`](../../src/index/index.proj):
+A real V1 entry looks like this — `msbuild` from [`repositories.props`](../../src/index/repositories.props):
+
+```xml
+<Repository Include="msbuild">
+  <Url>https://github.com/dotnet/msbuild</Url>
+  <Branch>main</Branch>
+  <DeepClone>true</DeepClone>
+  <PrepareCommand>
+    $(ArcadeBuildCmd)
+  </PrepareCommand>
+</Repository>
+```
+
+The `Include="..."` attribute is the item's *Identity* (used as a folder name and in log output). Only `Url` and `PrepareCommand` are actually required per-item — everything else either has a default from `<ItemDefinitionGroup>` in [`index.proj`](../../src/index/index.proj):
 
 ```xml
 <Repository>
@@ -83,19 +96,21 @@ The output of the Arcade build is one or more `*.binlog` files inside `bin/repo/
 </Repository>
 ```
 
+…or is optional and only used when explicitly set (e.g. `DeepClone`, `SparseCheckout`).
+
 Per-item metadata read by the targets:
 
-| Metadata | Required | Used by | Notes |
-|---|---|---|---|
-| `Url` | yes | `CloneRepository`, `ResolveHashV1` | GitHub repo URL (no `.git`); a `git remote add origin <Url>.git` is performed |
-| `Branch` | no (default `main`) | `CloneRepository` | Used in `git pull origin <Branch>` |
-| `PrepareCommand` | yes | `PrepareV1` | Shell command run via `cmd /c` inside `LocalPath` |
-| `DeepClone` | no | (declared; no functional effect on clone — `CloneRepository` always uses `git pull` from a fresh `git init`) | Documents intent; `msbuild` sets it |
-| `SparseCheckout` | no | `CloneRepository` | If non-empty, enables `core.sparsecheckout` and writes the value into `.git/info/sparse-checkout` |
-| `CheckoutSubmodules` | no | `CloneRepository` | If `true`, runs `git submodule update --init --recursive` |
-| `OldCommit` | no | `CheckoutSources` | If set, checks out a fixed SHA instead of `HEAD` |
-| `LocalPath` | computed | everywhere | Defaults to `$(RepositoryPath)<identity>/` |
-| `ServerPath` | computed | `BuildIndex` (until rewritten by `ResolveHashV1`) | Default is `<Url>/tree/<branch>/`; rewritten to `<Url>/tree/<sha>/` after `git rev-parse HEAD` |
+| Metadata | Required | Default | Used by | Notes |
+|---|---|---|---|---|
+| `Url` | yes | — | `CloneRepository`, `ResolveHashV1` | GitHub repo URL (no `.git`); a `git remote add origin <Url>.git` is performed |
+| `PrepareCommand` | yes | — | `PrepareV1` | Shell command run via `cmd /c` inside `LocalPath` |
+| `Branch` | no | `main` | `CloneRepository` | Used in `git pull origin <Branch>` |
+| `DeepClone` | no | _(unset)_ | (declared; no functional effect on clone — `CloneRepository` always uses `git pull` from a fresh `git init`) | Documents intent; `msbuild` sets it |
+| `SparseCheckout` | no | _(unset)_ | `CloneRepository` | If non-empty, enables `core.sparsecheckout` and writes the value into `.git/info/sparse-checkout` |
+| `CheckoutSubmodules` | no | _(unset)_ | `CloneRepository` | If `true`, runs `git submodule update --init --recursive` |
+| `OldCommit` | no | _(unset)_ | `CheckoutSources` | If set, checks out a fixed SHA instead of `HEAD` |
+| `LocalPath` | no | `$(RepositoryPath)<identity>/` | everywhere | Computed from item identity |
+| `ServerPath` | no | `<Url>/tree/<branch>/` | `BuildIndex` (until rewritten by `ResolveHashV1`) | Rewritten to `<Url>/tree/<sha>/` after `git rev-parse HEAD` |
 
 ### 2.2 V2 — `<RepositoryV2>` items (prebuilt bundle downloaded)
 
@@ -119,7 +134,16 @@ Current V2 repos (in [`repositories.props`](../../src/index/repositories.props))
 
 #### `<RepositoryV2>` schema
 
-`ItemDefinitionGroup` defaults in [`index.proj`](../../src/index/index.proj):
+A real V2 entry looks like this — `roslyn` from [`repositories.props`](../../src/index/repositories.props):
+
+```xml
+<RepositoryV2 Include="roslyn">
+  <RepoName>dotnet-roslyn</RepoName>
+  <Url>https://github.com/dotnet/roslyn</Url>
+</RepositoryV2>
+```
+
+Defaults applied from `<ItemDefinitionGroup>` in [`index.proj`](../../src/index/index.proj):
 
 ```xml
 <RepositoryV2>
@@ -130,12 +154,12 @@ Current V2 repos (in [`repositories.props`](../../src/index/repositories.props))
 
 Per-item metadata:
 
-| Metadata | Required | Used by | Notes |
-|---|---|---|---|
-| `RepoName` | yes | `DownloadRepositoryV2` | Blob name prefix in the stage1 container (e.g. `dotnet-arcade/...tar.gz`) |
-| `Url` | yes | `ResolveHashV2` | Used to compute `ServerPath = <Url>/tree/<sha>/` |
-| `LocalPath` | computed | `BuildIndex` | The source root inside the extracted bundle: `bin/repo/<identity>/src/` |
-| `ExtractPath` | computed | `DownloadRepositoryV2`, `ResolveHashV2` | The top-level extract directory: `bin/repo/<identity>/` (contains `hash` file plus extracted source/binlogs) |
+| Metadata | Required | Default | Used by | Notes |
+|---|---|---|---|---|
+| `RepoName` | yes | — | `DownloadRepositoryV2` | Blob name prefix in the stage1 container (e.g. `dotnet-arcade/...tar.gz`) |
+| `Url` | yes | — | `ResolveHashV2` | Used to compute `ServerPath = <Url>/tree/<sha>/` |
+| `LocalPath` | no | `$(RepositoryPath)<identity>/src/` | `BuildIndex` | The source root inside the extracted bundle |
+| `ExtractPath` | no | `$(RepositoryPath)<identity>/` | `DownloadRepositoryV2`, `ResolveHashV2` | The top-level extract directory (contains `hash` file plus extracted source/binlogs) |
 
 > **TODO (tribal knowledge):** confirm the exact on-disk layout produced inside each V2 bundle (which subfolders contain `.sln` vs `.binlog`, whether the bundle ships full source for HTML rendering, and how Roslyn vs Runtime vary). The `UploadIndexStage1` tool simply tars whatever folder it's pointed at, so the layout is set by each upstream repo's Arcade publish step.
 
