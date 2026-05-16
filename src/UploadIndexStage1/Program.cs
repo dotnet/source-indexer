@@ -33,7 +33,7 @@ namespace UploadIndexStage1
                 {"c=", "The Azure Client ID (optional)", c => clientId = c},
                 {"s=", "The destination storage account name or URL", s => storageAccount = s},
                 {"b=", "The destination storage account container", b => blobContainer = b},
-                {"connection-string=", "Optional connection string for local-dev (Azurite) auth. When set, -s/-c are ignored.", cs => connectionString = cs},
+                {"connection-string=", "Optional connection string for blob auth. When set, -s/-c are ignored.", cs => connectionString = cs},
             };
 
             List<string> extra = options.Parse(args);
@@ -68,7 +68,7 @@ namespace UploadIndexStage1
 
             if (!string.IsNullOrEmpty(connectionString))
             {
-                Console.WriteLine("Using AZURE_STORAGE_CONNECTION_STRING / --connection-string for blob auth (local-dev / Azurite path).");
+                Console.WriteLine("Using connection-string for blob auth.");
                 blobServiceClient = new BlobServiceClient(connectionString);
             }
             else
@@ -108,7 +108,6 @@ namespace UploadIndexStage1
             }
 
             var containerClient = blobServiceClient.GetBlobContainerClient(blobContainer);
-            // Ensure the container exists (Azurite emulators start empty).
             await containerClient.CreateIfNotExistsAsync();
             string newBlobName = $"{repoName}/{DateTime.UtcNow:O}.tar.gz";
             BlobClient newBlobClient = containerClient.GetBlobClient(newBlobName);

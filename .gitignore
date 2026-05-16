@@ -269,3 +269,7 @@ bin/index/
 .playwright/
 .modules/
 
+
+# HtmlGenerator drops Errors.txt into its working directory on startup.
+src/SourceBrowser/src/HtmlGenerator/Errors.txt
+

@@ -20,21 +20,21 @@ var stage1Storage = builder.AddAzureStorage("stage1Storage")
     .RunAsEmulator(azurite =>
     {
         azurite.WithLifetime(ContainerLifetime.Persistent)
-               .WithDataVolume("source-indexer-stage1-data");
+               .WithDataBindMount(".azurite/stage1");
     });
 
 var stage1Blobs = stage1Storage.AddBlobs("stage1-blobs");
-var stage1Container = stage1Storage.AddBlobContainer("stage1", blobContainerName: "stage1");
+var stage1Container = stage1Blobs.AddBlobContainer("stage1", blobContainerName: "stage1");
 
 var prodStorage = builder.AddAzureStorage("prodStorage")
     .RunAsEmulator(azurite =>
     {
         azurite.WithLifetime(ContainerLifetime.Persistent)
-               .WithDataVolume("source-indexer-prod-data");
+               .WithDataBindMount(".azurite/prod");
     });
 
 var prodBlobs = prodStorage.AddBlobs("prod-blobs");
-var indexContainer = prodStorage.AddBlobContainer("index-local", blobContainerName: "index-local");
+var indexContainer = prodBlobs.AddBlobContainer("index-local", blobContainerName: "index-local");
 
 // =============================================================================
 // Pipeline resources — all WithExplicitStart() so they only run when the user
@@ -49,17 +49,20 @@ string sampleBinlog = Path.Combine(sampleBinDir, "msbuild.binlog");
 string sampleSourceDir = Path.Combine(repoRoot, "samples", "MiniRuntime");
 string indexOutDir = Path.Combine(repoRoot, "bin", "index");
 string indexUploadDir = Path.Combine(indexOutDir, "index");
-string htmlGeneratorProj = Path.Combine(repoRoot, "src", "SourceBrowser", "src", "HtmlGenerator", "HtmlGenerator.csproj");
 
 // 1. sample-build — `dotnet build /bl:` on MiniRuntime, producing a binlog.
 //    Emulates: Arcade-driven V1 repo build that produces a binlog.
+// Use /t:Rebuild so MSBuild always re-invokes the C# compiler — otherwise an
+// incremental no-op build produces a binlog with zero Csc invocations and
+// HtmlGenerator finds nothing to index.
 var sampleBuild = builder.AddExecutable(
-        "sample-build",
+        "step1-sample-build",
         "dotnet",
         repoRoot,
         "build",
         sampleProj,
         $"/bl:{sampleBinlog}",
+        "/t:Rebuild",
         "-c", "Debug")
     .WithExplicitStart();
 
@@ -68,7 +71,7 @@ var sampleBuild = builder.AddExecutable(
 //    netsourceindexstage1/stage1/<repo>/<ts>.tar.gz.
 //    This is the same .NET console app that runs in upstream pipelines, so
 //    you can attach a debugger to it directly from the Aspire dashboard.
-var uploadStage1 = builder.AddProject<Projects.UploadIndexStage1>("upload-stage1")
+var uploadStage1 = builder.AddProject<Projects.UploadIndexStage1>("step2-upload-stage1")
     .WithExplicitStart()
     .WithReference(stage1Blobs)
     .WaitFor(stage1Container)
@@ -79,27 +82,39 @@ var uploadStage1 = builder.AddProject<Projects.UploadIndexStage1>("upload-stage1
         "-b", "stage1");
 
 // 3. htmlgenerator — runs HtmlGenerator (net472) over the binlog from step 1
-//    and produces static HTML under bin/index/. Modelled via AddExecutable
-//    (`dotnet run --project HtmlGenerator.csproj`) because net472 can't be
-//    referenced from a net10 AppHost project, but `dotnet run` still works
-//    on Windows. Args mirror the /in: and /out: shape from index.proj.
-var htmlGenerator = builder.AddExecutable(
-        "htmlgenerator",
-        "dotnet",
-        repoRoot,
-        "run",
-        "--project", htmlGeneratorProj,
-        "-c", "Debug",
-        "--",
+//    and produces static HTML under bin/index/. HtmlGenerator targets net472
+//    so we can't link its output assembly into the net10 AppHost, but
+//    `ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true"`
+//    on the ProjectReference still gets us the Projects.HtmlGenerator
+//    metadata, so we can use AddProject<T> and get debugging / restart-on-
+//    rebuild for free.
+var htmlGenerator = builder.AddProject<Projects.HtmlGenerator>("step3-htmlgenerator", launchProfileName: null)
+    .WithExplicitStart()
+    .WithArgs(
         sampleBinlog,
         $"/out:{indexOutDir}",
-        $"/serverPath:{sampleSourceDir}=https://github.com/dotnet/source-indexer/tree/main/samples/MiniRuntime/")
+        "/force",
+        $"/serverPath:{sampleSourceDir}=https://github.com/dotnet/source-indexer/tree/main/samples/MiniRuntime/");
+
+// 4. normalize-case — lowercase every filename under bin/index/index/.
+//    SourceIndexServer.Helpers.ServeProxiedIndex lowercases incoming request
+//    paths before querying the blob (case-sensitive in Azure Storage), so any
+//    PascalCase output from HtmlGenerator (Projects.txt, results.html, etc.)
+//    would 404 if uploaded as-is. Prod runs the same script — see
+//    azure-pipelines.yml line ~165 (deployment/normalize-case.ps1).
+var normalizeCase = builder.AddExecutable(
+        "step4-normalize-case",
+        "pwsh",
+        repoRoot,
+        "-NoProfile",
+        "-File", Path.Combine(repoRoot, "deployment", "normalize-case.ps1"),
+        "-Root", indexUploadDir)
     .WithExplicitStart();
 
-// 4. publish-index — wraps the Azure CLI (matching prod's AzureFileCopy@6
+// 5. publish-index — wraps the Azure CLI (matching prod's AzureFileCopy@6
 //    task). Uploads bin/index/index/* to prodStorage/index-local.
 var publishIndex = builder.AddExecutable(
-        "publish-index",
+        "step5-publish-index",
         "az",
         repoRoot,
         "storage", "blob", "upload-batch",
@@ -148,10 +163,11 @@ prodStorage.WithCommand(
 
         var stages = new (string Name, IResource Resource)[]
         {
-            ("sample-build", sampleBuild.Resource),
-            ("upload-stage1", uploadStage1.Resource),
-            ("htmlgenerator", htmlGenerator.Resource),
-            ("publish-index", publishIndex.Resource),
+            ("step1-sample-build", sampleBuild.Resource),
+            ("step2-upload-stage1", uploadStage1.Resource),
+            ("step3-htmlgenerator", htmlGenerator.Resource),
+            ("step4-normalize-case", normalizeCase.Resource),
+            ("step5-publish-index", publishIndex.Resource),
         };
 
         foreach (var (name, resource) in stages)
@@ -185,6 +201,21 @@ prodStorage.WithCommand(
 
             logger.LogInformation("[bootstrap-all] {Stage} finished cleanly.", name);
         }
+
+        // The web's IndexLoader only runs once at startup (Index ctor → Task.Run).
+        // In prod the app-service slot-setting flip restarts the app after publish;
+        // locally we mirror that by restarting `web` so it re-reads the freshly
+        // published container.
+        logger.LogInformation("[bootstrap-all] Restarting web to pick up the freshly published index...");
+        var restart = await commandService.ExecuteCommandAsync(
+            resource: web.Resource,
+            commandName: "resource-restart",
+            cancellationToken: ct);
+        if (!restart.Success)
+        {
+            return CommandResults.Failure($"Failed to restart web: {restart.Message}");
+        }
+        await notifications.WaitForResourceHealthyAsync(web.Resource.Name, ct);
 
         return CommandResults.Success();
     });

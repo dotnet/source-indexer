@@ -21,6 +21,12 @@
   <ItemGroup>
     <ProjectReference Include="..\SourceBrowser\src\SourceIndexServer\SourceIndexServer.csproj" />
     <ProjectReference Include="..\UploadIndexStage1\UploadIndexStage1.csproj" />
+    <!-- HtmlGenerator targets net472; we can't link its output assembly
+         into a net10 AppHost, but we still want the Projects.HtmlGenerator
+         metadata generated so AddProject<Projects.HtmlGenerator> works. -->
+    <ProjectReference Include="..\SourceBrowser\src\HtmlGenerator\HtmlGenerator.csproj"
+                      ReferenceOutputAssembly="false"
+                      SkipGetTargetFrameworkProperties="true" />
   </ItemGroup>
 
 </Project>

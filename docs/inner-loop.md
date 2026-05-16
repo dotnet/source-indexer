@@ -37,17 +37,17 @@ Explicit-start (stopped by default — click **Start** in the dashboard):
 
 | Resource | Type | What it does |
 |---|---|---|
-| `sample-build`    | Executable: `dotnet build /bl:` | Builds `samples/MiniRuntime` and produces `samples/MiniRuntime/bin/sample/msbuild.binlog`. |
-| `upload-stage1`   | Project: `UploadIndexStage1`    | Tars+gzips the sample folder + binlog and uploads it to `stage1`. Real V2 upstream tool — fully dogfooded. |
-| `htmlgenerator`   | Executable: `dotnet run HtmlGenerator` | Runs `HtmlGenerator` on the binlog from `sample-build` to produce static HTML under `bin/index/`. |
-| `publish-index`   | Executable: `az storage blob upload-batch` | Uploads `bin/index/index/` to the `index-local` container in `prodStorage`. |
+| `step1-sample-build`    | Executable: `dotnet build /bl:` | Builds `samples/MiniRuntime` and produces `samples/MiniRuntime/bin/sample/msbuild.binlog`. |
+| `step2-upload-stage1`   | Project: `UploadIndexStage1`    | Tars+gzips the sample folder + binlog and uploads it to `stage1`. Real V2 upstream tool — fully dogfooded. |
+| `step3-htmlgenerator`   | Project: `HtmlGenerator`        | Runs `HtmlGenerator` on the binlog from `step1-sample-build` to produce static HTML under `bin/index/`. |
+| `step4-publish-index`   | Executable: `az storage blob upload-batch` | Uploads `bin/index/index/` to the `index-local` container in `prodStorage`. |
 
 ## One-click bootstrap
 
 The `prodStorage` resource exposes a custom **bootstrap-all** command that
-runs the four pipeline resources in order (`sample-build` →
-`upload-stage1` → `htmlgenerator` → `publish-index`) and waits for each one
-to finish. This is the easy first-run path:
+runs the four pipeline resources in order (`step1-sample-build` →
+`step2-upload-stage1` → `step3-htmlgenerator` → `step4-publish-index`) and
+waits for each one to finish. This is the easy first-run path:
 
 1. `aspire start`
 2. Open the dashboard.
@@ -61,9 +61,9 @@ Re-running any individual resource regenerates just that stage.
 
 | Prod | Local inner loop |
 |---|---|
-| V2 upstream repo publishes `.tar.gz` to `netsourceindexstage1/stage1/<repo>/<ts>.tar.gz` (`UploadIndexStage1`) | `upload-stage1` resource → `stage1Storage/stage1` |
-| `HtmlGenerator.exe` reads binlog + writes HTML to `bin/index/` (`src/index/index.proj`) | `htmlgenerator` resource (`dotnet run --project HtmlGenerator`) |
-| `AzureFileCopy@6` uploads `bin/index/index/*` to `netsourceindexprod/index-<GUID>/` (`azure-pipelines.yml`) | `publish-index` resource (`az storage blob upload-batch`) → `prodStorage/index-local` |
+| V2 upstream repo publishes `.tar.gz` to `netsourceindexstage1/stage1/<repo>/<ts>.tar.gz` (`UploadIndexStage1`) | `step2-upload-stage1` resource → `stage1Storage/stage1` |
+| `HtmlGenerator.exe` reads binlog + writes HTML to `bin/index/` (`src/index/index.proj`) | `step3-htmlgenerator` resource |
+| `AzureFileCopy@6` uploads `bin/index/index/*` to `netsourceindexprod/index-<GUID>/` (`azure-pipelines.yml`) | `step4-publish-index` resource (`az storage blob upload-batch`) → `prodStorage/index-local` |
 | App Service slot setting `SOURCE_BROWSER_INDEX_PROXY_URL` flipped to the new container (`deployment/deploy-storage-proxy.ps1`) | `web` resource started with `SOURCE_BROWSER_INDEX_PROXY_URL` env var pointing at `prodStorage/index-local` |
 
 See `docs/handoff/03-indexing-pipeline.md` and
@@ -86,10 +86,11 @@ on the blob resources in the AppHost. Prod is unaffected.
 
 ## Persistence
 
-The two Azurite emulators use `ContainerLifetime.Persistent` and named
-Docker volumes (`source-indexer-stage1-data`, `source-indexer-prod-data`).
-Blobs uploaded during a session survive `aspire start` restarts. To wipe
-state, remove the volumes via Docker / Podman.
+The two Azurite emulators use `ContainerLifetime.Persistent` and bind-mount
+their data directories to `.azurite/stage1` and `.azurite/prod` at the repo
+root. Blobs uploaded during a session survive `aspire start` restarts and
+container recreations — to wipe state, just delete the `.azurite/` folder.
+The folder is gitignored.
 
 ## Open follow-ups
 
@@ -99,7 +100,3 @@ state, remove the volumes via Docker / Podman.
   the minimal-hosting model first. Until then, the `web` resource won't
   contribute traces/metrics to the Aspire dashboard, but everything else
   works.
-- **Debuggable HtmlGenerator**: it's invoked via `dotnet run --project ...`
-  rather than a typed `AddProject<T>` reference because `HtmlGenerator`
-  targets `net472` and can't be `ProjectReference`'d from the `net10`
-  AppHost. Attach manually if you need to debug it.
