@@ -44,16 +44,20 @@ Explicit-start (stopped by default — click **Start** in the dashboard):
 
 ## One-click bootstrap
 
-The `prodStorage` resource exposes a custom **bootstrap-all** command that
-runs the four pipeline resources in order (`step1-sample-build` →
-`step2-upload-stage1` → `step3-htmlgenerator` → `step4-publish-index`) and
-waits for each one to finish. This is the easy first-run path:
+The `prodStorage` resource exposes a custom **Bootstrap full pipeline**
+command (internal id `bootstrap-all`) that runs the four pipeline
+resources in order (`step1-sample-build` → `step2-upload-stage1` →
+`step3-htmlgenerator` → `step4-publish-index`) and waits for each one to
+finish. This is the easy first-run path:
 
 1. `aspire start`
 2. Open the dashboard.
-3. On the `prodStorage` resource, click the **bootstrap-all** command.
+3. On the `prodStorage` row, click the **⋯** button in the Actions
+   column and choose **Bootstrap full pipeline**.
 4. Wait for it to finish (watch the logs).
 5. Open the `web` URL — you should see `MiniRuntime`'s indexed HTML.
+
+![Bootstrap full pipeline menu on prodStorage](images/bootstrap-menu.png)
 
 Re-running any individual resource regenerates just that stage.
 
