@@ -92,11 +92,17 @@ root. Blobs uploaded during a session survive `aspire start` restarts and
 container recreations — to wipe state, just delete the `.azurite/` folder.
 The folder is gitignored.
 
+## Debugging individual components
+
+The AppHost runs each stage as its own resource, but the underlying projects are normal .NET projects you can debug directly in **Visual Studio** or **VS Code**:
+
+- **`HtmlGenerator`** (`src/SourceBrowser/src/HtmlGenerator/`) — set breakpoints, then either start it from the IDE pointing at an existing binlog under `samples/MiniRuntime/bin/sample/`, or attach to the `step3-htmlgenerator` process after kicking it off from the dashboard.
+- **`SourceIndexServer`** (`src/SourceBrowser/src/SourceIndexServer/`) — F5 from the IDE for fast inner-loop on the web UI. To debug against Azurite data, set `AZURE_STORAGE_CONNECTION_STRING` and `SOURCE_BROWSER_INDEX_PROXY_URL` from the running AppHost (visible on the `web` resource's env vars panel in the dashboard) in your launch profile.
+- **`UploadIndexStage1`** (`src/UploadIndexStage1/`) — same pattern: copy the env vars off the AppHost's `step2-upload-stage1` resource and run from the IDE.
+- **`BinLogToSln`** (`src/SourceBrowser/src/BinLogToSln/`) — runnable directly against any `.binlog` produced by `step1-sample-build`.
+
+The Aspire dashboard's per-resource "Environment" tab is the source of truth for the env vars Aspire injects — copy those into your `launchSettings.json` to reproduce the AppHost environment under a debugger.
+
 ## Open follow-ups
 
-- **ServiceDefaults / dashboard telemetry**: `SourceIndexServer` still uses
-  the legacy `IHostBuilder` + `Startup<T>` bootstrap. Wiring
-  `AddServiceDefaults()` / `MapDefaultEndpoints()` requires migrating to
-  the minimal-hosting model first. Until then, the `web` resource won't
-  contribute traces/metrics to the Aspire dashboard, but everything else
-  works.
+- **End-to-end OTel validation**: ServiceDefaults are wired into `SourceIndexServer` and `UploadIndexStage1`, but flowing traces across `HtmlGenerator` (net472) into the dashboard hasn't been validated yet.
