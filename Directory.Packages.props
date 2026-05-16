@@ -1,3 +1,6 @@
 <Project>
   <Import Project="src\SourceBrowser\src\Directory.Packages.props" />
+  <ItemGroup>
+    <PackageVersion Include="Aspire.Hosting.Azure.Storage" Version="13.3.2" />
+  </ItemGroup>
 </Project>

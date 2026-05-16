@@ -1,0 +1,26 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.3.2">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>fc6b83b7-dced-49f7-aa1c-78458fd03ee3</UserSecretsId>
+    <!-- The repo's central package management pins older versions of
+         Azure.Identity / Azure.Storage.Blobs / Newtonsoft.Json that the
+         Aspire 13.3.2 hosting integrations need to upgrade. The Aspire SDK
+         auto-injects compatible versions for its own packages, so we opt
+         out of CPM for the AppHost project only. -->
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.Azure.Storage" Version="13.3.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SourceBrowser\src\SourceIndexServer\SourceIndexServer.csproj" />
+    <ProjectReference Include="..\UploadIndexStage1\UploadIndexStage1.csproj" />
+  </ItemGroup>
+
+</Project>

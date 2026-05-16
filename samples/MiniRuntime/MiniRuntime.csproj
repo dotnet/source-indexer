@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>MiniRuntime</RootNamespace>
+    <AssemblyName>MiniRuntime</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- This is a tiny fixture used only by the Aspire inner-loop AppHost.
+         It is not packaged or published anywhere. -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+</Project>
