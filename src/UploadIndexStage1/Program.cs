@@ -12,6 +12,7 @@ using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using ICSharpCode.SharpZipLib.GZip;
 using ICSharpCode.SharpZipLib.Tar;
+using Microsoft.Extensions.Hosting;
 using Mono.Options;
 
 namespace UploadIndexStage1
@@ -19,6 +20,22 @@ namespace UploadIndexStage1
     class Program
     {
         static async Task Main(string[] args)
+        {
+            var hostBuilder = Host.CreateApplicationBuilder(args);
+            hostBuilder.AddServiceDefaults();
+            using var host = hostBuilder.Build();
+            await host.StartAsync();
+            try
+            {
+                await RunAsync(args);
+            }
+            finally
+            {
+                await host.StopAsync();
+            }
+        }
+
+        static async Task RunAsync(string[] args)
         {
             string sourceFolder = null;
             string repoName = null;

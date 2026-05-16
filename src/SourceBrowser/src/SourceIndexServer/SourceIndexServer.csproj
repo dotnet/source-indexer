@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Common\Common.csproj" />
+    <ProjectReference Include="..\..\..\source-indexer.ServiceDefaults\source-indexer.ServiceDefaults.csproj" />
   </ItemGroup>
 
 </Project>
