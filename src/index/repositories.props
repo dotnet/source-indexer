@@ -6,16 +6,22 @@
     </ArcadeBuildCmd>
   </PropertyGroup>
   <ItemGroup>
-    <!-- Repos indexed via the dotnet/dotnet VMR build (source-build + Windows vertical) -->
-    <RepositoryV2 Include="dotnet">
-      <RepoName>dotnet-dotnet</RepoName>
-      <Url>https://github.com/dotnet/dotnet</Url>
-    </RepositoryV2>
+    <!-- Repos indexed via the dotnet/dotnet VMR build (source-build + Windows vertical).
+         The VMR uploads two bundles: 'dotnet-dotnet' from a Linux source-build job
+         (most repos) and 'dotnet-dotnet-windows' for Windows-only repos (winforms,
+         wpf, windowsdesktop) from a Windows vertical. Both entries share the same
+         ExtractPath/LocalPath so the index sees one repo. 'dotnet' is declared last
+         so its hash is authoritative for source links (last-declared entry wins in
+         both hash validation and HtmlGenerator). -->
     <RepositoryV2 Include="dotnet-win">
       <RepoName>dotnet-dotnet-windows</RepoName>
       <Url>https://github.com/dotnet/dotnet</Url>
       <ExtractPath>$(RepositoryPath)dotnet/</ExtractPath>
       <LocalPath>$(RepositoryPath)dotnet/src/</LocalPath>
+    </RepositoryV2>
+    <RepositoryV2 Include="dotnet">
+      <RepoName>dotnet-dotnet</RepoName>
+      <Url>https://github.com/dotnet/dotnet</Url>
     </RepositoryV2>
 
     <!-- Repos not in the VMR that still upload their own stage 1 data -->

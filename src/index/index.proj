@@ -102,10 +102,14 @@
       OutputDirectory="%(RepositoryV2.ExtractPath)"
       StorageAccount="$(Stage1StorageAccount)"
       BlobContainer="$(Stage1StorageContainer)"/>
+    <!-- Save the hash to a per-identity file so later downloads sharing the same
+         ExtractPath don't silently overwrite it. -->
+    <Copy SourceFiles="%(RepositoryV2.ExtractPath)hash"
+          DestinationFiles="%(RepositoryV2.ExtractPath)hash.%(Identity)" />
   </Target>
 
   <Target Name="ResolveHashV2" Outputs="%(RepositoryV2.Identity)">
-    <ReadLinesFromFile File="%(RepositoryV2.ExtractPath)hash">
+    <ReadLinesFromFile File="%(RepositoryV2.ExtractPath)hash.%(Identity)">
       <Output TaskParameter="Lines" PropertyName="CommitHash"/>
     </ReadLinesFromFile>
     <ItemGroup>
@@ -115,7 +119,23 @@
     </ItemGroup>
   </Target>
 
-  <Target Name="CloneV2" DependsOnTargets="DownloadRepositoryV2;ResolveHashV2" Condition="'@(RepositoryV2)' != ''"/>
+  <!-- After downloading, verify entries sharing an ExtractPath have identical hashes.
+       Each per-identity hash file was saved during DownloadRepositoryV2. The bare 'hash'
+       file was left by the last download to that path. Any entry whose per-identity hash
+       differs from the bare hash indicates the bundles came from different builds. -->
+  <Target Name="ValidateSharedHashes" DependsOnTargets="DownloadRepositoryV2"
+          Outputs="%(RepositoryV2.Identity)">
+    <ReadLinesFromFile File="%(RepositoryV2.ExtractPath)hash.%(Identity)">
+      <Output TaskParameter="Lines" PropertyName="_ThisHash"/>
+    </ReadLinesFromFile>
+    <ReadLinesFromFile File="%(RepositoryV2.ExtractPath)hash">
+      <Output TaskParameter="Lines" PropertyName="_CanonicalHash"/>
+    </ReadLinesFromFile>
+    <Warning Condition="'$(_ThisHash)' != '$(_CanonicalHash)'"
+             Text="Hash mismatch: '%(RepositoryV2.Identity)' has hash '$(_ThisHash)' but another entry sharing ExtractPath '%(RepositoryV2.ExtractPath)' has hash '$(_CanonicalHash)'. These bundles may be from different builds." />
+  </Target>
+
+  <Target Name="CloneV2" DependsOnTargets="DownloadRepositoryV2;ValidateSharedHashes;ResolveHashV2" Condition="'@(RepositoryV2)' != ''"/>
 
   <Target Name="Clone" DependsOnTargets="CloneV1;CloneV2">
   </Target>
