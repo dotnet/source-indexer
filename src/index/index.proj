@@ -21,7 +21,7 @@
     </Repository>
 
     <RepositoryV2>
-      <LocalPath>$(RepositoryPath)%(Identity)/src/</LocalPath>
+      <LocalPath>$(RepositoryPath)%(Identity)/</LocalPath>
       <ExtractPath>$(RepositoryPath)%(Identity)/</ExtractPath>
     </RepositoryV2>
   </ItemDefinitionGroup>

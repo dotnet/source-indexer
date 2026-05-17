@@ -17,7 +17,7 @@
       <RepoName>dotnet-dotnet-windows</RepoName>
       <Url>https://github.com/dotnet/dotnet</Url>
       <ExtractPath>$(RepositoryPath)dotnet/</ExtractPath>
-      <LocalPath>$(RepositoryPath)dotnet/src/</LocalPath>
+      <LocalPath>$(RepositoryPath)dotnet/</LocalPath>
     </RepositoryV2>
     <RepositoryV2 Include="dotnet">
       <RepoName>dotnet-dotnet</RepoName>

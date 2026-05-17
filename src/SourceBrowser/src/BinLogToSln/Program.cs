@@ -233,7 +233,7 @@ namespace BinLogToSln
                 Console.WriteLine($"Converting Project: {invocation.ProjectFilePath}");
 
                 string repoRelativeProjectPath = Path.GetRelativePath(repoRoot, invocation.ProjectFilePath);
-                string projectFilePath = Path.Join(output, "src", repoRelativeProjectPath);
+                string projectFilePath = Path.Join(output, repoRelativeProjectPath);
                 string projectName = Path.GetFileNameWithoutExtension(projectFilePath);
                 string projectDirectory = Path.GetDirectoryName(projectFilePath);
                 Directory.CreateDirectory(projectDirectory);
@@ -245,7 +245,7 @@ namespace BinLogToSln
                     LanguageNames.VisualBasic => (VBProjectTypeGuid, false),
                     _ => (CSharpProjectTypeGuid, true),
                 };
-                sln.WriteLine($"Project(\"{typeGuid}\") = \"{projectName}\", \"{Path.Join("src", repoRelativeProjectPath)}\", \"{GetProjectGuid()}\"");
+                sln.WriteLine($"Project(\"{typeGuid}\") = \"{projectName}\", \"{repoRelativeProjectPath}\", \"{GetProjectGuid()}\"");
                 sln.WriteLine("EndProject");
                 project.WriteLine("<Project Sdk=\"Microsoft.NET.Sdk\">");
                 project.WriteLine("  <PropertyGroup>");
@@ -340,7 +340,7 @@ namespace BinLogToSln
                     {
                         string externalPath = Path.Join("_external", idx++.ToString(), Path.GetFileName(filePath));
                         // not in the repo dir, treat as external
-                        projectRelativePath = Path.Join(Path.GetRelativePath(invocation.ProjectDirectory, repoRoot), "..", externalPath);
+                        projectRelativePath = Path.Join(Path.GetRelativePath(invocation.ProjectDirectory, repoRoot), externalPath);
                         outputFile = Path.Join(output, externalPath);
                     }
                     else
@@ -350,7 +350,7 @@ namespace BinLogToSln
                         {
                             link = repoRelativePath;
                         }
-                        outputFile = Path.Join(output, "src", repoRelativePath);
+                        outputFile = Path.Join(output, repoRelativePath);
                     }
                     Directory.CreateDirectory(Path.GetDirectoryName(outputFile));
                     if (!File.Exists(outputFile))
@@ -375,7 +375,7 @@ namespace BinLogToSln
                     }
 
                     string projToRepoPath = Path.GetRelativePath(invocation.ProjectDirectory, repoRoot);
-                    string projToOutputPath = Path.Join(projToRepoPath, "..");
+                    string projToOutputPath = projToRepoPath;
                     string refPath = DedupeReference(output, path);
                     project.WriteLine($"    <{kind} Include=\"{Path.Join(projToOutputPath, refPath)}\"/>");
                 }
