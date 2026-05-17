@@ -226,7 +226,7 @@ extends:
               Start-Sleep 60
               $urls = @(
                 "https://$(stagingHost)"
-                "https://$(stagingHost)/System.Private.CoreLib/src/libraries/System.Private.CoreLib/src/System/String.cs.html"
+                "https://$(stagingHost)/System.Private.CoreLib/src/runtime/src/libraries/System.Private.CoreLib/src/System/String.cs.html"
               )
               foreach ($url in $urls) {
                 Write-Host "Testing URL: $url"
