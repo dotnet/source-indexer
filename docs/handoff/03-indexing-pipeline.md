@@ -58,9 +58,7 @@ Current V1 repos (in [`repositories.props`](../../src/index/repositories.props))
 | Identity | URL | PrepareCommand |
 |---|---|---|
 | `iot` | https://github.com/dotnet/iot | `$(ArcadeBuildCmd)` |
-| `msbuild` | https://github.com/dotnet/msbuild | `$(ArcadeBuildCmd)` (also sets `DeepClone=true`) |
 | `performance` | https://github.com/dotnet/performance | `$(ArcadeBuildCmd) -projects src\benchmarks\micro\MicroBenchmarks.sln` |
-| `sdk` | https://github.com/dotnet/sdk | `$(ArcadeBuildCmd) -projects src\benchmarks\micro\MicroBenchmarks.sln` |
 
 `ArcadeBuildCmd` is defined at the top of `repositories.props`:
 
@@ -76,13 +74,12 @@ The output of the Arcade build is one or more `*.binlog` files inside `bin/repo/
 A real V1 entry looks like this — `msbuild` from [`repositories.props`](../../src/index/repositories.props):
 
 ```xml
-<Repository Include="msbuild">
-  <Url>https://github.com/dotnet/msbuild</Url>
-  <Branch>main</Branch>
-  <DeepClone>true</DeepClone>
+<Repository Include="iot">
+  <Url>https://github.com/dotnet/iot</Url>
   <PrepareCommand>
     $(ArcadeBuildCmd)
   </PrepareCommand>
+  <Branch>main</Branch>
 </Repository>
 ```
 
@@ -120,26 +117,27 @@ Current V2 repos (in [`repositories.props`](../../src/index/repositories.props))
 
 | Identity | RepoName (blob prefix) | URL |
 |---|---|---|
-| `arcade` | `dotnet-arcade` | https://github.com/dotnet/arcade |
-| `roslyn` | `dotnet-roslyn` | https://github.com/dotnet/roslyn |
-| `runtime` | `dotnet-runtime` | https://github.com/dotnet/runtime |
-| `winforms` | `dotnet-winforms` | https://github.com/dotnet/winforms |
-| `wpf` | `dotnet-wpf` | https://github.com/dotnet/wpf |
+| `dotnet-win` | `dotnet-dotnet-win` | https://github.com/dotnet/dotnet |
+| `dotnet` | `dotnet-dotnet` | https://github.com/dotnet/dotnet |
 | `maui` | `dotnet-maui` | https://github.com/dotnet/maui |
 | `machinelearning` | `dotnet-machinelearning` | https://github.com/dotnet/machinelearning |
 | `wcf` | `dotnet-wcf` | https://github.com/dotnet/wcf |
-| `aspnetcore` | `dotnet-aspnetcore` | https://github.com/dotnet/aspnetcore |
 | `aspire` | `dotnet-aspire` | https://github.com/dotnet/aspire |
 | `extensions` | `dotnet-extensions` | https://github.com/dotnet/extensions |
 
+#### dotnet-dotnet-win
+
+The VMR - https://github.com/dotnet/dotnet - produces 2 stage1 blobs.  One from a Windows job, and another from a Linux job.  Rather than try to join those in it's own pipeline it relies on the source-indexer to do so.  
+It configures it's `RepositoryV2` item to extract to the same path for both and lets the indexing infrastructure consume all the solutions together.
+
 #### `<RepositoryV2>` schema
 
-A real V2 entry looks like this — `roslyn` from [`repositories.props`](../../src/index/repositories.props):
+A real V2 entry looks like this — `maui` from [`repositories.props`](../../src/index/repositories.props):
 
 ```xml
-<RepositoryV2 Include="roslyn">
-  <RepoName>dotnet-roslyn</RepoName>
-  <Url>https://github.com/dotnet/roslyn</Url>
+<RepositoryV2 Include="maui">
+  <RepoName>dotnet-maui</RepoName>
+  <Url>https://github.com/dotnet/maui</Url>
 </RepositoryV2>
 ```
 
@@ -161,8 +159,61 @@ Per-item metadata:
 | `LocalPath` | no | `$(RepositoryPath)<identity>/src/` | `BuildIndex` | The source root inside the extracted bundle |
 | `ExtractPath` | no | `$(RepositoryPath)<identity>/` | `DownloadRepositoryV2`, `ResolveHashV2` | The top-level extract directory (contains `hash` file plus extracted source/binlogs) |
 
-> **TODO (tribal knowledge):** confirm the exact on-disk layout produced inside each V2 bundle (which subfolders contain `.sln` vs `.binlog`, whether the bundle ships full source for HTML rendering, and how Roslyn vs Runtime vary). The `UploadIndexStage1` tool simply tars whatever folder it's pointed at, so the layout is set by each upstream repo's Arcade publish step.
+The layout of the Stage1 output is determined by the BinLogToSln tool.  It generates sln(s) in root for each binlog.  It copies binary references int a `ref` folder with hashes for each.  It produces csprojs in the same subpath they were in in the repo, but under a `src` folder in the Stage1 output directory and all the relevant source files are preserved under similar paths.  For any source files which were not present on disk, but generated, it extracts those from the PDB and places them in a unique path under src.  In this way it produces a self-contained sln file to be analyzed by source-indexer.
 
+For example (as seen from ouput of `Upload Source Index stage1 artifacts to Azure` step from machinelearning)
+
+``` // binary references from nuget packages / targeting packs are preserved under ref
+
+2026-04-24T21:07:52.8092719Z Adding D:/a/_work/1/s/.source-index/stage1output as 
+2026-04-24T21:07:52.8141418Z Adding D:/a/_work/1/s/.source-index/stage1output\dotnet-machinelearning.sln as dotnet-machinelearning.sln
+2026-04-24T21:07:52.8231022Z Adding D:/a/_work/1/s/.source-index/stage1output\hash as hash
+2026-04-24T21:07:52.8256182Z Adding D:/a/_work/1/s/.source-index/stage1output\ref as ref
+2026-04-24T21:07:52.8262321Z Adding D:/a/_work/1/s/.source-index/stage1output\ref\009c30d3d7124af49d5f04d1bae55e4d as ref/009c30d3d7124af49d5f04d1bae55e4d
+2026-04-24T21:07:52.8264186Z Adding D:/a/_work/1/s/.source-index/stage1output\ref\009c30d3d7124af49d5f04d1bae55e4d\System.Web.dll as ref/009c30d3d7124af49d5f04d1bae55e4d/System.Web.dll
+2026-04-24T21:07:52.8275371Z Adding D:/a/_work/1/s/.source-index/stage1output\ref\015686ae27e642789b164d744ce88905 as ref/015686ae27e642789b164d744ce88905
+2026-04-24T21:07:52.8276924Z Adding D:/a/_work/1/s/.source-index/stage1output\ref\015686ae27e642789b164d744ce88905\System.Security.Cryptography.Primitives.dll as ref/015686ae27e642789b164d744ce88905/System.Security.Cryptography.Primitives.dll
+
+... // source from packages is preserved
+
+2026-04-24T21:08:02.2409328Z Adding D:/a/_work/1/s/.source-index/stage1output\src as src
+2026-04-24T21:08:02.2411173Z Adding D:/a/_work/1/s/.source-index/stage1output\src\.packages as src/.packages
+2026-04-24T21:08:02.2415074Z Adding D:/a/_work/1/s/.source-index/stage1output\src\.packages\microsoft.dotnet.arcade.sdk as src/.packages/microsoft.dotnet.arcade.sdk
+
+... // generated source on disk is preserved with its on-disk location
+
+2026-04-24T21:08:02.2426913Z Adding D:/a/_work/1/s/.source-index/stage1output\src\artifacts\obj\Microsoft.Data.Analysis as src/artifacts/obj/Microsoft.Data.Analysis
+2026-04-24T21:08:02.2427950Z Adding D:/a/_work/1/s/.source-index/stage1output\src\artifacts\obj\Microsoft.Data.Analysis\Release as src/artifacts/obj/Microsoft.Data.Analysis/Release
+2026-04-24T21:08:02.2428913Z Adding D:/a/_work/1/s/.source-index/stage1output\src\artifacts\obj\Microsoft.Data.Analysis\Release\net8.0 as src/artifacts/obj/Microsoft.Data.Analysis/Release/net8.0
+2026-04-24T21:08:02.2429889Z Adding D:/a/_work/1/s/.source-index/stage1output\src\artifacts\obj\Microsoft.Data.Analysis\Release\net8.0\.NETCoreApp,Version=v8.0.AssemblyAttributes.cs as src/artifacts/obj/Microsoft.Data.Analysis/Release/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs
+
+... // source files with their repo-relative paths preserved under an extra `src` path added by BinLogToSln.
+
+2026-04-24T21:08:02.4011974Z Adding D:/a/_work/1/s/.source-index/stage1output\src\src as src/src
+2026-04-24T21:08:02.4013809Z Adding D:/a/_work/1/s/.source-index/stage1output\src\src\Common as src/src/Common
+2026-04-24T21:08:02.4015170Z Adding D:/a/_work/1/s/.source-index/stage1output\src\src\Common\tests as src/src/Common/tests
+2026-04-24T21:08:02.4016324Z Adding D:/a/_work/1/s/.source-index/stage1output\src\src\Common\tests\RetryHelper.cs as src/src/Common/tests/RetryHelper.cs
+2026-04-24T21:08:02.4017027Z Adding D:/a/_work/1/s/.source-index/stage1output\src\src\Microsoft.Data.Analysis as src/src/Microsoft.Data.Analysis
+2026-04-24T21:08:02.4018111Z Adding D:/a/_work/1/s/.source-index/stage1output\src\src\Microsoft.Data.Analysis\ColumnArithmetic.OperationEnums.cs as src/src/Microsoft.Data.Analysis/ColumnArithmetic.OperationEnums.cs
+2026-04-24T21:08:02.4018779Z Adding D:/a/_work/1/s/.source-index/stage1output\src\src\Microsoft.Data.Analysis\Converters.cs as src/src/Microsoft.Data.Analysis/Converters.cs
+
+... // An entirely synthetic CSProj generated by BinLogToSln based on selecting the "best" compilation instance from the binlog.
+
+2026-04-24T21:08:02.4130656Z Adding D:/a/_work/1/s/.source-index/stage1output\src\src\Microsoft.Data.Analysis\Microsoft.Data.Analysis.csproj as src/src/Microsoft.Data.Analysis/Microsoft.Data.Analysis.csproj
+
+--- // Not actually a netcoreapp2.1 build, but the actual compile output located from the "best" compilation chosen from the binlog.
+
+2026-04-24T21:08:02.4377232Z Adding D:/a/_work/1/s/.source-index/stage1output\src\src\Microsoft.Data.Analysis\bin as src/src/Microsoft.Data.Analysis/bin
+2026-04-24T21:08:02.4378502Z Adding D:/a/_work/1/s/.source-index/stage1output\src\src\Microsoft.Data.Analysis\bin\Debug as src/src/Microsoft.Data.Analysis/bin/Debug
+2026-04-24T21:08:02.4379303Z Adding D:/a/_work/1/s/.source-index/stage1output\src\src\Microsoft.Data.Analysis\bin\Debug\netcoreapp2.1 as src/src/Microsoft.Data.Analysis/bin/Debug/netcoreapp2.1
+2026-04-24T21:08:02.4380180Z Adding D:/a/_work/1/s/.source-index/stage1output\src\src\Microsoft.Data.Analysis\bin\Debug\netcoreapp2.1\Microsoft.Data.Analysis.dll as src/src/Microsoft.Data.Analysis/bin/Debug/netcoreapp2.1/Microsoft.Data.Analysis.dll
+
+... // external files extracted from PDB
+
+2026-04-24T21:08:04.3376947Z Adding D:/a/_work/1/s/.source-index/stage1output\_external as _external
+2026-04-24T21:08:04.3378352Z Adding D:/a/_work/1/s/.source-index/stage1output\_external\1 as _external/1
+2026-04-24T21:08:04.3378967Z Adding D:/a/_work/1/s/.source-index/stage1output\_external\1\EstimatorType.cs as _external/1/EstimatorType.cs
+2026-04-24T21:08:04.3384525Z Adding D:/a/_work/1/s/.source-index/stage1output\_external\1\Mistral_7B_Instruct_1390cd9b-58e7-450e-8281-cfb73a6ee178.generated.cs as _external/1/Mistral_7B_Instruct_1390cd9b-58e7-450e-8281-cfb73a6ee178.
 ---
 
 ## 3. Target-by-target walkthrough of `src/index/index.proj`
@@ -312,8 +363,6 @@ For each `ClonedRepositoryV2`:
 ```
 
 Captures every `.sln` shipped inside the V2 bundle.
-
-> Note: the V2 bundle's `.binlog`s are also discoverable on disk under `ExtractPath`, but this target only globs for `.sln`. **TODO (tribal knowledge):** confirm whether V2 bundles are expected to ship binlogs at all or whether HtmlGenerator's `.sln` ingestion is the entire V2 path. (The bundle's tar layout, including which directories contain which file types, is set by each upstream repo and is not documented in this repo.)
 
 ### 3.12 `BuildGenerator`
 
