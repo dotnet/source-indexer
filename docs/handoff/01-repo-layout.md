@@ -41,17 +41,6 @@ src/
 | `SelectProjects.cs` | `SelectProjects` | Implements the source-selection scoring algorithm — given an overlapping set of repos that all ship the same project/assembly (e.g. several repos that all redistribute `System.Text.Json`), picks the *single* repo that should "own" the indexed version of that file. Exposed via `build.proj` target `SelectProjects` for diagnostic runs; **not part of the production build path** today. Deep dive: [03 — Indexing pipeline §3.15](03-indexing-pipeline.md#315-selectprojects) and the algorithm spec in [`docs/source-selection-algorithm.md`](../source-selection-algorithm.md). |
 | `Extensions.cs` | _(no task)_ | Shared utility helpers used by the two tasks above (e.g. logging, path handling). Nothing pipeline-facing. |
 
-There's also a third task referenced from [`src/index/SourceIndex.targets`](../../src/index/SourceIndex.targets) (line 13, 20): `ResolveLivePackageReferences`. **The C# class for this task does not appear to exist anywhere in this repo** — `grep -r "class ResolveLivePackageReferences"` returns nothing, and `Microsoft.SourceIndexer.Tasks` only ships `DownloadStage1Index` + `SelectProjects`. The `<UsingTask>` points at `$(SourceIndexerTasksAssembly)` (which would mean *this* assembly), so this is either dead code that's never invoked at runtime, or the task gets pulled in via a different build that drops a richer assembly on top.
-
-**Git archaeology:** `SourceIndex.targets` was last touched in 2016 by [@alexperovich](https://github.com/alexperovich) ("Remove need to workaround in corefx") and the `ResolveLivePackageReferences` usage was introduced earlier in 2016–2017, also by Alex. He likely is the original author of the missing task and may remember whether it was always external or whether it got deleted along the way.
-
-**TODO @radical / TODO [@ericstj](https://github.com/ericstj):** confirm whether `ResolveLivePackageReferences` is:
-
-1. Dead code — the `RewritePackageReferences` target it gates is unreachable in today's build and can be deleted; or
-2. Still live — the task class lives in some other assembly that ends up satisfying the `<UsingTask>` resolution at runtime, in which case we need to document where it actually comes from.
-
-Ankit/Eric: if neither of you knows, the next person to ask is likely [@alexperovich](https://github.com/alexperovich) (original author of `SourceIndex.targets`).
-
 ### `src/UploadIndexStage1/`
 
 A `net10.0` console app marked `PackAsTool` with `<VersionPrefix>2.0.0</VersionPrefix>`. Published to the **`dnceng/public` `dotnet-tools`** NuGet feed (`9ee6d478-d288-47f7-aacc-f6e6d082ae6d/d1622942-d16f-48e5-bc83-96f4539e7601`) by the pipeline. This is the same public feed Arcade pulls from when an upstream repo opts into `enableSourceIndex: true` — see [`04-arcade-and-dotnet-integration.md`](./04-arcade-and-dotnet-integration.md#32-how-an-upstream-repo-uses-it-via-arcades-enablesourceindex).
