@@ -1,6 +1,7 @@
 using LibGit2Sharp;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Emit;
 using Microsoft.SourceBrowser.BinLogParser;
 using Mono.Options;
 using NuGet.Frameworks;
@@ -382,12 +383,23 @@ namespace BinLogToSln
 
                 IEnumerable<(string FilePath, MemoryStream Stream)> getGeneratedFiles()
                 {
+                    // Only portable PDB and embedded PDB formats can store generated files.
+                    // Skip projects using other formats to avoid a noisy InvalidOperationException.
+                    // See https://github.com/dotnet/dotnet/issues/6745
+                    var args = invocation.Parsed;
+                    if (!args.EmitPdb ||
+                        args.EmitOptions.DebugInformationFormat is not
+                            (DebugInformationFormat.PortablePdb or DebugInformationFormat.Embedded))
+                    {
+                        return [];
+                    }
+
                     try
                     {
                         return Basic.CompilerLog.Util.RoslynUtil.ReadGeneratedFilesFromPdb(
                             isCSharp: isCSharp,
                             diagnosticName: invocation.ProjectFilePath,
-                            invocation.Parsed);
+                            args);
                     }
                     catch (Exception ex)
                     {
