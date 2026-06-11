@@ -12,6 +12,7 @@ using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using ICSharpCode.SharpZipLib.GZip;
 using ICSharpCode.SharpZipLib.Tar;
+using Microsoft.Extensions.Hosting;
 using Mono.Options;
 
 namespace UploadIndexStage1
@@ -20,11 +21,28 @@ namespace UploadIndexStage1
     {
         static async Task Main(string[] args)
         {
+            var hostBuilder = Host.CreateApplicationBuilder(args);
+            hostBuilder.AddServiceDefaults();
+            using var host = hostBuilder.Build();
+            await host.StartAsync();
+            try
+            {
+                await RunAsync(args);
+            }
+            finally
+            {
+                await host.StopAsync();
+            }
+        }
+
+        static async Task RunAsync(string[] args)
+        {
             string sourceFolder = null;
             string repoName = null;
             string clientId = null;
             string storageAccount = null;
             string blobContainer = null;
+            string connectionString = null;
             var options = new OptionSet
             {
                 {"i=", "The source folder", i => sourceFolder = i},
@@ -32,6 +50,7 @@ namespace UploadIndexStage1
                 {"c=", "The Azure Client ID (optional)", c => clientId = c},
                 {"s=", "The destination storage account name or URL", s => storageAccount = s},
                 {"b=", "The destination storage account container", b => blobContainer = b},
+                {"connection-string=", "Optional connection string for blob auth. When set, -s/-c are ignored.", cs => connectionString = cs},
             };
 
             List<string> extra = options.Parse(args);
@@ -51,9 +70,9 @@ namespace UploadIndexStage1
                 Fatal("Missing argument -n");
             }
 
-            if (string.IsNullOrEmpty(storageAccount))
+            if (string.IsNullOrEmpty(connectionString))
             {
-                Fatal("Missing argument -s");
+                connectionString = Environment.GetEnvironmentVariable("AZURE_STORAGE_CONNECTION_STRING");
             }
 
             if (string.IsNullOrEmpty(blobContainer))
@@ -61,37 +80,52 @@ namespace UploadIndexStage1
                 Fatal("Missing argument -b");
             }
 
-            if (!storageAccount.StartsWith("https://"))
-            {
-                storageAccount = "https://" + storageAccount + ".blob.core.windows.net";
-            }
-
+            BlobServiceClient blobServiceClient;
             using AzureEventSourceListener listener = AzureEventSourceListener.CreateConsoleLogger();
 
-            TokenCredential credential;
-
-            if (string.IsNullOrEmpty(clientId) && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ARM_CLIENT_ID")))
+            if (!string.IsNullOrEmpty(connectionString))
             {
-                clientId = Environment.GetEnvironmentVariable("ARM_CLIENT_ID");
-                System.Console.WriteLine("Found client ID in environment variable; using it");
-            }
-
-            if (string.IsNullOrEmpty(clientId))
-            {
-                credential = new AzureCliCredential();
-                System.Console.WriteLine("Trying to use managed identity without default identity");
+                Console.WriteLine("Using connection-string for blob auth.");
+                blobServiceClient = new BlobServiceClient(connectionString);
             }
             else
             {
-                System.Console.WriteLine("Trying to use ManagedIdentityCredential with ClientID");
-                credential = new ManagedIdentityCredential(clientId);
+                if (string.IsNullOrEmpty(storageAccount))
+                {
+                    Fatal("Missing argument -s (or supply --connection-string / AZURE_STORAGE_CONNECTION_STRING)");
+                }
+
+                if (!storageAccount.StartsWith("https://"))
+                {
+                    storageAccount = "https://" + storageAccount + ".blob.core.windows.net";
+                }
+
+                TokenCredential credential;
+
+                if (string.IsNullOrEmpty(clientId) && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ARM_CLIENT_ID")))
+                {
+                    clientId = Environment.GetEnvironmentVariable("ARM_CLIENT_ID");
+                    System.Console.WriteLine("Found client ID in environment variable; using it");
+                }
+
+                if (string.IsNullOrEmpty(clientId))
+                {
+                    credential = new AzureCliCredential();
+                    System.Console.WriteLine("Trying to use managed identity without default identity");
+                }
+                else
+                {
+                    System.Console.WriteLine("Trying to use ManagedIdentityCredential with ClientID");
+                    credential = new ManagedIdentityCredential(clientId);
+                }
+
+                blobServiceClient = new BlobServiceClient(
+                    new Uri(storageAccount),
+                    credential);
             }
 
-            BlobServiceClient blobServiceClient = new(
-                new Uri(storageAccount),
-                credential);
-
             var containerClient = blobServiceClient.GetBlobContainerClient(blobContainer);
+            await containerClient.CreateIfNotExistsAsync();
             string newBlobName = $"{repoName}/{DateTime.UtcNow:O}.tar.gz";
             BlobClient newBlobClient = containerClient.GetBlobClient(newBlobName);
 

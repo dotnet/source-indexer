@@ -16,6 +16,17 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
 
         public AzureBlobFileSystem(string uri)
         {
+            // If AZURE_STORAGE_CONNECTION_STRING is set, initialize the client from
+            // the connection string. The container name still comes from `uri` so
+            // the existing SOURCE_BROWSER_INDEX_PROXY_URL contract is preserved.
+            string? connectionString = Environment.GetEnvironmentVariable("AZURE_STORAGE_CONNECTION_STRING");
+            if (!string.IsNullOrEmpty(connectionString))
+            {
+                string containerName = GetContainerNameFromUri(uri);
+                container = new BlobContainerClient(connectionString, containerName);
+                return;
+            }
+
             var clientId = Environment.GetEnvironmentVariable("AZURE_CLIENT_ID");
             credential = string.IsNullOrEmpty(clientId)
                             ? new AzureCliCredential()
@@ -23,6 +34,39 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
 
             container = new BlobContainerClient(new Uri(uri),
                                                 credential);
+        }
+
+        private static string GetContainerNameFromUri(string uri)
+        {
+            // The connection-string form of `uri` may include a ContainerName=
+            // segment (e.g. "DefaultEndpointsProtocol=...;ContainerName=index").
+            // Honor that segment first so callers can pass a full connection
+            // string instead of a URL.
+            if (uri.Contains("ContainerName=", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (var segment in uri.Split(';', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    if (segment.StartsWith("ContainerName=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return segment["ContainerName=".Length..].Trim();
+                    }
+                }
+            }
+
+            var parsed = new Uri(uri);
+            // Azurite URLs are http://host:port/devstoreaccount1/<container>, real
+            // Azure URLs are https://<account>.blob.core.windows.net/<container>.
+            // In both cases the last non-empty path segment is the container.
+            string[] segments = parsed.AbsolutePath
+                .Split('/', StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Length == 0)
+            {
+                throw new ArgumentException(
+                    $"URI '{uri}' has no path segments; cannot derive container name.",
+                    nameof(uri));
+            }
+
+            return segments[segments.Length - 1];
         }
 
         public bool DirectoryExists(string name)

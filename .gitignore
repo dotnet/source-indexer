@@ -257,3 +257,19 @@ paket-files/
 *.binlog
 
 *.lscache
+
+# Aspire inner-loop
+.azurite/
+samples/*/bin/sample/
+bin/index/
+
+
+# Aspire CLI / tooling state
+.agents/
+.playwright/
+.modules/
+
+
+# HtmlGenerator drops Errors.txt into its working directory on startup.
+src/SourceBrowser/src/HtmlGenerator/Errors.txt
+

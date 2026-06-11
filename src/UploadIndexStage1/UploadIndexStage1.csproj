@@ -16,4 +16,8 @@
     <PackageReference Include="SharpZipLib" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\source-indexer.ServiceDefaults\source-indexer.ServiceDefaults.csproj" />
+  </ItemGroup>
+
 </Project>
