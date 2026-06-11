@@ -24,7 +24,7 @@ var stage1Storage = builder.AddAzureStorage("stage1Storage")
     });
 
 var stage1Blobs = stage1Storage.AddBlobs("stage1-blobs");
-var stage1Container = stage1Blobs.AddBlobContainer("stage1", blobContainerName: "stage1");
+var stage1Container = stage1Storage.AddBlobContainer("stage1", blobContainerName: "stage1");
 
 var prodStorage = builder.AddAzureStorage("prodStorage")
     .RunAsEmulator(azurite =>
@@ -34,7 +34,7 @@ var prodStorage = builder.AddAzureStorage("prodStorage")
     });
 
 var prodBlobs = prodStorage.AddBlobs("prod-blobs");
-var indexContainer = prodBlobs.AddBlobContainer("index-local", blobContainerName: "index-local");
+var indexContainer = prodStorage.AddBlobContainer("index-local", blobContainerName: "index-local");
 
 // =============================================================================
 // Pipeline resources — all WithExplicitStart() so they only run when the user
