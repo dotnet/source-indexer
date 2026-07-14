@@ -753,8 +753,9 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         //
         // Pack file:  the raw fragment bytes concatenated back-to-back (each is a complete .html body,
         //             preamble and all, so the server can return them verbatim).
-        // Index file: int32 record count, then per record 16 ASCII symbol-id bytes, int64 offset,
-        //             int32 length. The 16-char lowercase hex id is exactly the request file name.
+        // Index file: int32 record count, then per record a length-prefixed symbol-id string (the request
+        //             file name), int64 offset, int32 length. Ids are usually 16-char hex hashes, but the
+        //             GUID assembly uses full 36-char guid strings, so the length must not be assumed.
         private sealed class ReferencePackBuilder
         {
             private readonly string _referencesFolder;
@@ -797,12 +798,9 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 {
                     writer.Write(_records.Count);
 
-                    var idBytes = new byte[16];
                     foreach (var (id, offset, length) in _records)
                     {
-                        // Symbol ids are always 16 lowercase hex characters, i.e. exactly 16 ASCII bytes.
-                        Encoding.ASCII.GetBytes(id, 0, id.Length, idBytes, 0);
-                        writer.Write(idBytes, 0, 16);
+                        writer.Write(id);
                         writer.Write(offset);
                         writer.Write(length);
                     }

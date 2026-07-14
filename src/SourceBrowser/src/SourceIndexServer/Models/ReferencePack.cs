@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
 
 namespace Microsoft.SourceBrowser.SourceIndexServer.Models
 {
@@ -57,15 +56,9 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
                 index = new Dictionary<string, int>(count, StringComparer.Ordinal);
                 records = new SafeHandleRecord[count];
 
-                var idBytes = new byte[16];
                 for (int i = 0; i < count; i++)
                 {
-                    if (reader.Read(idBytes, 0, 16) != 16)
-                    {
-                        return false;
-                    }
-
-                    var id = Encoding.ASCII.GetString(idBytes);
+                    var id = reader.ReadString();
                     long offset = reader.ReadInt64();
                     int length = reader.ReadInt32();
 

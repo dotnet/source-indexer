@@ -606,8 +606,66 @@ namespace HtmlGenerator.Tests
             packText.Substring(line2AnchorTagStart, line2AnchorStart - line2AnchorTagStart).ShouldContain("data-configs=\"windows\"");
         }
 
+        [TestMethod]
+        public void Finalize_PacksReferences_ForSymbolIdsLongerThan16Chars()
+        {
+            // The reference pack index stores one length-prefixed id per record, so it must not assume the
+            // usual 16-hex-char symbol hash. Some references are keyed by longer ids (e.g. the GuidAssembly
+            // uses full 36-char guid strings), which previously overflowed the fixed 16-byte id field in
+            // ReferencePackBuilder.Complete: "The output byte buffer is too small to contain the encoded
+            // data". "Shared" is a regular (packed) assembly, and WriteReferencesContent's base-member
+            // lookup (Serialization.HexStringToULong) only consumes the first 16 chars, so a longer hex id
+            // still renders and packs -- reproducing the overflow end-to-end and reading it back through the
+            // same index the server uses.
+            const string symbolId = "0000000000000001abcd"; // 20 hex chars -- longer than the 16-char field.
+
+            CreateAssemblyFixture(linuxObjRoot, "Shared", referencedAssemblies: null);
+            CreateAssemblyFixture(windowsObjRoot, "Shared", referencedAssemblies: null);
+
+            var declarationMap = new Dictionary<string, List<Tuple<string, long>>>
+            {
+                [symbolId] = new List<Tuple<string, long>> { Tuple.Create("File.cs", 0L) },
+            };
+            ProjectGenerator.GenerateSymbolIDToListOfDeclarationLocationsMap(Path.Combine(linuxObjRoot, "Shared"), declarationMap);
+            ProjectGenerator.GenerateSymbolIDToListOfDeclarationLocationsMap(Path.Combine(windowsObjRoot, "Shared"), declarationMap);
+            File.WriteAllText(Path.Combine(linuxObjRoot, "Shared", "File.cs.html"), new string('A', 24), Encoding.ASCII);
+
+            var references = new Dictionary<string, List<Reference>>
+            {
+                [symbolId] = new List<Reference>
+                {
+                    new Reference
+                    {
+                        FromAssemblyId = "App",
+                        Url = "App/File.cs.html",
+                        FromLocalPath = "File.cs",
+                        ReferenceLineNumber = 1,
+                        ReferenceColumnStart = 0,
+                        ReferenceColumnEnd = 1,
+                        ReferenceLineText = "x",
+                        ToSymbolName = "SomeSymbol",
+                        Kind = ReferenceKind.Reference,
+                    },
+                },
+            };
+
+            ProjectGenerator.GenerateReferencesDataFilesToAssembly(linuxObjRoot, "Shared", references);
+            ProjectGenerator.GenerateReferencesDataFilesToAssembly(windowsObjRoot, "Shared", references);
+
+            var configObjRoots = new Dictionary<string, string> { ["linux"] = linuxObjRoot, ["windows"] = windowsObjRoot };
+
+            ConfigAwareProjectFinalizer.Finalize(configObjRoots, websiteDestinationFolder, emitAssemblyList: false, federation: new Federation());
+
+            var referencesFolder = Path.Combine(websiteDestinationFolder, "Shared", Constants.ReferencesFileName);
+            var index = ReadPackedIndex(referencesFolder);
+            index.ShouldContainKey(symbolId);
+
+            var packText = Encoding.UTF8.GetString(ReadPackedFragment(referencesFolder, index[symbolId]));
+            packText.ShouldContain("<b>1</b>");
+        }
+
         // Mirrors SourceIndexServer's ReferencePack.TryLoad index format (int32 count, then per record a
-        // 16-byte ASCII symbol id + int64 offset + int32 length), scanning in write order so a later
+        // length-prefixed symbol id + int64 offset + int32 length), scanning in write order so a later
         // record for a duplicate id overwrites the earlier one -- same last-write-wins semantics the real
         // server relies on. Returns symbolId -> (offset, length) for the record that would actually be served.
         private static Dictionary<string, (long Offset, int Length)> ReadPackedIndex(string referencesFolder)
@@ -619,11 +677,9 @@ namespace HtmlGenerator.Tests
             using (var reader = new BinaryReader(stream))
             {
                 int count = reader.ReadInt32();
-                var idBytes = new byte[16];
                 for (int i = 0; i < count; i++)
                 {
-                    reader.Read(idBytes, 0, 16);
-                    var id = Encoding.ASCII.GetString(idBytes);
+                    var id = reader.ReadString();
                     long offset = reader.ReadInt64();
                     int length = reader.ReadInt32();
                     result[id] = (offset, length);
