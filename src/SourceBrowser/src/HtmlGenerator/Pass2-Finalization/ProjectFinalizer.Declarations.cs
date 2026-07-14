@@ -9,7 +9,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 {
     public partial class ProjectFinalizer
     {
-        private void BackpatchUnreferencedDeclarations(string referencesFolder)
+        private void BackpatchUnreferencedDeclarations(string referencesFolder, HashSet<string> additionalReferencedSymbolIds = null)
         {
             string declarationMapFile = Path.Combine(ProjectDestinationFolder, Constants.DeclarationMap + ".txt");
             if (!File.Exists(declarationMapFile))
@@ -29,7 +29,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     kvp => kvp.Value.Select(t => t.Item1.Replace('\\', '/'))));
 
             var locationsToPatch = new Dictionary<string, List<long>>();
-            GetLocationsToPatch(referencesFolder, locationsToPatch, symbolIDToListOfLocationsMap);
+            GetLocationsToPatch(referencesFolder, locationsToPatch, symbolIDToListOfLocationsMap, additionalReferencedSymbolIds);
             Patch(locationsToPatch);
 
             // The map is a Pass1 intermediate consumed only here, so drop it rather than leaving tens
@@ -37,7 +37,11 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             File.Delete(declarationMapFile);
         }
 
-        private void GetLocationsToPatch(string referencesFolder, Dictionary<string, List<long>> locationsToPatch, Dictionary<string, List<Tuple<string, long>>> symbolIDToListOfLocationsMap)
+        private void GetLocationsToPatch(
+            string referencesFolder,
+            Dictionary<string, List<long>> locationsToPatch,
+            Dictionary<string, List<Tuple<string, long>>> symbolIDToListOfLocationsMap,
+            HashSet<string> additionalReferencedSymbolIds = null)
         {
             // A symbol needs backpatching only when it has no references file. Reference data is now
             // sharded into a handful of files per assembly rather than one file per symbol, so scan the
@@ -77,6 +81,16 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             foreach (var id in ImplementedInterfaceMembers.Keys)
             {
                 symbolsWithReferences.Add(Serialization.ULongToHexString(id));
+            }
+
+            // Config-aware merge: symbols referenced only under a non-primary config are known here
+            // in-memory (from the merged reference set), without being written into any *_r*.dat shard --
+            // so they influence only this grey/no-grey decision and never bleed into the FAR render below
+            // (GenerateFinalReferencesFiles globs that exact same shard pattern and would otherwise render
+            // them untagged as if they were unconditional primary-config references).
+            if (additionalReferencedSymbolIds != null)
+            {
+                symbolsWithReferences.UnionWith(additionalReferencedSymbolIds);
             }
 
             foreach (var kvp in symbolIDToListOfLocationsMap)
@@ -119,32 +133,9 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
         private Dictionary<string, List<Tuple<string, long>>> ReadSymbolIDToListOfLocationsMap(string declarationMapFile)
         {
-            var result = new Dictionary<string, List<Tuple<string, long>>>();
-
-            var lines = File.ReadAllLines(declarationMapFile);
-
-            List<Tuple<string, long>> bucket = null;
-            string symbolId = null;
-
-            for (int i = 0; i < lines.Length; i++)
-            {
-                var line = lines[i];
-                if (line.StartsWith("=", StringComparison.Ordinal))
-                {
-                    symbolId = line.Substring(1);
-                    bucket = new List<Tuple<string, long>>();
-                    result.Add(symbolId, bucket);
-                }
-                else if (!string.IsNullOrWhiteSpace(line))
-                {
-                    var parts = line.Split(';');
-                    var streamOffset = long.Parse(parts[1]);
-                    var tuple = Tuple.Create(parts[0], streamOffset);
-                    bucket.Add(tuple);
-                }
-            }
-
-            return result;
+            // Shared with the config-mode merge step's non-destructive reader (ConfigDataReader), which
+            // needs the identical parse but without this method's caller deleting the file afterward.
+            return ConfigDataReader.ReadDeclarationMap(declarationMapFile);
         }
 
         private void AddLocationToPatch(Dictionary<string, List<long>> locationsToPatch, string filePath, long offset)

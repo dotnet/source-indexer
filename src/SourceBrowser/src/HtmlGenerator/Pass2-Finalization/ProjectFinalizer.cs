@@ -10,6 +10,15 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
     {
         public string ProjectDestinationFolder { get; private set; }
 
+        /// <summary>
+        /// True when this run retained the existing output copy from a previous run instead of
+        /// re-copying it from Pass1's source index -- i.e. an incremental run (/incremental) determined
+        /// this assembly's staleness key hasn't changed. Cross-assembly aggregates (references, "Used By")
+        /// are still recomputed for retained projects every run; only the expensive per-assembly copy is
+        /// skipped.
+        /// </summary>
+        public bool RetainedExistingOutput { get; private set; }
+
         private string projectSourcePath;
         private string referencesFolder;
         public SolutionFinalizer SolutionFinalizer;
@@ -34,13 +43,62 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             this.ImplementedInterfaceMembers = new MultiDictionary<ulong, Tuple<string, ulong>>();
             this.SolutionFinalizer = solutionFinalizer;
             ReferencingAssemblies = new List<string>();
-            this.ProjectDestinationFolder = directory;
-            this.referencesFolder = Path.Combine(directory, Constants.ReferencesFileName);
             this.AssemblyId = string.Intern(Path.GetFileName(directory));
+
+            // Copy Pass1's raw per-assembly folder into the finalized output root before doing anything
+            // else with it. Everything below this point -- reading, byte-patching declarations, consuming
+            // and deleting reference shards, appending "Used By" backlinks -- operates only on this copy,
+            // so Pass1's own folder (under SolutionFinalizer.SourceIndexFolder) is never mutated and stays
+            // a pure, re-derivable artifact.
+            this.ProjectDestinationFolder = Path.Combine(solutionFinalizer.SolutionDestinationFolder, AssemblyId);
+
+            this.RetainedExistingOutput = Configuration.Incremental && CanRetainExistingOutput(directory, this.ProjectDestinationFolder);
+
+            if (!this.RetainedExistingOutput)
+            {
+                // Always start from a clean copy of Pass1's current output rather than layering onto
+                // whatever (possibly stale, possibly already-patched) folder a previous finalize run may
+                // have left behind -- that's what makes re-running Pass2 alone safe and idempotent.
+                if (Directory.Exists(this.ProjectDestinationFolder))
+                {
+                    Directory.Delete(this.ProjectDestinationFolder, recursive: true);
+                }
+
+                FileUtilities.CopyDirectory(directory, this.ProjectDestinationFolder);
+            }
+
+            this.referencesFolder = Path.Combine(this.ProjectDestinationFolder, Constants.ReferencesFileName);
             ReadProjectInfo();
             ReadDeclarationLines();
             ReadBaseMembers();
             ReadImplementedInterfaceMembers();
+        }
+
+        /// <summary>
+        /// An incremental run can skip re-copying (and skip Pass1 regenerating, separately) an assembly
+        /// whose staleness key file -- written by Pass1 into its source folder and carried along into the
+        /// output copy the first time it's copied -- is unchanged and whose output copy already exists and
+        /// looks complete. This is the Pass2-side half of the same staleness check ProjectStaleness/
+        /// ProjectGenerator perform for Pass1; both gate on the identical key so a project's regen and its
+        /// copy are always skipped or performed together.
+        /// </summary>
+        private static bool CanRetainExistingOutput(string sourceDirectory, string outputDirectory)
+        {
+            if (!Directory.Exists(outputDirectory))
+            {
+                return false;
+            }
+
+            var sourceKeyFile = Path.Combine(sourceDirectory, Constants.StalenessKeyFileName + ".txt");
+            var outputKeyFile = Path.Combine(outputDirectory, Constants.StalenessKeyFileName + ".txt");
+            var outputMarkerFile = Path.Combine(outputDirectory, Constants.ProjectInfoFileName + ".txt");
+
+            if (!File.Exists(sourceKeyFile) || !File.Exists(outputKeyFile) || !File.Exists(outputMarkerFile))
+            {
+                return false;
+            }
+
+            return string.Equals(File.ReadAllText(sourceKeyFile), File.ReadAllText(outputKeyFile), StringComparison.Ordinal);
         }
 
         public override string ToString()

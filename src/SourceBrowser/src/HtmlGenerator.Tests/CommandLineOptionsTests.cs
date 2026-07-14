@@ -125,5 +125,41 @@ namespace HtmlGenerator.Tests
         {
             CommandLineOptions.Parse("/force").RepoPathMappings.ShouldBeEmpty();
         }
+
+        [TestMethod]
+        public void Config_is_null_by_default()
+        {
+            CommandLineOptions.Parse("/force").Config.ShouldBeNull();
+        }
+
+        [TestMethod]
+        public void Config_flag_is_parsed()
+        {
+            CommandLineOptions.Parse("/config:windows").Config.ShouldBe("windows");
+        }
+
+        [TestMethod]
+        public void Config_flag_strips_quotes()
+        {
+            CommandLineOptions.Parse("/config:\"windows x64\"").Config.ShouldBe("windows x64");
+        }
+
+        [TestMethod]
+        public void MergeConfigsOnly_defaults_to_false()
+        {
+            CommandLineOptions.Parse("/out:foo", "a.sln").MergeConfigsOnly.ShouldBeFalse();
+        }
+
+        [TestMethod]
+        public void MergeConfigsOnly_flag_is_parsed()
+        {
+            CommandLineOptions.Parse("/mergeConfigsOnly", "/out:foo").MergeConfigsOnly.ShouldBeTrue();
+        }
+
+        [TestMethod]
+        public void MergeConfigsOnly_flag_is_case_insensitive()
+        {
+            CommandLineOptions.Parse("/MERGECONFIGSONLY", "/out:foo").MergeConfigsOnly.ShouldBeTrue();
+        }
     }
 }

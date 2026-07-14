@@ -198,6 +198,7 @@ FakesAssemblies/
 # Visual Studio 6 workspace options file
 *.opt
 /src/SourceIndexServer/Index
+/src/SourceIndexServer/TestSite
 *.binlog
 
 nuget.exe

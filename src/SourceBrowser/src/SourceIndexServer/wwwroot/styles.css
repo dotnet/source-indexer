@@ -919,6 +919,138 @@ a i {
     padding: 18px;
 }
 
+/*
+ * Config selector (#104). Mounted INSIDE each content page itself, directly
+ * under that page's "dH" file-header block, as part of the code view --
+ * rather than as a persistent row spanning the whole index.html page above
+ * both panes -- see scripts.js's sbMountConfigSelectorIntoContentPage. It's
+ * mounted only when the CURRENTLY-DISPLAYED content page has anything to
+ * select between at all: a site can have 2+ registered configs overall yet
+ * still have plenty of pages that are entirely shared (no [data-configs]
+ * anywhere on them), so nothing is mounted there -- the overwhelming
+ * majority of pages even on a config-aware site -- and a 0/1-config site
+ * never mounts anything at all.
+ */
+.configSelectorPanel {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    box-sizing: border-box;
+    padding: 6px 12px;
+    background-color: var(--color-page-background);
+    border-bottom: 1px solid var(--color-pane-border);
+    font-size: 12px;
+}
+
+.configSelectorToggle {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-page-foreground);
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 18px;
+}
+
+/* A plain CSS-triangle chevron -- no icon asset needed. Points down when
+   expanded ("click to collapse"), rotates to point right when collapsed
+   ("click to expand"). */
+.configSelectorToggle::before {
+    content: "";
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid currentColor;
+    transition: transform 0.15s ease-in-out;
+}
+
+.configSelectorPanelCollapsed .configSelectorToggle::before {
+    transform: rotate(-90deg);
+}
+
+.configSelectorBody {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    min-width: 0;
+}
+
+.configAxisGroup {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.configSelectorLabel {
+    margin-right: 2px;
+    font-weight: 600;
+    color: var(--color-page-foreground);
+    opacity: 0.75;
+}
+
+/* Pill-style toggle for one axis value (e.g. "windows" within the "os"
+   axis). Active (selected/included) pills are filled; inactive ones are
+   outlined only, matching the approved option-a-refined-v2 mockup. */
+.configSelectorPill {
+    display: inline-block;
+    border: 1px solid var(--color-pane-border);
+    border-radius: 999px;
+    padding: 2px 10px;
+    margin: 0;
+    background: transparent;
+    color: var(--color-page-foreground);
+    font-size: 12px;
+    line-height: 16px;
+    cursor: pointer;
+}
+
+.configSelectorPillActive {
+    background-color: #68217A;
+    border-color: #68217A;
+    color: white;
+}
+
+/* Compact per-axis summary chip shown while the panel is collapsed, e.g.
+   "os: windows" or "arch: all" when that axis has no active restriction. */
+.configAxisSummaryPill {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 2px 10px;
+    background-color: var(--color-pane-border);
+    color: var(--color-page-foreground);
+    font-size: 11px;
+    line-height: 16px;
+    opacity: 0.85;
+}
+
+/* Applied/removed at runtime by sbApplyConfigFilter (scripts.js) to elements
+   carrying data-configs that don't overlap the current selection. */
+.configFilteredOut {
+    color: lightgray;
+    opacity: 0.5;
+}
+
+/* Switcher banner injected at the top of a file whose rendered content genuinely differs by
+   config (ConfigFileDeduper's "shared-render-divergent" bucket); each link is its own
+   data-configs-tagged span so the selector greys out configs the reader hasn't selected.
+   Hidden entirely -- the mounted .configSelectorPanel above is now the single control for
+   picking a config, and clicking a pill there already auto-navigates to the matching variant
+   (sbTryAutoNavigateToVariant). The markup stays in the page (not removed at generation time)
+   purely as data: that auto-navigate lookup still queries .configFileVariantLink[data-configs]
+   to find each variant's URL. */
+.configFileVariantBanner {
+    display: none;
+}
+
 /* Narrow-screen single-pane toggle; only shown at the <=700px breakpoint. */
 #paneToggle {
     display: none;
@@ -1371,6 +1503,14 @@ ol a, ol a:link, ol a:hover, ol a:focus, ol a:active,
         cursor: pointer;
         user-select: none;
         -webkit-user-select: none;
+    }
+
+    /* Fewer axis groups fit per row on narrow screens -- let each axis group
+       (and, within it, each pill) wrap onto its own line instead of clipping
+       or horizontally scrolling. */
+    .configSelectorPanel {
+        font-size: 11px;
+        padding: 6px 8px;
     }
 }
 

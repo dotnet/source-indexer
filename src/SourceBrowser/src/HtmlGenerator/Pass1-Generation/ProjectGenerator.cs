@@ -152,6 +152,27 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     ProjectSourcePath = ProjectFilePath;
                 }
 
+                // Incremental runs (/incremental): skip regenerating this project entirely if its
+                // staleness key -- derived from its own source, its direct references, and its
+                // compilation/parse options (see ProjectStaleness) -- is unchanged since whatever
+                // produced the output already sitting in ProjectDestinationFolder. This must be checked
+                // before the "someone already generated this assembly name" guard below, since on an
+                // incremental run that guard would otherwise misfire against our own valid prior output.
+                string currentStalenessKey = null;
+                if (Configuration.Incremental)
+                {
+                    currentStalenessKey = await ProjectStaleness.ComputeKeyAsync(Project).ConfigureAwait(false);
+                    var stalenessKeyFile = Path.Combine(ProjectDestinationFolder, Constants.StalenessKeyFileName + ".txt");
+                    var priorRunMarkerFile = Path.Combine(ProjectDestinationFolder, Constants.ProjectInfoFileName + ".txt");
+                    if (File.Exists(stalenessKeyFile) &&
+                        File.Exists(priorRunMarkerFile) &&
+                        string.Equals(File.ReadAllText(stalenessKeyFile), currentStalenessKey, StringComparison.Ordinal))
+                    {
+                        Log.Write("Skipping unchanged project (staleness key match): " + ProjectDestinationFolder, ConsoleColor.DarkGray);
+                        return;
+                    }
+                }
+
                 if (File.Exists(Path.Combine(ProjectDestinationFolder, Constants.DeclaredSymbolsFileName + ".txt")))
                 {
                     // apparently someone already generated a project with this assembly name - their assembly wins
@@ -240,6 +261,15 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     GenerateProjectExplorer();
                     GenerateNamespaceExplorer();
                     GenerateIndex();
+
+                    if (Configuration.Incremental && currentStalenessKey != null)
+                    {
+                        // Record the key this output was generated from so a later incremental run can
+                        // detect whether this project is still up to date.
+                        File.WriteAllText(
+                            Path.Combine(ProjectDestinationFolder, Constants.StalenessKeyFileName + ".txt"),
+                            currentStalenessKey);
+                    }
                 }
 
                 var compilation = await Project.GetCompilationAsync();

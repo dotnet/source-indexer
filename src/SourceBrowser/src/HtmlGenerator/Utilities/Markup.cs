@@ -373,8 +373,8 @@ Enter a type or member name or <a href=""/#q=assembly%20"" target=""_top"" class
         }
 
         private static string partialTypeDisambiguationFileTemplate = @"<!DOCTYPE html>
-<html><head><meta charset=""utf-8""><meta name=""viewport"" content=""width=device-width, initial-scale=1""><link rel=""stylesheet"" href=""{0}"">
-</head><body><div class=""partialTypeHeader"">Partial Type</div>
+<html><head><meta charset=""utf-8""><meta name=""viewport"" content=""width=device-width, initial-scale=1""><link rel=""stylesheet"" href=""{0}"">{2}
+</head><body{3}><div class=""partialTypeHeader"">Partial Type</div>
 {1}
 </body></html>";
 
@@ -384,6 +384,46 @@ Enter a type or member name or <a href=""/#q=assembly%20"" target=""_top"" class
             string symbolId,
             IEnumerable<string> filePaths)
         {
+            GeneratePartialTypeDisambiguationFile(solutionDestinationFolder, projectDestinationFolder, symbolId, filePaths, configTagsByFilePath: null);
+        }
+
+        /// <summary>
+        /// Same disambiguation page used for ordinary partial types/members (one symbol ID declared in
+        /// multiple files), extended to optionally annotate each link with the config(s) it applies
+        /// under -- e.g. a symbol declared in Environment.Windows.cs under "windows" and
+        /// Environment.Unix.cs under "linux"/"mac" is just a multi-location symbol like any other
+        /// partial type, with a config tag as extra metadata on each location. When
+        /// <paramref name="configTagsByFilePath"/> is null (the default, single/no-config case), this
+        /// renders byte-identically to the untagged overload.
+        /// </summary>
+        public static void GeneratePartialTypeDisambiguationFile(
+            string solutionDestinationFolder,
+            string projectDestinationFolder,
+            string symbolId,
+            IEnumerable<string> filePaths,
+            IReadOnlyDictionary<string, IEnumerable<string>> configTagsByFilePath)
+        {
+            GeneratePartialTypeDisambiguationFile(solutionDestinationFolder, projectDestinationFolder, symbolId, filePaths, configTagsByFilePath, allConfigs: null);
+        }
+
+        /// <summary>
+        /// Same as the five-argument overload, but when <paramref name="allConfigs"/> is supplied (the
+        /// config-aware merge path) each location link also gets a machine-readable
+        /// <c>data-configs="a,b"</c> attribute -- mirroring
+        /// <see cref="ProjectFinalizer.WriteDataConfigsAttribute"/>'s FAR gating -- so the client
+        /// config-selector can filter these links the same way it filters FAR entries. The existing
+        /// visible <c>[a, b]</c> span is untouched. Omitted (both attribute and gating) when
+        /// <paramref name="allConfigs"/> is null, so the single/no-config path renders byte-identically
+        /// to before this parameter existed.
+        /// </summary>
+        public static void GeneratePartialTypeDisambiguationFile(
+            string solutionDestinationFolder,
+            string projectDestinationFolder,
+            string symbolId,
+            IEnumerable<string> filePaths,
+            IReadOnlyDictionary<string, IEnumerable<string>> configTagsByFilePath,
+            IReadOnlyCollection<string> allConfigs)
+        {
             string partialFolder = Path.Combine(projectDestinationFolder, Constants.PartialResolvingFileName);
             Directory.CreateDirectory(partialFolder);
             var disambiguationFileName = Path.Combine(partialFolder, symbolId) + ".html";
@@ -391,11 +431,49 @@ Enter a type or member name or <a href=""/#q=assembly%20"" target=""_top"" class
                 filePaths
                 .OrderBy(filePath => Paths.StripExtension(filePath))
                 .Select((filePath, index) =>
-                    $"<div class=\"partialTypeLink\"><a{(index == 0 ? $" id=\"{symbolId}\"" : "")} href=\"../{filePath}.html#{symbolId}\">{filePath}</a></div>"));
+                {
+                    string configTag = "";
+                    string dataConfigsAttribute = "";
+                    if (configTagsByFilePath != null &&
+                        configTagsByFilePath.TryGetValue(filePath, out var configs) &&
+                        configs != null)
+                    {
+                        var configList = configs.OrderBy(c => c, StringComparer.OrdinalIgnoreCase).ToList();
+                        if (configList.Count > 0)
+                        {
+                            configTag = $" <span class=\"partialTypeConfigTag\">[{string.Join(", ", configList)}]</span>";
+
+                            // Fully shared across every registered config -- inert, don't tag (matches
+                            // WriteDataConfigsAttribute's "shared -> untagged" convention).
+                            if (allConfigs != null && allConfigs.Count > 0 && !allConfigs.All(configList.Contains))
+                            {
+                                dataConfigsAttribute = $" data-configs=\"{string.Join(",", configList)}\"";
+                            }
+                        }
+                    }
+
+                    return $"<div class=\"partialTypeLink\"><a{(index == 0 ? $" id=\"{symbolId}\"" : "")}{dataConfigsAttribute} href=\"../{filePath}.html#{symbolId}\">{filePath}</a>{configTag}</div>";
+                }));
+
+            // Only include scripts.js / call the config-filter entry point when this is a config-aware
+            // render (allConfigs != null) -- the ordinary single/no-config path never needed any script
+            // on this page and must stay byte-identical to before this parameter existed.
+            string scriptsTag = "";
+            string bodyOnload = "";
+            if (allConfigs != null && allConfigs.Count > 0)
+            {
+                var scriptsPath = Paths.GetCssPathFromFile(solutionDestinationFolder, disambiguationFileName);
+                scriptsPath = scriptsPath.Substring(0, scriptsPath.Length - "styles.css".Length) + "scripts.js";
+                scriptsTag = $"<script src=\"{scriptsPath}\"></script>";
+                bodyOnload = " onload=\"sbApplyConfigFilter(document);\"";
+            }
+
             string content = string.Format(
                 partialTypeDisambiguationFileTemplate,
                 Paths.GetCssPathFromFile(solutionDestinationFolder, disambiguationFileName),
-                list);
+                list,
+                scriptsTag,
+                bodyOnload);
             File.WriteAllText(disambiguationFileName, content, Encoding.UTF8);
         }
 

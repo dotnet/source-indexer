@@ -49,14 +49,27 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
         private void AddProjectToFolder(Folder folder, Project project, IEnumerable<string> folders = null)
         {
-            if (folders == null || !folders.Any())
+            var folderList = folders?.ToArray() ?? Array.Empty<string>();
+
+            // Additive persistence only -- see Constants.SolutionFolderFileName. Written regardless of
+            // whether the project ends up nested or at the root (empty file = root), and is best-effort:
+            // a project this Pass1 run didn't actually generate output for (e.g. it was filtered out
+            // upstream) simply has no destination folder to write into.
+            var assemblyId = SymbolIdService.GetAssemblyId(project.AssemblyName);
+            var projectDestinationFolder = Path.Combine(SolutionDestinationFolder, assemblyId);
+            if (Directory.Exists(projectDestinationFolder))
+            {
+                File.WriteAllLines(Path.Combine(projectDestinationFolder, Constants.SolutionFolderFileName), folderList);
+            }
+
+            if (folderList.Length == 0)
             {
                 folder.Add(new ProjectSkeleton(project.AssemblyName, project.Name, RepoName));
             }
             else
             {
-                var subfolder = folder.GetOrCreateFolder(folders.First());
-                AddProjectToFolder(subfolder, project, folders.Skip(1));
+                var subfolder = folder.GetOrCreateFolder(folderList[0]);
+                AddProjectToFolder(subfolder, project, folderList.Skip(1));
             }
         }
 

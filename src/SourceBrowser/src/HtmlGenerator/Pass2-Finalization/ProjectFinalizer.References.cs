@@ -10,14 +10,20 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 {
     public partial class ProjectFinalizer
     {
-        public void CreateReferencesFiles()
+        public void CreateReferencesFiles(
+            HashSet<string> additionalReferencedSymbolIds = null,
+            Dictionary<string, List<Reference>> mergedDivergentReferencesBySymbolId = null,
+            IReadOnlyCollection<string> allConfigs = null)
         {
-            BackpatchUnreferencedDeclarations(referencesFolder);
+            BackpatchUnreferencedDeclarations(referencesFolder, additionalReferencedSymbolIds);
             Markup.WriteRedirectFile(ProjectDestinationFolder);
-            GenerateFinalReferencesFiles(referencesFolder);
+            GenerateFinalReferencesFiles(referencesFolder, mergedDivergentReferencesBySymbolId, allConfigs);
         }
 
-        public void GenerateFinalReferencesFiles(string referencesFolder)
+        public void GenerateFinalReferencesFiles(
+            string referencesFolder,
+            Dictionary<string, List<Reference>> mergedDivergentReferencesBySymbolId = null,
+            IReadOnlyCollection<string> allConfigs = null)
         {
             var shardFiles = Directory.Exists(referencesFolder)
                 ? Directory.GetFiles(
@@ -69,10 +75,72 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 }
 
                 GenerateBaseAndInterfaceOnlyReferencesFiles(referencesFolder, writtenSymbols, pack);
+
+                // Config-aware pass: for symbols whose merged reference set genuinely diverges across
+                // configs (ConfigReferenceMerger.IsFullyShared == false), append a corrected, config-tagged
+                // fragment for that symbolId. ReferencePackBuilder's index is last-write-wins (see its
+                // remarks), so this later record transparently replaces whatever the ordinary shard-based
+                // render above produced for that symbol -- no rewrite of the earlier bytes is needed. Only
+                // supported for the packed/regular-assembly path; MSBuild/Guid pseudo-assemblies never
+                // participate in a real config merge.
+                if (packOutput && mergedDivergentReferencesBySymbolId != null && mergedDivergentReferencesBySymbolId.Count != 0)
+                {
+                    GenerateMergedReferencesFragments(mergedDivergentReferencesBySymbolId, allConfigs, pack);
+                }
+
             }
             finally
             {
                 pack?.Complete();
+            }
+        }
+
+        // Renders and appends one config-tagged fragment per divergent symbol, straight from
+        // ConfigReferenceMerger's merged Reference objects -- bypassing raw-shard-line parsing entirely,
+        // since these objects are already fully materialized (ConfigSet included).
+        private void GenerateMergedReferencesFragments(
+            Dictionary<string, List<Reference>> mergedDivergentReferencesBySymbolId,
+            IReadOnlyCollection<string> allConfigs,
+            ReferencePackBuilder pack)
+        {
+            var symbols = new List<KeyValuePair<string, List<Reference>>>(mergedDivergentReferencesBySymbolId);
+            var fragments = new byte[symbols.Count][];
+
+            Parallel.For(
+                0,
+                symbols.Count,
+                new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
+                i =>
+                {
+                    try
+                    {
+                        fragments[i] = GenerateMergedReferencesFragment(symbols[i].Key, symbols[i].Value, allConfigs);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Exception(ex, "Failed to generate merged references fragment for symbol: " + symbols[i].Key);
+                    }
+                });
+
+            for (int i = 0; i < symbols.Count; i++)
+            {
+                if (fragments[i] != null)
+                {
+                    pack.Add(symbols[i].Key, fragments[i]);
+                }
+            }
+        }
+
+        private byte[] GenerateMergedReferencesFragment(string symbolId, List<Reference> references, IReadOnlyCollection<string> allConfigs)
+        {
+            using (var stream = new MemoryStream())
+            {
+                using (var writer = new StreamWriter(stream, Encoding.UTF8, bufferSize: 65536, leaveOpen: true))
+                {
+                    WriteReferencesContent(writer, symbolId, references, allConfigs);
+                }
+
+                return stream.ToArray();
             }
         }
 
@@ -259,7 +327,26 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         private void WriteReferencesContent(TextWriter writer, string symbolId, string[] referencesLines)
         {
             var referenceKindGroups = CreateReferences(referencesLines, out string symbolName);
+            WriteReferencesContent(writer, symbolId, referenceKindGroups, symbolName, allConfigs: null);
+        }
 
+        // Config-aware entry point: renders from already-merged Reference objects (ConfigSet populated
+        // by ConfigReferenceMerger) instead of parsing raw shard lines, and tags each reference line with
+        // data-configs when its ConfigSet doesn't cover every registered config -- see
+        // GenerateMergedReferencesFragment for how this is wired into the packed output.
+        private void WriteReferencesContent(TextWriter writer, string symbolId, List<Reference> references, IReadOnlyCollection<string> allConfigs)
+        {
+            var referenceKindGroups = CreateReferences(references, out string symbolName);
+            WriteReferencesContent(writer, symbolId, referenceKindGroups, symbolName, allConfigs);
+        }
+
+        private void WriteReferencesContent(
+            TextWriter writer,
+            string symbolId,
+            List<ReferenceKindGroup> referenceKindGroups,
+            string symbolName,
+            IReadOnlyCollection<string> allConfigs)
+        {
             Markup.WriteReferencesFileHeader(writer, symbolName);
 
             if (this.AssemblyId != Constants.MSBuildItemsAssembly &&
@@ -380,7 +467,9 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                             var url = references[0].Url;
                             writer.Write("<a href=\"");
                             writer.Write(url);
-                            writer.Write("\">");
+                            writer.Write("\"");
+                            WriteDataConfigsAttribute(writer, references, allConfigs);
+                            writer.Write(">");
 
                             writer.Write("<b>");
                             writer.Write(sameLineReferencesGroup.LineNumber);
@@ -400,6 +489,44 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             }
 
             Write(writer, "</body></html>");
+        }
+
+        // Emits data-configs="a,b" when this line's references don't cover every registered config --
+        // i.e. this occurrence is config-specific (e.g. only compiled under "windows"). Omitted entirely
+        // for the ordinary single-config path (allConfigs null) and for the common case where a
+        // reference is present under every config, so today's single-config byte-for-byte output is
+        // unaffected.
+        private static void WriteDataConfigsAttribute(TextWriter writer, List<Reference> referencesOnTheSameLine, IReadOnlyCollection<string> allConfigs)
+        {
+            if (allConfigs == null || allConfigs.Count == 0)
+            {
+                return;
+            }
+
+            HashSet<string> union = null;
+            foreach (var reference in referencesOnTheSameLine)
+            {
+                if (reference.ConfigSet == null)
+                {
+                    // At least one occurrence on this line has no config data at all -- treat the whole
+                    // line as unconditional/shared rather than tagging a partial picture.
+                    return;
+                }
+
+                union ??= new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                union.UnionWith(reference.ConfigSet);
+            }
+
+            if (union == null || allConfigs.All(union.Contains))
+            {
+                // Fully shared across every registered config -- inert, matches the untagged single-config
+                // rendering.
+                return;
+            }
+
+            writer.Write(" data-configs=\"");
+            writer.Write(string.Join(",", union.OrderBy(c => c, StringComparer.OrdinalIgnoreCase)));
+            writer.Write("\"");
         }
 
         private void WriteImplementedInterfaceMembers(ulong symbolId, TextWriter writer)
@@ -493,15 +620,30 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             string[] referencesLines,
             out string referencedSymbolName)
         {
+            var references = new List<Reference>(referencesLines.Length / 2);
+            for (int i = 0; i < referencesLines.Length; i += 2)
+            {
+                references.Add(new Reference(referencesLines[i], referencesLines[i + 1]));
+            }
+
+            return CreateReferences(references, out referencedSymbolName);
+        }
+
+        // Shared grouping core: builds the same kind/assembly/file/line hierarchy regardless of whether
+        // the Reference objects were just parsed from raw shard lines (the ordinary path, ConfigSet
+        // always null) or came pre-built from ConfigReferenceMerger's merged set (the config-aware FAR
+        // path, ConfigSet populated) -- see GenerateMergedReferencesFragment.
+        private static List<ReferenceKindGroup> CreateReferences(
+            IEnumerable<Reference> references,
+            out string referencedSymbolName)
+        {
             referencedSymbolName = null;
 
             var kindGroups = new List<ReferenceKindGroup>();
             var kindMap = new Dictionary<ReferenceKind, ReferenceKindGroup>();
 
-            for (int i = 0; i < referencesLines.Length; i += 2)
+            foreach (var reference in references)
             {
-                var reference = new Reference(referencesLines[i], referencesLines[i + 1]);
-
                 if (referencedSymbolName == null &&
                     reference.ToSymbolName != "this" &&
                     reference.ToSymbolName != "base" &&

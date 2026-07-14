@@ -244,6 +244,7 @@ function onHeaderLoad() {
             onSearchChange();
         }
     };
+
 }
 
 function onResultsLoad() {
@@ -308,6 +309,9 @@ function i(lineNumberCount) {
     if (element && !isLargeFile) { // for some reason focusing here for a large file hangs IE
         element.focus();
     }
+
+    sbApplyConfigFilter(document);
+    sbMountConfigSelectorIntoContentPage();
 }
 
 function updateTopHashFromRightPane() {
@@ -363,6 +367,9 @@ function ix(lineNumberCount) {
     if (element && !isLargeFile) { // for some reason focusing here for a large file hangs IE
         element.focus();
     }
+
+    sbApplyConfigFilter(document);
+    sbMountConfigSelectorIntoContentPage();
 }
 
 function rewriteExternalLinks() {
@@ -541,6 +548,8 @@ function ro() {
     // References just populated the nav pane; on narrow screens switch to it
     // so the results are visible (matches the search-results flow).
     setMobilePane(true);
+
+    sbApplyConfigFilter(document);
 }
 
 function onDocumentOutlineLoad() {
@@ -1729,10 +1738,20 @@ function trimFromEnd(text, suffixToTrim) {
     return text;
 }
 
+// ConfigFileDeduper (Pass2) disambiguates divergently-rendered config variants by inserting
+// "~" + an 8-hex-digit content hash immediately before the file's extension (e.g.
+// "EnvHelper.cs~87f21542.html" on disk, linked from the client as ".../EnvHelper.cs~87f21542").
+// Strip that suffix before computing the extension so variant URLs are still recognized as
+// files by isFile()/processHash() -- otherwise the trailing hash gets swallowed into a bogus
+// "cs~87f21542" pseudo-extension and the file-redirect branch below is skipped entirely.
+var configVariantSuffixRegex = /~[0-9a-f]{8}$/i;
+
 function getExtension(filePath) {
     if (!filePath) {
         return "";
     }
+
+    filePath = filePath.replace(configVariantSuffixRegex, "");
 
     var dot = filePath.lastIndexOf(".");
     if (dot == filePath.length - 1) {
@@ -1784,3 +1803,517 @@ function switchToContentPaneOnTap(event) {
 }
 
 document.addEventListener("click", switchToContentPaneOnTap, true);
+
+// ----------------------------------------------------------------------------
+// Config selector (#104).
+//
+// The selector panel is mounted INSIDE the content page itself -- directly
+// under the file's "dH" header block, as part of the code view -- rather than
+// as a persistent row spanning the whole index.html page above both panes.
+// See sbMountConfigSelectorIntoContentPage below, called from i()/ix() on
+// every content-page load. This has been validated live in a real browser
+// (pill toggling, #if-region grey/highlight switching, and the multi-config
+// repo demo all confirmed working end-to-end), not just via the standalone
+// pure-function test script (src/HtmlGenerator.Tests/ClientScriptTests/configSelectorFilter.tests.js
+// -- see the header comment there for how to run it, and for exactly which
+// functions it covers).
+//
+// Selection is a FILTER, not a subtree switch: elements tagged data-configs
+// that don't overlap the current selection are greyed (not removed), and an
+// empty/no selection shows everything (the union) -- byte-identical in
+// behavior to a site built without configs when only one config exists,
+// since such a site never has configs.json and sbMountConfigSelectorIntoContentPage no-ops.
+// ----------------------------------------------------------------------------
+
+var sbConfigSelectorStorageKey = "sourceBrowserSelectedConfigs";
+
+// Pure decision function: does an element tagged with data-configs="..." (or
+// untagged) count as "shown" for the given selection? Kept dependency-free
+// (no DOM access) so it can be executed and asserted against outside a
+// browser -- see configSelectorFilter.tests.js.
+function sbConfigFilterMatches(selectedConfigs, dataConfigsAttr) {
+    // Untagged elements are shared/inert across every config -- always shown.
+    if (!dataConfigsAttr) {
+        return true;
+    }
+
+    // No selection (including a selector that hasn't loaded/initialized yet)
+    // shows everything -- the union, matching a no-config build.
+    if (!selectedConfigs || selectedConfigs.length === 0) {
+        return true;
+    }
+
+    var elementConfigs = sbParseConfigList(dataConfigsAttr);
+    for (var i = 0; i < elementConfigs.length; i++) {
+        for (var j = 0; j < selectedConfigs.length; j++) {
+            if (elementConfigs[i] === selectedConfigs[j]) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+// Splits a "a, b" data-configs attribute value into a trimmed, lower-cased
+// array (["a","b"]). Comparisons throughout this feature are case-insensitive
+// to match the server side's StringComparer.OrdinalIgnoreCase.
+function sbParseConfigList(raw) {
+    if (!raw) {
+        return [];
+    }
+
+    var parts = raw.split(",");
+    var result = [];
+    for (var i = 0; i < parts.length; i++) {
+        var trimmed = parts[i].replace(/^\s+|\s+$/g, "").toLowerCase();
+        if (trimmed.length > 0) {
+            result.push(trimmed);
+        }
+    }
+
+    return result;
+}
+
+// Pure decision function for the multi-axis panel: given a per-axis selection
+// map (axisName -> array of selected values; a missing/empty array means "no
+// restriction on this axis"), the full configName -> {axisName: value} map
+// (configs.json's "configAxisValues"), and the full list of registered config
+// names, returns the flat list of config names that match EVERY axis
+// restriction (AND across axes; an axis with several selected values is an OR
+// within that axis -- standard faceted-filter semantics). A config with no
+// axis tags of its own (absent from configAxisValues, e.g. a mixed site with
+// some untagged configs) always matches -- it can't be excluded by an axis it
+// doesn't participate in. Kept dependency-free (no DOM access) so it can be
+// executed and asserted against outside a browser -- see
+// configSelectorFilter.tests.js.
+function sbDeriveSelectedConfigsFromAxisSelections(axisSelections, configAxisValues, allConfigNames) {
+    var result = [];
+    for (var i = 0; i < allConfigNames.length; i++) {
+        var configName = allConfigNames[i];
+        var tags = configAxisValues ? configAxisValues[configName] : null;
+        if (!tags) {
+            result.push(configName);
+            continue;
+        }
+
+        var matchesAllAxes = true;
+        for (var axisName in axisSelections) {
+            if (!Object.prototype.hasOwnProperty.call(axisSelections, axisName)) {
+                continue;
+            }
+
+            var selectedValues = axisSelections[axisName];
+            if (!selectedValues || selectedValues.length === 0) {
+                continue; // No restriction on this axis.
+            }
+
+            var tagValue = tags[axisName];
+            if (!tagValue || !sbContains(selectedValues, tagValue)) {
+                matchesAllAxes = false;
+                break;
+            }
+        }
+
+        if (matchesAllAxes) {
+            result.push(configName);
+        }
+    }
+
+    return result;
+}
+
+function sbContains(array, value) {
+    for (var i = 0; i < array.length; i++) {
+        if (array[i] === value) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function sbGetSelectedConfigs() {
+    try {
+        var raw = window.sessionStorage.getItem(sbConfigSelectorStorageKey);
+        return raw ? sbParseConfigList(raw) : [];
+    } catch (e) {
+        // sessionStorage can throw in some sandboxed/embedded contexts; treat
+        // as "no selection" (show everything) rather than fail the page.
+        return [];
+    }
+}
+
+function sbSetSelectedConfigs(selectedConfigs) {
+    try {
+        window.sessionStorage.setItem(sbConfigSelectorStorageKey, selectedConfigs.join(","));
+    } catch (e) {
+        // Best-effort persistence only; filtering still works for the
+        // lifetime of the current page even if this throws.
+    }
+}
+
+// DOM-application half: greys/ungreys every data-configs-tagged element under
+// `root` (a Document or element) according to the current selection. Safe to
+// call on any page, tagged or not -- pages with no [data-configs] elements at
+// all (the overwhelming majority when 0/1 configs are registered) simply
+// find nothing to iterate.
+function sbApplyConfigFilter(root) {
+    if (!root || !root.querySelectorAll) {
+        return;
+    }
+
+    var selectedConfigs = sbGetSelectedConfigs();
+    var elements = root.querySelectorAll("[data-configs]");
+    for (var i = 0; i < elements.length; i++) {
+        var element = elements[i];
+        var matches = sbConfigFilterMatches(selectedConfigs, element.getAttribute("data-configs"));
+        if (matches) {
+            element.classList.remove("configFilteredOut");
+        } else {
+            element.classList.add("configFilteredOut");
+        }
+    }
+}
+
+// Re-applies the current selection to every frame that might already have
+// content loaded (called after the user changes the selection in the header).
+// Each frame also re-applies on its own subsequent loads via sbApplyConfigFilter
+// calls already wired into i()/ix()/ro(), so a freshly-navigated frame is
+// correct even without this broadcast.
+function sbReapplyConfigFilterToAllFrames() {
+    try {
+        if (top.s && top.s.document) {
+            sbApplyConfigFilter(top.s.document);
+        }
+    } catch (e) { }
+    try {
+        if (top.n && top.n.document) {
+            sbApplyConfigFilter(top.n.document);
+        }
+    } catch (e) { }
+}
+
+// Mounts the config panel INSIDE the content page itself, directly under its
+// "dH" file-header block, so the selector reads as part of the code view
+// instead of a separate row/banner. Called from i()/ix() on every
+// content-page load (a fresh mount each time, since each navigation is a full
+// frame reload -- there's no cross-navigation DOM state to carry beyond
+// what's already in sessionStorage). No-ops entirely when: the page has no
+// "dH" header (not a real source/content page), the page has nothing tagged
+// data-configs at all (nothing to select between for THIS page), or
+// configs.json is missing/has fewer than 2 configs -- i.e. every 0/1-config
+// site, which is the overwhelming majority of real usage -- so those sites
+// see zero visual or behavioral change from this feature existing.
+var sbConfigSelectorData = null; // { configs, axes, configAxisValues } from configs.json.
+
+function sbMountConfigSelectorIntoContentPage() {
+    var anchor = document.querySelector(".dH");
+    if (!anchor || !document.querySelector("[data-configs]")) {
+        return;
+    }
+
+    var request = new XMLHttpRequest();
+    request.open("GET", "/configs.json", true);
+    request.onload = function () {
+        if (request.status !== 200 || !request.responseText) {
+            return;
+        }
+
+        var data;
+        try {
+            data = JSON.parse(request.responseText);
+        } catch (e) {
+            return;
+        }
+
+        if (!data || !data.configs || data.configs.length < 2) {
+            // Fewer than 2 registered configs -- nothing to select between.
+            return;
+        }
+
+        sbConfigSelectorData = data;
+
+        var container = document.getElementById("configSelectorContainer");
+        if (!container) {
+            container = document.createElement("div");
+            container.id = "configSelectorContainer";
+            anchor.parentNode.insertBefore(container, anchor.nextSibling);
+        }
+
+        sbRenderConfigSelectorUI(container, data);
+    };
+    // A missing configs.json (single/no-config site) is the common case and
+    // simply leaves nothing mounted -- no error handling needed beyond
+    // onload checking request.status.
+    request.send();
+}
+
+var sbConfigPanelCollapsedStorageKey = "sourceBrowserConfigPanelCollapsed";
+
+function sbIsConfigPanelCollapsed() {
+    try {
+        return window.sessionStorage.getItem(sbConfigPanelCollapsedStorageKey) === "1";
+    } catch (e) {
+        return false;
+    }
+}
+
+function sbSetConfigPanelCollapsed(collapsed) {
+    try {
+        window.sessionStorage.setItem(sbConfigPanelCollapsedStorageKey, collapsed ? "1" : "0");
+    } catch (e) {
+        // Best-effort persistence only; the panel still works for the
+        // lifetime of the current page even if this throws.
+    }
+}
+
+// Renders the full panel: an axis-grouped pill toggle per registered axis
+// value (e.g. an "os" row with "windows"/"linux" pills, an "arch" row with
+// "x64"/"arm64" pills) when expanded, or a compact chevron + per-axis summary
+// ("os: windows", "arch: all") when collapsed. Configs with no axis tags at
+// all (data.axes is empty, e.g. plain /config:<name> runs with no
+// /configAxes:) fall back to a single flat "Configs" group listing every
+// config name directly, matching the original flat-checkbox behavior.
+function sbRenderConfigSelectorUI(container, data) {
+    var collapsed = sbIsConfigPanelCollapsed();
+    container.innerHTML = "";
+    container.className = "configSelectorPanel" + (collapsed ? " configSelectorPanelCollapsed" : "");
+
+    var toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "configSelectorToggle";
+    toggle.setAttribute("aria-label", collapsed ? "Expand config selector" : "Collapse config selector");
+    toggle.onclick = function () {
+        sbSetConfigPanelCollapsed(!sbIsConfigPanelCollapsed());
+        sbRenderConfigSelectorUI(container, data);
+    };
+    container.appendChild(toggle);
+
+    var body = document.createElement("span");
+    body.className = "configSelectorBody";
+    container.appendChild(body);
+
+    var axisNames = data.axes ? sbObjectKeys(data.axes) : [];
+    var hasAxes = axisNames.length > 0;
+
+    var selectedConfigs = sbGetSelectedConfigs();
+    var axisSelections = sbComputeAxisSelectionsFromFlatSelection(data, axisNames, selectedConfigs);
+
+    if (collapsed) {
+        if (hasAxes) {
+            for (var a = 0; a < axisNames.length; a++) {
+                body.appendChild(sbCreateConfigAxisSummaryPill(axisNames[a], data.axes[axisNames[a]], axisSelections[axisNames[a]]));
+            }
+        } else {
+            body.appendChild(sbCreateConfigAxisSummaryPill("Configs", data.configs, selectedConfigs));
+        }
+        return;
+    }
+
+    if (hasAxes) {
+        for (var i = 0; i < axisNames.length; i++) {
+            body.appendChild(sbCreateConfigAxisGroup(container, data, axisNames[i], data.axes[axisNames[i]], axisSelections));
+        }
+    } else {
+        body.appendChild(sbCreateConfigAxisGroup(container, data, "Configs", data.configs, { "Configs": selectedConfigs }));
+    }
+}
+
+function sbObjectKeys(obj) {
+    var keys = [];
+    for (var key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+            keys.push(key);
+        }
+    }
+
+    return keys;
+}
+
+// Given the currently-persisted flat selected-config-name list, derives a
+// per-axis "which values are currently restricted" view purely for rendering
+// pill active-state -- the source of truth remains the flat selection in
+// sessionStorage (sbConfigSelectorStorageKey), matching every other page's
+// (and the sbApplyConfigFilter pipeline's) view of it.
+function sbComputeAxisSelectionsFromFlatSelection(data, axisNames, selectedConfigs) {
+    var axisSelections = {};
+    for (var a = 0; a < axisNames.length; a++) {
+        axisSelections[axisNames[a]] = [];
+    }
+
+    if (!selectedConfigs || selectedConfigs.length === 0) {
+        return axisSelections; // No restriction on any axis.
+    }
+
+    for (var a2 = 0; a2 < axisNames.length; a2++) {
+        var axisName = axisNames[a2];
+        var valuesSelectedOnThisAxis = [];
+        for (var c = 0; c < selectedConfigs.length; c++) {
+            var tags = data.configAxisValues ? data.configAxisValues[selectedConfigs[c]] : null;
+            var value = tags ? tags[axisName] : null;
+            if (value && !sbContains(valuesSelectedOnThisAxis, value)) {
+                valuesSelectedOnThisAxis.push(value);
+            }
+        }
+
+        // If every known value for this axis is represented, treat it as "no
+        // restriction" (matches how a fully-checked set collapses to []).
+        var allValues = data.axes[axisName];
+        var coversEveryValue = allValues && valuesSelectedOnThisAxis.length === allValues.length;
+        axisSelections[axisName] = coversEveryValue ? [] : valuesSelectedOnThisAxis;
+    }
+
+    return axisSelections;
+}
+
+function sbCreateConfigAxisSummaryPill(axisLabel, allValues, selectedValues) {
+    var pill = document.createElement("span");
+    pill.className = "configAxisSummaryPill";
+    var text = axisLabel + ": " + (selectedValues && selectedValues.length > 0 ? selectedValues.join(", ") : "all");
+    pill.appendChild(document.createTextNode(text));
+    return pill;
+}
+
+function sbCreateConfigAxisGroup(container, data, axisLabel, values, axisSelections) {
+    var group = document.createElement("span");
+    group.className = "configAxisGroup";
+
+    var label = document.createElement("span");
+    label.className = "configSelectorLabel";
+    label.appendChild(document.createTextNode(axisLabel + ":"));
+    group.appendChild(label);
+
+    var selectedValues = axisSelections[axisLabel] || [];
+
+    for (var i = 0; i < values.length; i++) {
+        (function (value) {
+            var pill = document.createElement("button");
+            pill.type = "button";
+            var isActive = selectedValues.length === 0 || sbContains(selectedValues, value);
+            pill.className = "configSelectorPill" + (isActive ? " configSelectorPillActive" : "");
+            pill.appendChild(document.createTextNode(value));
+            pill.onclick = function () {
+                sbOnConfigAxisPillToggled(container, data, axisLabel, value);
+            };
+            group.appendChild(pill);
+        })(values[i]);
+    }
+
+    return group;
+}
+
+// A pill click toggles ONE value within ONE axis group. Recomputes every
+// axis's selection from the (now-updated) pill DOM state, derives the flat
+// selected-config-names list via the pure sbDeriveSelectedConfigsFromAxisSelections,
+// persists it, and re-renders -- same flow as the original flat checkboxes,
+// just with an extra per-axis grouping step in front of the existing,
+// unchanged sbSetSelectedConfigs/sbApplyConfigFilter pipeline.
+function sbOnConfigAxisPillToggled(container, data, toggledAxisLabel, toggledValue) {
+    var axisNames = data.axes ? sbObjectKeys(data.axes) : [];
+    var hasAxes = axisNames.length > 0;
+    var selectedConfigs = sbGetSelectedConfigs();
+    var axisSelections = sbComputeAxisSelectionsFromFlatSelection(data, axisNames, selectedConfigs);
+
+    var currentValues = hasAxes ? (axisSelections[toggledAxisLabel] || []) : selectedConfigs;
+    var allValuesForAxis = hasAxes ? data.axes[toggledAxisLabel] : data.configs;
+
+    // An empty/no-restriction selection is treated as "everything selected"
+    // for toggle purposes, so the first click on any pill narrows down to
+    // just that value rather than appearing to add to a full set.
+    var effectiveCurrentValues = currentValues.length === 0 ? allValuesForAxis.slice() : currentValues.slice();
+    var index = -1;
+    for (var i = 0; i < effectiveCurrentValues.length; i++) {
+        if (effectiveCurrentValues[i] === toggledValue) {
+            index = i;
+            break;
+        }
+    }
+
+    if (index >= 0) {
+        effectiveCurrentValues.splice(index, 1);
+    } else {
+        effectiveCurrentValues.push(toggledValue);
+    }
+
+    var newValues = effectiveCurrentValues.length === allValuesForAxis.length ? [] : effectiveCurrentValues;
+
+    var derivedSelectedConfigs;
+    if (hasAxes) {
+        axisSelections[toggledAxisLabel] = newValues;
+        derivedSelectedConfigs = sbDeriveSelectedConfigsFromAxisSelections(axisSelections, data.configAxisValues, data.configs);
+    } else {
+        derivedSelectedConfigs = newValues;
+    }
+
+    var isFullSelection = derivedSelectedConfigs.length === data.configs.length;
+    var toPersist = isFullSelection ? [] : derivedSelectedConfigs.map(function (c) { return c.toLowerCase(); });
+
+    sbSetSelectedConfigs(toPersist);
+    sbRenderConfigSelectorUI(container, data);
+    sbReapplyConfigFilterToAllFrames();
+    sbTryAutoNavigateToVariant(toPersist);
+}
+
+// When the selection narrows to EXACTLY one config, and the source frame is
+// currently showing a file with a config-file-variant banner (StageDivergent
+// lyRenderedFiles' output -- a file whose #if-guarded content differs per
+// config, rendered as separate physical pages), jump straight to that
+// config's variant instead of leaving the user to click the banner link
+// manually. This is the practical way to get the effect of "the #if region
+// toggles with the selector": each config's branch is a real, independently-
+// compiled page (Roslyn's inactive-region classification isn't something a
+// single page can re-derive live), so "toggling" means navigating to the
+// already-rendered page for that branch, not rewriting DOM in place.
+//
+// No-ops (leaves today's manual-click behavior) when: more/fewer than one
+// config is selected, the current file has no variant banner at all (the
+// overwhelming majority of files), or the frame/document isn't reachable for
+// any reason -- this is a convenience on top of the filter, never a
+// requirement for the filter to still work correctly.
+function sbTryAutoNavigateToVariant(selectedConfigs) {
+    if (!selectedConfigs || selectedConfigs.length !== 1) {
+        return;
+    }
+
+    try {
+        var sourceDocument = top.s && top.s.document;
+        if (!sourceDocument) {
+            return;
+        }
+
+        var links = sourceDocument.querySelectorAll(".configFileVariantLink[data-configs]");
+        if (!links || links.length === 0) {
+            return;
+        }
+
+        var target = selectedConfigs[0];
+        for (var i = 0; i < links.length; i++) {
+            var elementConfigs = sbParseConfigList(links[i].getAttribute("data-configs"));
+            if (!sbContains(elementConfigs, target)) {
+                continue;
+            }
+
+            var anchor = links[i].getElementsByTagName("a")[0];
+            var href = anchor && anchor.getAttribute("href");
+            var hashIndex = href ? href.indexOf("#") : -1;
+            if (hashIndex < 0) {
+                return;
+            }
+
+            // Route through the same hash the banner's target="_top" link would
+            // navigate to, so this reuses processHash()'s existing frame-
+            // navigation (source AND nav-pane sync) instead of duplicating it.
+            var newHash = href.slice(hashIndex + 1);
+            if (top.location.hash.slice(1) !== newHash) {
+                top.location.hash = newHash;
+            }
+
+            return;
+        }
+    } catch (e) {
+        // Best-effort only -- cross-frame access can throw during unusual
+        // timing (e.g. a frame mid-navigation); fall back to the manual
+        // banner-click path rather than failing the selection change.
+    }
+}

@@ -57,5 +57,35 @@
         public static readonly string MSBuildFiles = "MSBuildFiles";
         public static readonly string TypeScriptFiles = "TypeScriptFiles";
         public static readonly string AssemblyPaths = "AssemblyPaths.txt";
+
+        /// <summary>
+        /// Per-project solution-folder chain (one segment per line, top-down; empty file for a project
+        /// at the solution root), persisted next to that project's other Pass1 output. Solely so the
+        /// config merge step can reconstruct SolutionExplorer.html's navigation tree across all
+        /// registered configs' obj/&lt;config&gt; roots without re-parsing the original .sln/.slnx --
+        /// the merge step runs as a separate invocation from whichever one(s) ran Pass1, with no access
+        /// to the solution file itself. This is purely additive: nothing else reads or depends on this
+        /// file, so it cannot regress any other output.
+        /// </summary>
+        public static readonly string SolutionFolderFileName = "SolutionFolder.txt";
+
+        /// <summary>
+        /// Per-assembly staleness key written by Pass1 (see <see cref="ProjectStaleness"/>) next to that
+        /// assembly's raw index, and copied by Pass2 alongside the finalized output. Comparing the two
+        /// copies is how incremental runs decide whether an assembly's Pass1 output (and Pass2 copy) can
+        /// be skipped entirely.
+        /// </summary>
+        public static readonly string StalenessKeyFileName = "StalenessKey";
+
+        /// <summary>
+        /// Written at the root of the merged <c>index/</c> website output (NOT the same file as
+        /// <see cref="ConfigRegistry.ConfigsFileName"/>, which lives one level up in the run's private
+        /// /out root and is never servable) so the client config-selector can discover, at runtime, which
+        /// configs the current site was merged from. A simple JSON array of config names, e.g.
+        /// <c>["linux","windows"]</c>. Only ever written by <see cref="ConfigAwareProjectFinalizer.Finalize"/>
+        /// (i.e. only for a 2+-config merge); a single/no-config site never has this file, which is how
+        /// the client selector knows to render nothing rather than an empty/single-option UI.
+        /// </summary>
+        public static readonly string RegisteredConfigsFileName = "configs.json";
     }
 }

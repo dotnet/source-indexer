@@ -17,6 +17,7 @@
     },
     "SourceIndexServer": {
       "commandName": "Project",
+      "commandLineArgs": "--contentRoot TestSite",
       "launchBrowser": true,
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"

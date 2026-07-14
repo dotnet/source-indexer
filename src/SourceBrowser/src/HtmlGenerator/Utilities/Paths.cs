@@ -18,6 +18,19 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             set { solutionDestinationFolder = value.MustBeAbsolute(); }
         }
 
+        /// <summary>
+        /// The finalized, servable website root that Pass2 (<see cref="SolutionFinalizer"/>) writes into.
+        /// This is deliberately a different folder than <see cref="SolutionDestinationFolder"/> (Pass1's raw,
+        /// per-assembly index), so that Pass1's output stays a pure, re-derivable artifact that Pass2 never
+        /// mutates in place -- Pass2 copies each assembly's Pass1 folder here before patching/finalizing it.
+        /// </summary>
+        private static string websiteDestinationFolder;
+        public static string WebsiteDestinationFolder
+        {
+            get { return websiteDestinationFolder; }
+            set { websiteDestinationFolder = value.MustBeAbsolute(); }
+        }
+
         public static string ProcessedAssemblies
         {
             get
@@ -37,12 +50,21 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
         public static string AssemblyPathsFile => Path.Combine(Microsoft.SourceBrowser.Common.Paths.BaseAppFolder, Constants.AssemblyPaths);
 
-        public static void PrepareDestinationFolder(bool forceOverwrite = false)
+        public static void PrepareDestinationFolder(bool forceOverwrite = false, bool incremental = false)
         {
             if (!Configuration.CreateFoldersOnDisk &&
                 !Configuration.WriteDocumentsToDisk &&
                 !Configuration.WriteProjectAuxiliaryFilesToDisk)
             {
+                return;
+            }
+
+            if (incremental)
+            {
+                // Incremental runs deliberately do not wipe the destination -- the whole point is to let
+                // Pass1 (via ProjectStaleness) and Pass2 detect which per-assembly output is still valid
+                // and reuse it. Just make sure the folder exists.
+                Directory.CreateDirectory(SolutionDestinationFolder);
                 return;
             }
 

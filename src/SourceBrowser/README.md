@@ -19,12 +19,18 @@ Now also available on NuGet:
  
 ## Instructions to generate and run a test website
  
- 1. GenerateTestSite.cmd
+ 1. GenerateTestSite.cmd -- generates a demo site from TestCode\TestSolution.sln (repo "RepoA") and
+    TestCode\RepoB\RepoB.slnx (repo "RepoB") across two configs (windows, linux), demonstrating
+    multi-repo grouping in Solution Explorer and the multi-axis config selector folded into the
+    code view (see e.g. TestSolution\PlatformInfo.cs, which differs by the `os` axis).
  2. RunTestSite.cmd
 
 ## In Visual Studio 2019:
  1. Open SourceBrowser.slnx.
- 2. Set HtmlGenerator project as startup and hit F5 - it is preconfigured to generate a website for TestCode\TestSolution.sln.
+ 2. Set HtmlGenerator project as startup and hit F5 - it is preconfigured to generate a website for
+    TestCode\TestSolution.sln and TestCode\RepoB\RepoB.slnx as two separately-tagged repos with a
+    single `windows` config (a faster single-pass inner loop than GenerateTestSite.cmd's full
+    two-config demo; the config selector correctly stays hidden with only 1 config registered).
  3. Pass a path to an .sln file or a .csproj file (or multiple paths separated by spaces) to create an index for them
  4. Pass /out:<path> to HtmlGenerator.exe to configure where to generate the website to. This path will be used in step 6 as your "physicalPath".
  5. Pass /in:<path> to pass a file with a list of full paths to projects and solutions to include in the index
@@ -39,7 +45,7 @@ At indexing time, C# and VB source code is analyzed using Roslyn and a lot of st
 
 The only component that runs on the webserver is a service that given a search query does the lookup and returns a list of matching types and members, which are hyperlinks into the static HTML. The webservice keeps a list of all declared types and members in memory, this list is also precalculated at indexing time. All services, such as Find All References, Project Explorer, etc. are all pre-rendered. 
 
-The generator is not incremental. You have to generate into an empty folder from scratch every time, and then replace the currently deployed folder with the new contents atomically (using e.g. Azure Deployments, robocopy /MIR to inetpub\\wwwroot, etc). For smaller projects, deploying to Azure using Dropbox or Git would work just fine.
+By default the generator is not incremental: you generate into an empty folder from scratch every time (`/force`), then replace the currently deployed folder with the new contents atomically (using e.g. Azure Deployments, robocopy /MIR to inetpub\\wwwroot, etc). For smaller projects, deploying to Azure using Dropbox or Git would work just fine. An opt-in `/incremental` mode, along with multi-config sites and repo tagging, is also available -- see [docs/IncrementalConfigAndRepos.md](docs/IncrementalConfigAndRepos.md).
 
 ### Limitations and known issues
  1. Indexing more than one project with the same assembly name is currently unsupported. Only the first project wins. This is due to a fundamental design decision to only reference an assembly by short name. Customizers should add a means to filter "victim" projects out in their forks to pick the best single project for inclusion in the index.

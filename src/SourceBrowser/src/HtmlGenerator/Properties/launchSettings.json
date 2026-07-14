@@ -2,7 +2,7 @@
   "profiles": {
     "HtmlGenerator": {
       "commandName": "Project",
-      "commandLineArgs": "$(SolutionDir)TestCode\\TestSolution.sln /out:$(SolutionDir)src\\SourceIndexServer\\index"
+      "commandLineArgs": "$(SolutionDir)TestCode\\TestSolution.sln $(SolutionDir)TestCode\\RepoB\\RepoB.slnx /out:$(SolutionDir)src\\SourceIndexServer\\TestSite /force /config:windows /configAxes:os=windows /p:DefineConstants=WINDOWS /repoPath:\"$(SolutionDir)TestCode\\RepoB\"=\"RepoB\" /repoPath:\"$(SolutionDir)TestCode\"=\"RepoA\""
     }
   }
 }
