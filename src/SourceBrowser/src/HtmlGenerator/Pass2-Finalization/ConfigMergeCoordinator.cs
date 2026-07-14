@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 
 namespace Microsoft.SourceBrowser.HtmlGenerator
@@ -46,13 +48,34 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             }
 
             var lockScopePath = Path.Combine(Path.GetFullPath(outRoot), ConfigRegistry.ConfigsFileName);
+            RunUnderMutex(lockScopePath, mergeAction);
+        }
 
-            using (var mutex = CreateNamedMutex(lockScopePath))
+        /// <summary>
+        /// Acquires the named mutex for <paramref name="scopePath"/>, runs <paramref name="action"/>,
+        /// and releases the mutex. Shared by <see cref="RunGuarded"/> and
+        /// <see cref="ConfigRegistry.EnsureConfigRegistered"/> so the cross-process locking contract
+        /// (including abandoned-mutex recovery) lives in exactly one place.
+        /// </summary>
+        internal static void RunUnderMutex(string scopePath, Action action)
+        {
+            using (var mutex = CreateNamedMutex(scopePath))
             {
-                mutex.WaitOne();
+                // AbandonedMutexException means a prior holder (e.g. an indexing process that crashed
+                // mid-merge) exited without releasing. The wait still SUCCEEDS and this thread now owns
+                // the mutex, so treat it as acquired and proceed -- otherwise a single crashed run would
+                // permanently wedge every future merge/registration against this /out.
                 try
                 {
-                    mergeAction();
+                    mutex.WaitOne();
+                }
+                catch (AbandonedMutexException)
+                {
+                }
+
+                try
+                {
+                    action();
                 }
                 finally
                 {
@@ -145,9 +168,13 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         internal static Mutex CreateNamedMutex(string scopePath)
         {
             // Scope the mutex name to the exact path being guarded so unrelated /out roots (e.g.
-            // different solutions indexed on the same machine) don't contend with each other.
+            // different solutions indexed on the same machine) don't contend with each other. The name
+            // must be derived deterministically ACROSS processes: string.GetHashCode() is randomized
+            // per-process on modern .NET, so hashing the path that way gives every process a different
+            // mutex name and silently defeats the cross-process guarantee. Use a stable content hash.
             var normalizedPath = Path.GetFullPath(scopePath).ToUpperInvariant();
-            var mutexName = "SourceBrowser.ConfigMerge." + normalizedPath.GetHashCode().ToString("X8");
+            var hash = SHA256.HashData(Encoding.UTF8.GetBytes(normalizedPath));
+            var mutexName = "SourceBrowser.ConfigMerge." + Convert.ToHexString(hash, 0, 8);
             return new Mutex(initiallyOwned: false, name: mutexName);
         }
     }

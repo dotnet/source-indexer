@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading;
 
 namespace Microsoft.SourceBrowser.HtmlGenerator
 {
@@ -70,18 +69,9 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             Directory.CreateDirectory(outRoot);
             var configsFilePath = Path.Combine(outRoot, ConfigsFileName);
 
-            using (var mutex = ConfigMergeCoordinator.CreateNamedMutex(configsFilePath))
-            {
-                mutex.WaitOne();
-                try
-                {
-                    AddConfigIfMissing(configsFilePath, configName, axisTags);
-                }
-                finally
-                {
-                    mutex.ReleaseMutex();
-                }
-            }
+            ConfigMergeCoordinator.RunUnderMutex(
+                configsFilePath,
+                () => AddConfigIfMissing(configsFilePath, configName, axisTags));
         }
 
         /// <summary>

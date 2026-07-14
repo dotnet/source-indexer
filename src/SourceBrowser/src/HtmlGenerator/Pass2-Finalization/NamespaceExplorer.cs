@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Unicode;
 
 namespace Microsoft.SourceBrowser.HtmlGenerator
 {
@@ -35,7 +36,12 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         {
             sw.Write("<script>var namespaceExplorerData=");
 
-            var options = new JsonWriterOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+            // This JSON is written straight into a <script> block, so the encoder must escape the
+            // HTML-sensitive characters (notably '<', so a type/namespace name containing "</script>"
+            // can't break out of the script context -- an XSS vector when indexing untrusted source).
+            // JavaScriptEncoder.Create(UnicodeRanges.All) still leaves non-ASCII identifiers unescaped
+            // (keeping the payload compact) but escapes '<'/'>'/'&', unlike UnsafeRelaxedJsonEscaping.
+            var options = new JsonWriterOptions { Encoder = JavaScriptEncoder.Create(UnicodeRanges.All) };
             using (var stream = new MemoryStream())
             {
                 using (var json = new Utf8JsonWriter(stream, options))

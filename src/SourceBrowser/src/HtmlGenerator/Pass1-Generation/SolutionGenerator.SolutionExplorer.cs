@@ -108,7 +108,10 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 projectFilePath = projectModel.DisplayName;
             }
 
-            return Path.Combine(solutionDirectory, projectFilePath);
+            // Normalize to a full path so this matches Roslyn's Project.FilePath (an absolute,
+            // normalized path) used as the lookup key -- projectModel.FilePath can be relative, carry
+            // '..' segments, or already be absolute, any of which would otherwise miss the map lookup.
+            return Path.GetFullPath(Path.Combine(solutionDirectory, projectFilePath));
         }
 
         private static List<string> GetParentFolderChain(SolutionModel solutionModel, SolutionProjectModel projectModel)
