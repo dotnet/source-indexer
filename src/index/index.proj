@@ -193,7 +193,7 @@
     <WriteLinesToFile Lines="@(_FilteredBinlog -> '%(FullPath)')" File="$(OutDir)index.list" Overwrite="true"/>
     <WriteLinesToFile Lines="@(_FilteredSolution -> '%(FullPath)')" File="$(OutDir)index.list" Overwrite="false"/>
     <PropertyGroup>
-      <SourceIndexCmd>"$(HtmlGeneratorExePath)"</SourceIndexCmd>
+      <SourceIndexCmd>dotnet exec "$(HtmlGeneratorExePath)"</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /donotincludereferencedprojects</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /nobuiltinfederations</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /noplugins</SourceIndexCmd>
