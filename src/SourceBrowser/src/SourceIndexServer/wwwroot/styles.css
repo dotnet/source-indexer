@@ -89,7 +89,15 @@ body {
    crowding the content. The header toggle button (and the search / result-click
    flows in scripts.js) flip the body's showNav class to pick which pane is
    visible; the content/document pane is shown by default. */
-@media only screen and (max-width: 700px) {
+/* The single-pane mobile layout applies both to narrow (portrait) screens and to
+   short landscape screens on touch devices -- a phone in landscape is wide enough to
+   miss the width breakpoint but too short for a comfortable side-by-side split, so it
+   gets the same one-pane-at-a-time treatment as portrait. These pane rules live in the
+   top document, which sees the real device viewport; the matching pane toggle lives in
+   the header iframe and is revealed via a JS-set .landscapePhone class instead (see the
+   .headerBody.landscapePhone rule below and updateLandscapePhonePane in scripts.js). */
+@media only screen and (max-width: 700px),
+       only screen and (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
     .paneContainer {
         flex-direction: column;
     }
@@ -399,6 +407,23 @@ a i {
     white-space: nowrap;
     padding-top: 1px;
     padding-bottom: 1px;
+}
+
+/* Repo/Solution grouping nodes only appear in the Solution Explorer tree when a merged site spans
+   more than one repo (or, within a repo, more than one solution) -- see Program.IndexSolutionsAsync
+   and SolutionFinalizer.WriteFolder. They get a bolder, tinted treatment so the repo/solution
+   boundaries are visually obvious at a glance, distinct from plain physical folders. */
+.repoTitle {
+    font-weight: bold;
+    background-color: #eef4fb;
+    border-left: 3px solid #4a90d9;
+    padding-left: 4px;
+    margin-left: -4px;
+}
+
+.solutionTitle {
+    font-weight: bold;
+    font-style: italic;
 }
 
 .typeTitle {
@@ -765,6 +790,10 @@ a i {
     display: inline-block;
 }
 
+#dotnetLogo.brandingHidden {
+    display: none;
+}
+
 #search-box {
     font-size: 16pt;
     width: 405px;
@@ -788,6 +817,64 @@ a i {
     width: 100%;*/
 }
 
+/* Embedded directly into the page's "note" strip (results.html's "N results found:" bar, or
+   SolutionExplorer.html's static "Solution Explorer" label) via embedRepoFilterInNote() in
+   scripts.js, so it reads as a filter on that content rather than a separate control elsewhere
+   on the page. Only applied once scripts.js actually moves a select in, so a plain .note (no
+   filter, or a single-repo/untagged site) is completely unaffected. */
+.note.hasFilter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+/* The repo filter dropdown itself. Hidden by default; scripts.js only shows it once the site has
+   more than one distinct repo tag to offer. */
+#repo-filter {
+    font-size: 11pt;
+    border-color: lightgray;
+    border-width: 1px;
+    border-style: solid;
+    padding: 3px 20px 3px 6px;
+    max-width: 200px;
+    flex: none;
+    background-color: white;
+    /* Matches the note's own ~28px content-box height (13pt/125% line-height text plus 8px
+       top/bottom padding, minus the border this control adds) so it sits comfortably inline
+       with the result count text rather than visibly stretching the note. */
+    box-sizing: border-box;
+    height: 28px;
+    /* The browser's native dropdown arrow ignores padding-right -- it's drawn flush against the
+       border regardless -- so appearance:none replaces it with a plain SVG chevron we can
+       actually position with background-position, leaving the padding above to reserve text
+       space in front of it. */
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'><path d='M0 0 L5 6 L10 0 Z' fill='gray'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+    background-size: 10px 6px;
+}
+
+/* Hides a Solution Explorer project subtree that doesn't match the selected repo filter (see
+   filterSolutionExplorerByRepo in scripts.js). A class rather than inline display is used so this
+   doesn't fight with the folder expand/collapse logic, which also toggles display on the same
+   [data-assembly] elements. */
+.repoHidden {
+    display: none !important;
+}
+
+/* Hides a repo grouping header once that repo is the one selected in the filter dropdown (see
+   filterSolutionExplorerByRepo in scripts.js) -- its folder is forced open at the same time, so
+   the tree reads the same as an ungrouped/single-repo site instead of showing an always-selected
+   wrapper around everything the user already scoped to. */
+.repoUnwrapped {
+    display: none !important;
+}
+
 #logoText {
     background-image: url(content/icons/microsoftlogo.png);
     background-repeat: no-repeat;
@@ -805,6 +892,13 @@ a i {
     padding-right: 0px;
     vertical-align: top;
     display: inline-block;
+}
+
+/* Keep the "Source Browser" text/home-link itself when branding is off -- just drop the
+   Microsoft logo image and the left padding reserved for it. */
+#logoText.brandingHidden {
+    background-image: none;
+    padding-left: 0px;
 }
 
 #currentVersion {
@@ -1213,15 +1307,29 @@ ol a, ol a:link, ol a:hover, ol a:focus, ol a:active,
 }
 
 @media only screen and (max-width: 700px) {
+    /* Keep Help reachable on mobile -- it holds the only link to the overview/help page.
+       Drop the desktop float and sit it after the pane toggle as a flex sibling that
+       doesn't grow, so the search box still takes the remaining width. */
     #headerMenu {
-        display: none;
+        float: none;
+        flex: none;
+        padding: 0;
     }
 
-    /* At this width only the search box and pane toggle remain visible, so lay
-       them out as flex siblings and let the browser reserve exact space for
-       each. The toggle label ("Results"/"Code") varies in width, so the old
-       absolute toggle plus a fixed padding-right reservation overlapped the
-       search box in portrait; flex avoids the magic number entirely. */
+    /* Size Help like the pane toggle so the two read as one consistent pair, rather than
+       Help's default 16px next to the toggle's 14px. */
+    #helpButtonLink {
+        display: inline-block;
+        margin: 0;
+        padding: 18px 8px;
+        font-size: 14px;
+        line-height: 20px;
+    }
+
+    /* The search box + pane toggle share this line -- lay them out as flex siblings and
+       let the browser reserve exact space for each. The toggle label ("Results"/"Code")
+       varies in width, so the old absolute toggle plus a fixed padding-right reservation
+       overlapped the search box in portrait; flex avoids the magic number entirely. */
     #searchBoxAndImages {
         display: flex;
         align-items: center;
@@ -1242,6 +1350,15 @@ ol a, ol a:link, ol a:hover, ol a:focus, ol a:active,
         margin: 10px 0;
     }
 
+    /* Keep the control from stretching to its widest option's text on a narrow phone. */
+    #repo-filter {
+        max-width: 120px;
+        font-size: 9pt;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
+    }
+
     #paneToggle {
         display: inline-block;
         flex: none;
@@ -1255,6 +1372,25 @@ ol a, ol a:link, ol a:hover, ol a:focus, ol a:active,
         user-select: none;
         -webkit-user-select: none;
     }
+}
+
+/* Landscape phones keep the desktop-width header layout (they are wide enough), but
+   they use the single-pane body layout (see the landscape term on the pane breakpoint
+   near the top), so they still need the pane toggle. The toggle lives in the fixed
+   58px-tall header iframe, whose own viewport is always short + landscape and so can't
+   tell a landscape phone from a portrait tablet via a CSS media query; scripts.js sets
+   .landscapePhone on the header body from a device-level matchMedia instead. */
+.headerBody.landscapePhone #paneToggle {
+    display: inline-block;
+    vertical-align: middle;
+    padding: 18px 14px;
+    color: white;
+    font-size: 14px;
+    line-height: 20px;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1324,6 +1460,11 @@ ol a, ol a:link, ol a:hover, ol a:focus, ol a:active,
     .note {
         background-color: #443;
         border-color: #665;
+    }
+
+    .repoTitle {
+        background-color: #1c2b3d;
+        border-left-color: #4a90d9;
     }
 
     .resultGroupHeader {
@@ -1407,7 +1548,8 @@ ol a, ol a:link, ol a:hover, ol a:focus, ol a:active,
         background: linear-gradient(to right, #789 0%,#012 80%,#000 100%);
     }
 
-    #search-box {
+    #search-box,
+    #repo-filter {
         background-color: black;
         border-color: #555;
     }

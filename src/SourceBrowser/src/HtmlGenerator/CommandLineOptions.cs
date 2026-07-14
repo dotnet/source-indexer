@@ -19,12 +19,14 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             IReadOnlyDictionary<string, string> offlineFederations,
             IReadOnlyCollection<string> federations,
             IReadOnlyDictionary<string, string> serverPathMappings,
+            IReadOnlyDictionary<string, string> repoPathMappings,
             IReadOnlyList<string> pluginBlacklist,
             bool loadPlugins,
             bool excludeTests,
             string rootPath,
             bool includeSourceGeneratedDocuments,
-            bool suppressWarnings)
+            bool suppressWarnings,
+            bool showBranding)
         {
             SolutionDestinationFolder = solutionDestinationFolder;
             Projects = projects;
@@ -36,12 +38,14 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             OfflineFederations = offlineFederations;
             Federations = federations;
             ServerPathMappings = serverPathMappings;
+            RepoPathMappings = repoPathMappings;
             PluginBlacklist = pluginBlacklist;
             LoadPlugins = loadPlugins;
             ExcludeTests = excludeTests;
             RootPath = rootPath;
             IncludeSourceGeneratedDocuments = includeSourceGeneratedDocuments;
             SuppressWarnings = suppressWarnings;
+            ShowBranding = showBranding;
         }
 
         public string SolutionDestinationFolder { get; }
@@ -55,11 +59,27 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         public IReadOnlyDictionary<string, string> OfflineFederations { get; }
         public IReadOnlyCollection<string> Federations { get; }
         public IReadOnlyDictionary<string, string> ServerPathMappings { get; }
+
+        /// <summary>
+        /// Maps a local source folder (full path, no trailing slash) to a repo display name,
+        /// used to optionally tag every assembly generated from a project under that folder so
+        /// search can later be scoped to just that repo. Populated via /repoPath: or the /repo:
+        /// sugar option. Empty by default, which keeps every assembly untagged.
+        /// </summary>
+        public IReadOnlyDictionary<string, string> RepoPathMappings { get; }
         public IReadOnlyList<string> PluginBlacklist { get; }
         public bool LoadPlugins { get; }
         public bool ExcludeTests { get; }
         public string RootPath { get; }
         public bool SuppressWarnings { get; }
+
+        /// <summary>
+        /// Shows the .NET/Microsoft logo marks in the generated site's header. Off by default --
+        /// most sites generated with this tool aren't Microsoft's own code, so the branding is
+        /// opt-in via /showBranding rather than something every consumer has to remember to hide.
+        /// The "Source Browser" title/home link itself is unaffected either way.
+        /// </summary>
+        public bool ShowBranding { get; }
 
         public static CommandLineOptions Parse(params string[] args)
         {
@@ -73,12 +93,14 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             var offlineFederations = new Dictionary<string, string>();
             var federations = new HashSet<string>();
             var serverPathMappings = new Dictionary<string, string>();
+            var repoPathMappings = new Dictionary<string, string>();
             var pluginBlacklist = new List<string>();
             var loadPlugins = false;
             var excludeTests = false;
             var includeSourceGeneratedDocuments = true;
             var rootPath = (string)null;
             var suppressWarnings = false;
+            var showBranding = false;
 
             foreach (var arg in args)
             {
@@ -114,6 +136,56 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     }
 
                     serverPathMappings[Path.GetFullPath(match.Groups["from"].Value)] = match.Groups["to"].Value;
+                    continue;
+                }
+
+                if (arg.StartsWith("/repoPath:", StringComparison.Ordinal))
+                {
+                    // Tags every project under the given local folder with a repo display name,
+                    // so search can optionally be scoped to that repo. Allowed forms mirror
+                    // /serverPath:
+                    // /repoPath:a=b
+                    // /repoPath:"a=1"="b=2"
+                    // /repoPath:"a"="b"
+                    var match = Regex.Match(
+                        arg.Substring("/repoPath:".Length),
+                        @"\A(?:
+                            (?:(?<from>[^""=]*)|""(?<from>[^""]*)"")=(?:(?<name>[^""=]*)|""(?<name>[^""]*)"")
+                        )\Z", RegexOptions.IgnorePatternWhitespace);
+
+                    if (!match.Success)
+                    {
+                        Log.Write("Repo path argument usage: /repoPath:\"path to local repository root\"=\"repo display name\"" + Environment.NewLine +
+                                  "Quotes are optional if you have no spaces or equals signs but recommended.", ConsoleColor.Red);
+                        continue;
+                    }
+
+                    repoPathMappings[Path.GetFullPath(match.Groups["from"].Value)] = match.Groups["name"].Value;
+                    continue;
+                }
+
+                if (arg.StartsWith("/repo:", StringComparison.Ordinal))
+                {
+                    // Sugar for the common case of specifying a repo's local folder, display name,
+                    // and server URL together in one flag: equivalent to specifying both
+                    // /repoPath:"folder"="name" and /serverPath:"folder"="url".
+                    // /repo:"path to local repository root"="repo display name"="root URL"
+                    var match = Regex.Match(
+                        arg.Substring("/repo:".Length),
+                        @"\A(?:
+                            (?:(?<from>[^""=]*)|""(?<from>[^""]*)"")=(?:(?<name>[^""=]*)|""(?<name>[^""]*)"")=(?:(?<to>[^""=]*)|""(?<to>[^""]*)"")
+                        )\Z", RegexOptions.IgnorePatternWhitespace);
+
+                    if (!match.Success)
+                    {
+                        Log.Write("Repo argument usage: /repo:\"path to local repository root\"=\"repo display name\"=\"root URL\"" + Environment.NewLine +
+                                  "Quotes are optional if you have no spaces or equals signs but recommended.", ConsoleColor.Red);
+                        continue;
+                    }
+
+                    var repoFolder = Path.GetFullPath(match.Groups["from"].Value);
+                    repoPathMappings[repoFolder] = match.Groups["name"].Value;
+                    serverPathMappings[repoFolder] = match.Groups["to"].Value;
                     continue;
                 }
 
@@ -242,6 +314,12 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     continue;
                 }
 
+                if (string.Equals(arg, "/showBranding", StringComparison.OrdinalIgnoreCase))
+                {
+                    showBranding = true;
+                    continue;
+                }
+
                 try
                 {
                     AddProject(projects, arg);
@@ -276,12 +354,14 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 offlineFederations,
                 federations,
                 serverPathMappings,
+                repoPathMappings,
                 pluginBlacklist,
                 loadPlugins,
                 excludeTests,
                 rootPath,
                 includeSourceGeneratedDocuments,
-                suppressWarnings);
+                suppressWarnings,
+                showBranding);
         }
 
         private static void AddProject(List<string> projects, string path)

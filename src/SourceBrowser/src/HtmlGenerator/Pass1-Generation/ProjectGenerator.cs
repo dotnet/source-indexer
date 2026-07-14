@@ -26,6 +26,10 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         public SolutionGenerator SolutionGenerator { get; private set; }
         public string ProjectSourcePath { get; set; }
         public string ProjectFilePath { get; private set; }
+
+        /// <summary>Repo/solution tags inherited from the owning SolutionGenerator, if any.</summary>
+        public string RepoName => SolutionGenerator?.RepoName ?? string.Empty;
+        public string SolutionName => SolutionGenerator?.SolutionName ?? string.Empty;
         public List<string> OtherFiles { get; set; }
         public IEnumerable<MEF.ISymbolVisitor> PluginSymbolVisitors { get; private set; }
         public IEnumerable<MEF.ITextVisitor> PluginTextVisitors { get; private set; }

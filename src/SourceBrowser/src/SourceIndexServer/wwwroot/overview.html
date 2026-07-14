@@ -21,14 +21,21 @@
         <tr>
             <td class="ex">
                 <div>Full or partial type or member name.</div>
-                <div>The string needs to be a prefix, "Builder" won't find "StringBuilder", but will find "BuilderType".</div>
-                <div>Use quotes to find exact string (turns off prefix search).</div>
+                <div>Exact and prefix matches rank first, so "Builder" surfaces "BuilderType" at the top.</div>
+                <div>Use quotes to find an exact string (turns off prefix and fuzzy matching).</div>
             </td>
             <td class="ex">
                 <div><a class="blueLink" href="/#q=BitConverter" target="_top">BitConverter</a></div>
                 <div><a class="blueLink" href="/#q=System.Console" target="_top">System.Console</a></div>
                 <div><a class="blueLink" href="/#q=Debug.Asse" target="_top">Debug.Asse</a></div>
                 <div><a class="blueLink" href="/#q=%22StringBuilder%22" target="_top">"StringBuilder"</a></div>
+            </td>
+        </tr>
+        <tr>
+            <td class="ex">camelCase humps and substrings also match, ranked below exact and prefix matches: "NeCl" finds "NewClass" and "MyNewClass", and "Builder" also finds "StringBuilder".</td>
+            <td class="ex">
+                <div><a class="blueLink" href="/#q=SBuilder" target="_top">SBuilder</a></div>
+                <div><a class="blueLink" href="/#q=DTime" target="_top">DTime</a></div>
             </td>
         </tr>
         <tr>
@@ -53,6 +60,13 @@
             <td class="ex">
                 <div><a class="blueLink" href="/#q=task%20factory" target="_top">task factory</a></div>
                 <div><a class="blueLink" href="/#q=StringBuilder%20mscorlib" target="_top">StringBuilder mscorlib</a></div>
+            </td>
+        </tr>
+        <tr>
+            <td class="ex">On an index built from multiple repositories, use "repo:" or "solution:" to scope results to a repository or solution.</td>
+            <td class="ex">
+                <div><a class="blueLink" href="/#q=repo%3Aroslyn%20Compilation" target="_top">repo:roslyn Compilation</a></div>
+                <div><a class="blueLink" href="/#q=solution%3ARoslyn%20SyntaxNode" target="_top">solution:Roslyn SyntaxNode</a></div>
             </td>
         </tr>
         <tr>
@@ -147,6 +161,18 @@
             <td class="ex"><span style="white-space: nowrap"><img role="presentation" style="vertical-align: top; margin-right: 16px" src="content/icons/NamespaceExplorer.png" />Namespace&nbsp;Explorer</span></td>
             <td class="ex">
                 Namespaces and types in the current project/assembly.
+            </td>
+        </tr>
+        <tr>
+            <td class="ex">Repo&nbsp;Filter</td>
+            <td class="ex">
+                On an index built from multiple repositories, a dropdown in the search results and Solution Explorer scopes browsing and search to a single repository. Hidden when the index has a single or untagged repository. The same scoping is available directly from the search box via the "repo:" and "solution:" keywords.
+            </td>
+        </tr>
+        <tr>
+            <td class="ex">Responsive&nbsp;Layout</td>
+            <td class="ex">
+                The viewer adapts to narrow screens: the source and navigation panes collapse to a single pane you can switch between, so the site is usable on phones and tablets as well as on desktop.
             </td>
         </tr>
     </table>

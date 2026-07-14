@@ -42,6 +42,14 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Controllers
             return Content(result, "text/html", Encoding.UTF8);
         }
 
+        [HttpGet("/api/repos")]
+        public IActionResult GetRepos()
+        {
+            var index = _provider.GetRequiredService<Index>();
+            var repos = index.GetDistinctRepoNames();
+            return Json(repos);
+        }
+
         [HttpGet("/api/symbolurl")]
         public IActionResult GetSymbolUrl(string symbolId)
         {

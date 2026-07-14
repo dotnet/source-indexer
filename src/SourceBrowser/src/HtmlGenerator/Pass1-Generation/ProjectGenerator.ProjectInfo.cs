@@ -25,6 +25,17 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 .Append("DeclaredSymbols=").Append(DeclaredSymbols.Count).AppendLine()
                 .Append("DeclaredTypes=").Append(namedTypes.Count()).AppendLine()
                 .Append("PublicTypes=").Append(namedTypes.Count(t => t.DeclaredAccessibility == Accessibility.Public)).AppendLine();
+
+            if (!string.IsNullOrEmpty(RepoName))
+            {
+                sb.Append("RepoName=").AppendLine(RepoName);
+            }
+
+            if (!string.IsNullOrEmpty(SolutionName))
+            {
+                sb.Append("SolutionName=").AppendLine(SolutionName);
+            }
+
             File.WriteAllText(projectInfoFile, sb.ToString());
         }
     }

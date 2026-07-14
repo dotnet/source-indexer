@@ -311,7 +311,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             Serialization.WriteProjectMap(
                 outputPath ?? SolutionDestinationFolder,
                 projects.Select(p => Tuple.Create(p.AssemblyId, p.ProjectInfoLine)),
-                projects.ToDictionary(p => p.AssemblyId, p => p.ReferencingAssemblies.Count));
+                projects.ToDictionary(p => p.AssemblyId, p => p.ReferencingAssemblies.Count),
+                projects.ToDictionary(p => p.AssemblyId, p => Tuple.Create(p.RepoName ?? "", p.SolutionName ?? "")));
         }
 
         public void CreateMasterDeclarationsIndex(string outputPath = null)

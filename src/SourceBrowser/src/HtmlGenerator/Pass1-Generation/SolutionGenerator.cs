@@ -22,6 +22,20 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         public string SolutionDestinationFolder { get; private set; }
         public string ProjectFilePath { get; private set; }
         public IReadOnlyDictionary<string, string> ServerPathMappings { get; set; }
+
+        /// <summary>
+        /// Optional repo display name tag applied to every assembly generated from this solution,
+        /// set by the caller (see Program.IndexSolutionsAsync) via /repoPath or /repo. Empty when
+        /// untagged, which is the default and keeps generated output unchanged.
+        /// </summary>
+        public string RepoName { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Optional solution display name tag applied to every assembly generated from this
+        /// solution, auto-derived from the top-level .sln/.slnx file name. Empty for standalone
+        /// project/binlog inputs that aren't part of a solution.
+        /// </summary>
+        public string SolutionName { get; set; } = string.Empty;
         private Federation Federation { get; set; }
         public bool IncludeSourceGeneratedDocuments { get; }
 

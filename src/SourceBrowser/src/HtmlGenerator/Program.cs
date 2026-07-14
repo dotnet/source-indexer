@@ -104,11 +104,11 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                         eventArgs.Cancel = true;
                     };
 
-                    await IndexSolutionsAsync(options.Projects, options.Properties, federation, options.ServerPathMappings, options.PluginBlacklist, cts.Token, options.DoNotIncludeReferencedProjects, options.RootPath,
+                    await IndexSolutionsAsync(options.Projects, options.Properties, federation, options.ServerPathMappings, options.RepoPathMappings, options.PluginBlacklist, cts.Token, options.DoNotIncludeReferencedProjects, options.RootPath,
                         options.IncludeSourceGeneratedDocuments);
                 }
                 FinalizeProjects(options.EmitAssemblyList, federation);
-                WebsiteFinalizer.Finalize(websiteDestination, options.EmitAssemblyList, federation);
+                WebsiteFinalizer.Finalize(websiteDestination, options.EmitAssemblyList, federation, options.ShowBranding);
             }
             Log.Close();
 
@@ -130,6 +130,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 + "[/in:<filecontaingprojectlist>] "
                 + "[/nobuiltinfederations] "
                 + "[/offlinefederation:server=assemblyListFile] "
+                + "[/repoPath:\"local repo folder\"=\"repo display name\"] "
+                + "[/repo:\"local repo folder\"=\"repo display name\"=\"root URL\"] "
                 + "[/assemblylist]"
                 + "[/excludetests]"
                 + "[/excludeSourceGeneratedDocuments]"
@@ -157,6 +159,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             IReadOnlyDictionary<string, string> properties,
             Federation federation,
             IReadOnlyDictionary<string, string> serverPathMappings,
+            IReadOnlyDictionary<string, string> repoPathMappings,
             IEnumerable<string> pluginBlacklist,
             CancellationToken cancellationToken,
             bool doNotIncludeReferencedProjects = false,
@@ -197,9 +200,39 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             AppDomain.Unload(domain);
             domain = null;
 
-            foreach (var path in solutionFilePaths)
+            // Solution tag is auto-derived from each top-level input's file name when it's a
+            // .sln/.slnx; standalone project/binlog inputs aren't part of a solution, so they
+            // stay untagged. Repo tag is resolved by longest-prefix match of each input's folder
+            // against /repoPath (or /repo) mappings; untagged when no mapping applies. Resolve
+            // both up front (rather than per-iteration below) so we know, before building any
+            // folder, whether the merged site actually spans more than one repo/solution.
+            var pathTags = solutionFilePaths
+                .Select(path => (Path: path, RepoName: GetRepoName(path, repoPathMappings), SolutionName: GetSolutionName(path)))
+                .ToList();
+
+            var distinctRepoCount = pathTags
+                .Select(t => t.RepoName)
+                .Where(r => !string.IsNullOrEmpty(r))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Count();
+
+            var solutionCountsByRepo = pathTags
+                .Where(t => !string.IsNullOrEmpty(t.RepoName))
+                .GroupBy(t => t.RepoName, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(t => t.SolutionName).Where(s => !string.IsNullOrEmpty(s)).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+                    StringComparer.OrdinalIgnoreCase);
+
+            foreach (var (path, repoName, solutionName) in pathTags)
             {
-                var solutionFolder = mergedSolutionExplorerRoot;
+                // Only introduce Repo/Solution grouping folders when the merged site actually has
+                // more than one repo (or, within a repo, more than one solution) to distinguish --
+                // keeps single-repo/untagged sites' Solution Explorer tree byte-identical to before
+                // repo tagging existed. Untagged inputs stay flat at the top level even on a
+                // multi-repo site, alongside the repo folders.
+                var solutionFolder = GetSolutionExplorerGroupingFolder(
+                    mergedSolutionExplorerRoot, repoName, solutionName, distinctRepoCount, solutionCountsByRepo);
 
                 if (rootPath is object)
                 {
@@ -241,7 +274,9 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                                 assemblyNames,
                                 solutionFolder,
                                 typeForwards,
-                                includeSourceGeneratedDocuments);
+                                includeSourceGeneratedDocuments: includeSourceGeneratedDocuments,
+                                repoName: repoName,
+                                solutionName: solutionName);
                         }
                         
                         continue;
@@ -260,6 +295,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                         typeForwards: typeForwards))
                     {
                         solutionGenerator.GlobalAssemblyList = assemblyNames;
+                        solutionGenerator.RepoName = repoName;
+                        solutionGenerator.SolutionName = solutionName;
                         await solutionGenerator.GenerateAsync(cancellationToken, processedAssemblyList, solutionFolder);
                     }
                 }
@@ -305,6 +342,76 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             }
         }
 
+        /// <summary>Descends into (creating as needed) the Repo/Solution grouping folders for a
+        /// single input, or returns <paramref name="root"/> unchanged when grouping doesn't apply.
+        /// Public and static so it's independently unit-testable without needing a real
+        /// solution/build. See the Solution Explorer tree design note on IndexSolutionsAsync's
+        /// grouping loop for the byte-identical-by-default rationale.</summary>
+        public static Folder<ProjectSkeleton> GetSolutionExplorerGroupingFolder(
+            Folder<ProjectSkeleton> root,
+            string repoName,
+            string solutionName,
+            int distinctRepoCount,
+            IReadOnlyDictionary<string, int> solutionCountsByRepo)
+        {
+            var folder = root;
+
+            if (distinctRepoCount > 1 && !string.IsNullOrEmpty(repoName))
+            {
+                folder = folder.GetOrCreateFolder(repoName);
+                folder.Kind = FolderKind.Repo;
+                folder.RepoName = repoName;
+
+                if (solutionCountsByRepo.TryGetValue(repoName, out var solutionCount) &&
+                    solutionCount > 1 && !string.IsNullOrEmpty(solutionName))
+                {
+                    folder = folder.GetOrCreateFolder(solutionName);
+                    folder.Kind = FolderKind.Solution;
+                    folder.RepoName = repoName;
+                }
+            }
+
+            return folder;
+        }
+
+        private static string GetSolutionName(string path)
+        {
+            if (path.EndsWith(".sln", StringComparison.OrdinalIgnoreCase) ||
+                path.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase))
+            {
+                return Path.GetFileNameWithoutExtension(path);
+            }
+
+            return string.Empty;
+        }
+
+        private static string GetRepoName(string path, IReadOnlyDictionary<string, string> repoPathMappings)
+        {
+            if (repoPathMappings == null || repoPathMappings.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            var directory = Path.GetDirectoryName(path);
+            if (string.IsNullOrEmpty(directory))
+            {
+                return string.Empty;
+            }
+
+            // Longest-prefix match, in case repo folders are nested.
+            string bestMatch = null;
+            foreach (var candidate in repoPathMappings.Keys)
+            {
+                if (Paths.IsOrContains(candidate, directory) &&
+                    (bestMatch == null || candidate.Length > bestMatch.Length))
+                {
+                    bestMatch = candidate;
+                }
+            }
+
+            return bestMatch != null ? repoPathMappings[bestMatch] : string.Empty;
+        }
+
         private static void FinalizeProjects(bool emitAssemblyList, Federation federation)
         {
             GenerateLooseFilesProject(Constants.MSBuildFiles, Paths.SolutionDestinationFolder);
@@ -332,7 +439,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
     internal static class WebsiteFinalizer
     {
-        public static void Finalize(string destinationFolder, bool emitAssemblyList, Federation federation)
+        public static void Finalize(string destinationFolder, bool emitAssemblyList, Federation federation, bool showBranding)
         {
             string sourcePath = Assembly.GetEntryAssembly().Location;
             sourcePath = Path.GetDirectoryName(sourcePath);
@@ -348,12 +455,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
             StampOverviewHtmlWithDate(destinationFolder);
 
-            if (emitAssemblyList)
-            {
-                ToggleSolutionExplorerOff(destinationFolder);
-            }
-
-            SetExternalUrlMap(destinationFolder, federation);
+            ApplyScriptsJsCustomizations(destinationFolder, emitAssemblyList, federation, showBranding);
         }
 
         private static void StampOverviewHtmlWithDate(string destinationFolder)
@@ -441,43 +543,60 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             return assembly.GetName().Version?.ToString() ?? "unknown";
         }
 
-        private static void ToggleSolutionExplorerOff(string destinationFolder)
+        // The generated site can run either through SourceIndexServer (which serves wwwroot/scripts.js
+        // as its baseline, byte-identical to the checked-in template) or as pure static files, where
+        // the copy under index/ -- and, at runtime, SourceIndexServer's own RootPath handler, which is
+        // registered ahead of its wwwroot handler -- is what's actually served. All three toggles below
+        // used to independently re-read wwwroot/scripts.js and overwrite index/scripts.js, which meant
+        // combining more than one (e.g. /assemblylist with a federation, or either alongside
+        // /showBranding) silently discarded whichever ran first. They're composed into one read-modify
+        // sequence here so any combination of flags ends up in the final file.
+        private static void ApplyScriptsJsCustomizations(string destinationFolder, bool emitAssemblyList, Federation federation, bool showBranding)
         {
             var source = Path.Combine(destinationFolder, "wwwroot/scripts.js");
-            var dst = Path.Combine(destinationFolder, "index/scripts.js");
-            if (File.Exists(source))
+            if (!File.Exists(source))
             {
-                var text = File.ReadAllText(source);
-                text = text.Replace("/*USE_SOLUTION_EXPLORER*/true/*USE_SOLUTION_EXPLORER*/", "false");
-                File.WriteAllText(dst, text);
+                return;
             }
-        }
 
-        private static void SetExternalUrlMap(string destinationFolder, Federation federation)
-        {
-            var source = Path.Combine(destinationFolder, "wwwroot/scripts.js");
-            var dst = Path.Combine(destinationFolder, "index/scripts.js");
-            if (File.Exists(source))
+            var text = File.ReadAllText(source);
+            var changed = false;
+
+            if (emitAssemblyList)
             {
-                var sb = new StringBuilder();
-                foreach (var server in federation.GetServers())
-                {
-                    if (sb.Length > 0)
-                    {
-                        sb.Append(",");
-                    }
+                text = text.Replace("/*USE_SOLUTION_EXPLORER*/true/*USE_SOLUTION_EXPLORER*/", "false");
+                changed = true;
+            }
 
-                    sb.Append("\"");
-                    sb.Append(server);
-                    sb.Append("\"");
-                }
-
+            var sb = new StringBuilder();
+            foreach (var server in federation.GetServers())
+            {
                 if (sb.Length > 0)
                 {
-                    var text = File.ReadAllText(source);
-                    text = Regex.Replace(text, @"/\*EXTERNAL_URL_MAP\*/.*/\*EXTERNAL_URL_MAP\*/", sb.ToString());
-                    File.WriteAllText(dst, text);
+                    sb.Append(",");
                 }
+
+                sb.Append("\"");
+                sb.Append(server);
+                sb.Append("\"");
+            }
+
+            if (sb.Length > 0)
+            {
+                text = Regex.Replace(text, @"/\*EXTERNAL_URL_MAP\*/.*/\*EXTERNAL_URL_MAP\*/", sb.ToString());
+                changed = true;
+            }
+
+            if (showBranding)
+            {
+                text = text.Replace("/*SHOW_BRANDING*/false/*SHOW_BRANDING*/", "true");
+                changed = true;
+            }
+
+            if (changed)
+            {
+                var dst = Path.Combine(destinationFolder, "index/scripts.js");
+                File.WriteAllText(dst, text);
             }
         }
     }

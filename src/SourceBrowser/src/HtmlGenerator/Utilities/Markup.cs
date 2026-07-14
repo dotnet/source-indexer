@@ -278,12 +278,15 @@ Don't use this page directly, pass #symbolId to get redirected.
 
         public static void WriteSolutionExplorerPrefix(TextWriter writer)
         {
+            // A short, static "Solution Explorer" label replaces the old instructional
+            // sentence (which read oddly once the repo filter sat inline with it). This gives
+            // the filter a consistent note-styled home to embed into, matching results.html,
+            // without any dynamic per-search text to keep in sync here.
             writer.WriteLine(@"<!DOCTYPE html><html><head><meta charset=""utf-8""><meta name=""viewport"" content=""width=device-width, initial-scale=1""><title>Solution Explorer</title><link rel=""stylesheet"" href=""styles.css"" /><script src=""scripts.js""></script></head>
 <body class=""solutionExplorerBody"">
-    <div>
-        <div class=""note"">
-            Enter a type or member name or <a href=""/#q=assembly%20"" target=""_top"" class=""blueLink"" onclick=""populateSearchBox('assembly '); return false;"">filter the assembly list</a>.
-        </div>
+    <div class=""note"">
+        Solution Explorer
+        <select id=""repo-filter"" style=""display:none"" aria-label=""Filter search to a repo""></select>
     </div>
 <div id=""rootFolder"" style=""display: none;"" class=""folderTitle"">");
         }
@@ -351,6 +354,7 @@ Don't use this page directly, pass #symbolId to get redirected.
 <script src=""scripts.js""></script>
 </head>
 <body onload=""onResultsLoad();"">
+<select id=""repo-filter"" style=""display:none"" aria-label=""Filter search to a repo""></select>
 <div id=""symbols"" aria-live=""polite"">
 <div class=""note"">
 Enter a type or member name or <a href=""/#q=assembly%20"" target=""_top"" class=""blueLink"" onclick=""populateSearchBox('assembly '); return false;"">filter the assembly list</a>.

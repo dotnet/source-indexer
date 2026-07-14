@@ -81,5 +81,49 @@ namespace HtmlGenerator.Tests
         {
             CommandLineOptions.Parse("/force").SuppressWarnings.ShouldBeFalse();
         }
+
+        [TestMethod]
+        public void Repo_path_tags_projects_under_the_given_folder()
+        {
+            var mapping = CommandLineOptions.Parse("/repoPath:\"a\"=\"clangsharp\"").RepoPathMappings.ShouldHaveSingleItem();
+            mapping.Key.ShouldBe(Path.GetFullPath("a"));
+            mapping.Value.ShouldBe("clangsharp");
+        }
+
+        [TestMethod]
+        public void Repo_path_allows_unquoted_form()
+        {
+            var mapping = CommandLineOptions.Parse("/repoPath:a=clangsharp").RepoPathMappings.ShouldHaveSingleItem();
+            mapping.Key.ShouldBe(Path.GetFullPath("a"));
+            mapping.Value.ShouldBe("clangsharp");
+        }
+
+        [TestMethod]
+        public void Repo_meta_option_sets_both_repo_path_and_server_path_mappings()
+        {
+            var options = CommandLineOptions.Parse("/repo:\"a\"=\"clangsharp\"=\"https://example.com/\"");
+
+            var repoMapping = options.RepoPathMappings.ShouldHaveSingleItem();
+            repoMapping.Key.ShouldBe(Path.GetFullPath("a"));
+            repoMapping.Value.ShouldBe("clangsharp");
+
+            var serverMapping = options.ServerPathMappings.ShouldHaveSingleItem();
+            serverMapping.Key.ShouldBe(Path.GetFullPath("a"));
+            serverMapping.Value.ShouldBe("https://example.com/");
+        }
+
+        [TestMethod]
+        public void Repo_meta_option_requires_all_three_segments()
+        {
+            var options = CommandLineOptions.Parse("/repo:a=clangsharp");
+            options.RepoPathMappings.ShouldBeEmpty();
+            options.ServerPathMappings.ShouldBeEmpty();
+        }
+
+        [TestMethod]
+        public void No_repo_options_leave_repo_path_mappings_empty()
+        {
+            CommandLineOptions.Parse("/force").RepoPathMappings.ShouldBeEmpty();
+        }
     }
 }

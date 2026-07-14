@@ -73,6 +73,10 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
         public string ProjectInfoLine => projectSourcePath;
 
+        /// <summary>Optional repo/solution tags read back from ProjectInfo.txt (empty when untagged).</summary>
+        public string RepoName { get; private set; } = string.Empty;
+        public string SolutionName { get; private set; } = string.Empty;
+
         private void ReadBaseMembers()
         {
             var baseMembersFile = Path.Combine(ProjectDestinationFolder, Constants.BaseMembersFileName + ".txt");
@@ -124,6 +128,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 DeclaredSymbolCount = Serialization.ReadLong(lines, "DeclaredSymbols");
                 DeclaredTypeCount = Serialization.ReadLong(lines, "DeclaredTypes");
                 PublicTypeCount = Serialization.ReadLong(lines, "PublicTypes");
+                RepoName = Serialization.ReadValue(lines, "RepoName");
+                SolutionName = Serialization.ReadValue(lines, "SolutionName");
             }
 
             var referenceList = Path.Combine(ProjectDestinationFolder, Constants.ReferencedAssemblyList + ".txt");

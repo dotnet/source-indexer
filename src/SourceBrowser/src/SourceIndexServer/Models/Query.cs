@@ -15,6 +15,20 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
         public readonly List<string> Names = new List<string>();
         public readonly List<string> SymbolKinds = new List<string>();
 
+        /// <summary>
+        /// Optional repo/solution scoping, populated from "repo:name"/"solution:name" query terms.
+        /// Empty by default, which reproduces today's unified, all-repos search unchanged.
+        /// </summary>
+        public readonly List<string> Repos = new List<string>();
+        public readonly List<string> Solutions = new List<string>();
+
+        /// <summary>
+        /// Resolves an assembly name to its AssemblyInfo (for RepoName/SolutionName lookup), set
+        /// by Index right after constructing the query. Left null in contexts (e.g. tests) that
+        /// don't need repo/solution filtering.
+        /// </summary>
+        public Func<string, AssemblyInfo> AssemblyResolver { get; set; }
+
         public List<Interpretation> Interpretations { get; set; }
         public int PotentialRawResults { get; set; }
 
@@ -78,6 +92,30 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
             if (SymbolKindText.IsKnown(term))
             {
                 this.SymbolKinds.Add(term);
+                return;
+            }
+
+            const string repoPrefix = "repo:";
+            if (term.Length > repoPrefix.Length && term.StartsWith(repoPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                var repoName = term.Substring(repoPrefix.Length);
+                if (!this.Repos.Contains(repoName, StringComparer.OrdinalIgnoreCase))
+                {
+                    this.Repos.Add(repoName);
+                }
+
+                return;
+            }
+
+            const string solutionPrefix = "solution:";
+            if (term.Length > solutionPrefix.Length && term.StartsWith(solutionPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                var solutionName = term.Substring(solutionPrefix.Length);
+                if (!this.Solutions.Contains(solutionName, StringComparer.OrdinalIgnoreCase))
+                {
+                    this.Solutions.Add(solutionName);
+                }
+
                 return;
             }
 
@@ -228,7 +266,60 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
         {
             return
                 FilterSymbolKinds(symbol) &&
-                FilterProjects(symbol);
+                FilterProjects(symbol) &&
+                FilterRepoAndSolution(symbol.AssemblyName);
+        }
+
+        private bool FilterRepoAndSolution(string assemblyName)
+        {
+            if (!this.Repos.Any() && !this.Solutions.Any())
+            {
+                return true;
+            }
+
+            if (AssemblyResolver == null)
+            {
+                return true;
+            }
+
+            var assemblyInfo = AssemblyResolver(assemblyName);
+
+            if (this.Repos.Any() && !this.Repos.Any(r => string.Equals(r, assemblyInfo.RepoName, StringComparison.OrdinalIgnoreCase)))
+            {
+                return false;
+            }
+
+            if (this.Solutions.Any() && !this.Solutions.Any(s => string.Equals(s, assemblyInfo.SolutionName, StringComparison.OrdinalIgnoreCase)))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Same repo/solution scoping as <see cref="Filter(DeclaredSymbolInfo)"/>, applied directly
+        /// to an AssemblyInfo (used for assembly/project results, which don't go through
+        /// DeclaredSymbolInfo).
+        /// </summary>
+        public bool FilterAssembly(AssemblyInfo assemblyInfo)
+        {
+            if (!this.Repos.Any() && !this.Solutions.Any())
+            {
+                return true;
+            }
+
+            if (this.Repos.Any() && !this.Repos.Any(r => string.Equals(r, assemblyInfo.RepoName, StringComparison.OrdinalIgnoreCase)))
+            {
+                return false;
+            }
+
+            if (this.Solutions.Any() && !this.Solutions.Any(s => string.Equals(s, assemblyInfo.SolutionName, StringComparison.OrdinalIgnoreCase)))
+            {
+                return false;
+            }
+
+            return true;
         }
 
         private bool FilterSymbolKinds(DeclaredSymbolInfo symbol)

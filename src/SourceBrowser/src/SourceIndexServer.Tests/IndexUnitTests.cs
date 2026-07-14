@@ -314,6 +314,42 @@ namespace Microsoft.SourceBrowser.HtmlGenerator.Tests
                 "Roslyn.Compilers.CSharp.SourceNamespaceSymbol");
         }
 
+        [TestMethod]
+        public void TestRepoFilter_ScopesResultsToTheSelectedRepo()
+        {
+            using (var index = new Index())
+            {
+                var testData = new List<DeclaredSymbolInfo>
+                {
+                    new DeclaredSymbolInfo { Name = "WidgetA", Description = "A.WidgetA", AssemblyNumber = 0 },
+                    new DeclaredSymbolInfo { Name = "WidgetB", Description = "B.WidgetB", AssemblyNumber = 1 },
+                };
+
+                var huffman = Huffman.Create(testData.Select(d => d.Description));
+                index.indexFinishedPopulating = true;
+                index.huffman = huffman;
+                index.symbols = testData.Select(dsi => new IndexEntry(dsi)).ToList();
+                index.PopulateSymbolsById();
+                index.assemblies = new List<AssemblyInfo>
+                {
+                    new AssemblyInfo { AssemblyName = "A", ProjectKey = 0, RepoName = "clangsharp", SolutionName = "ClangSharp" },
+                    new AssemblyInfo { AssemblyName = "B", ProjectKey = 1, RepoName = "llvmsharp", SolutionName = "LLVMSharp" },
+                };
+
+                var unfiltered = index.Get("Widget");
+                Assert.AreEqual(2, unfiltered.ResultSymbols.Count, "No repo filter must reproduce today's unified, all-repos results.");
+
+                var filtered = index.Get("repo:clangsharp Widget");
+                CollectionAssert.AreEqual(new[] { "WidgetA" }, filtered.ResultSymbols.Select(s => s.Name).ToArray());
+
+                var filteredBySolution = index.Get("solution:LLVMSharp Widget");
+                CollectionAssert.AreEqual(new[] { "WidgetB" }, filteredBySolution.ResultSymbols.Select(s => s.Name).ToArray());
+
+                var noMatch = index.Get("repo:doesnotexist Widget");
+                Assert.AreEqual(0, noMatch.ResultSymbols.Count);
+            }
+        }
+
         public void Test(IEnumerable<KeyValuePair<string, string>> input, string pattern, params string[] expectedResults)
         {
             using (var index = new Index())

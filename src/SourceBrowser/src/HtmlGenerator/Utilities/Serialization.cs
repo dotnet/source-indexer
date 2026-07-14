@@ -229,7 +229,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         public static void WriteProjectMap(
             string outputPath,
             IEnumerable<Tuple<string, string>> listOfAssemblyNamesAndProjects,
-            IDictionary<string, int> referencingAssembliesCount)
+            IDictionary<string, int> referencingAssembliesCount,
+            IDictionary<string, Tuple<string, string>> repoAndSolutionNamesByAssembly = null)
         {
             IEnumerable<Tuple<string, int>> assemblies;
             IEnumerable<string> projects;
@@ -240,13 +241,36 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
             using (Measure.Time("Writing project map"))
             {
+                // Only emit the extra ;repo;solution fields when at least one assembly in the site
+                // actually carries a non-empty tag, so an untagged/single-repo site's Assemblies.txt
+                // stays byte-identical to the format written before repo/solution tagging existed.
+                bool anyTagged = repoAndSolutionNamesByAssembly != null &&
+                    repoAndSolutionNamesByAssembly.Values.Any(t => !string.IsNullOrEmpty(t.Item1) || !string.IsNullOrEmpty(t.Item2));
+
                 string masterAssemblyMap = Path.Combine(outputPath, Constants.MasterAssemblyMap + ".txt");
                 File.WriteAllLines(
                     masterAssemblyMap,
-                    assemblies.Select(
-                        t => t.Item1 + ";" +
-                        t.Item2.ToString() + ";" +
-                        (referencingAssembliesCount.ContainsKey(t.Item1) ? referencingAssembliesCount[t.Item1] : 0)),
+                    assemblies.Select(t =>
+                    {
+                        string line = t.Item1 + ";" +
+                            t.Item2.ToString() + ";" +
+                            (referencingAssembliesCount.ContainsKey(t.Item1) ? referencingAssembliesCount[t.Item1] : 0);
+
+                        if (anyTagged)
+                        {
+                            string repoName = "";
+                            string solutionName = "";
+                            if (repoAndSolutionNamesByAssembly.TryGetValue(t.Item1, out var tags))
+                            {
+                                repoName = tags.Item1 ?? "";
+                                solutionName = tags.Item2 ?? "";
+                            }
+
+                            line = line + ";" + repoName + ";" + solutionName;
+                        }
+
+                        return line;
+                    }),
                     Encoding.UTF8);
 
                 string masterProjectMap = Path.Combine(outputPath, Constants.MasterProjectMap + ".txt");

@@ -51,7 +51,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         {
             if (folders == null || !folders.Any())
             {
-                folder.Add(new ProjectSkeleton(project.AssemblyName, project.Name));
+                folder.Add(new ProjectSkeleton(project.AssemblyName, project.Name, RepoName));
             }
             else
             {

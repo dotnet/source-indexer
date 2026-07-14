@@ -114,6 +114,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
             }
 
             var query = new Query(queryString);
+            query.AssemblyResolver = FindAssembly;
             if (query.IsAssemblySearch())
             {
                 FindAssemblies(query, defaultToAll: true);
@@ -160,6 +161,21 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
             return assemblies[i];
         }
 
+        /// <summary>
+        /// Distinct, non-empty repo display names across every tagged assembly, sorted ordinally.
+        /// Used to populate the optional repo filter dropdown; an empty (or single-entry) result
+        /// means the site isn't multi-repo, and callers should hide the filter entirely.
+        /// </summary>
+        public IReadOnlyList<string> GetDistinctRepoNames()
+        {
+            return assemblies
+                .Select(a => a.RepoName)
+                .Where(r => !string.IsNullOrEmpty(r))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(r => r, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+
         public int GetReferencingAssembliesCount(string assemblyName)
         {
             var assemblyInfo = FindAssembly(assemblyName);
@@ -173,7 +189,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
             {
                 if (defaultToAll)
                 {
-                    query.AddResultAssemblies(GetAllListedAssemblies());
+                    query.AddResultAssemblies(GetAllListedAssemblies(query));
                 }
 
                 return;
@@ -192,15 +208,22 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
                     .Where(i => !isQuoted || assemblies[i].AssemblyName.Length == assemblyName.Length)
                     .Select(i => assemblies[i])
                     .Where(a => a.ProjectKey != -1)
+                    .Where(a => query.FilterAssembly(a))
                     .Take(MaxRawResults)
                     .ToList();
                 query.AddResultAssemblies(result);
             }
         }
 
-        private IEnumerable<AssemblyInfo> GetAllListedAssemblies()
+        private IEnumerable<AssemblyInfo> GetAllListedAssemblies(Query query = null)
         {
-            return this.assemblies.Where(a => a.ProjectKey != -1);
+            var result = this.assemblies.Where(a => a.ProjectKey != -1);
+            if (query != null)
+            {
+                result = result.Where(a => query.FilterAssembly(a));
+            }
+
+            return result;
         }
 
         public void FindSymbols(Query query)
@@ -414,6 +437,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
                 var result = Enumerable
                     .Range(low, high - low + 1)
                     .Select(i => assemblies[projectToAssemblyIndexMap[projects[i]]])
+                    .Where(a => query.FilterAssembly(a))
                     .Take(MaxRawResults)
                     .ToList();
                 query.AddResultProjects(result);

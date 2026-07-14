@@ -1,6 +1,11 @@
 ﻿var currentSelection = null;
 var currentResult = null;
 var useSolutionExplorer = /*USE_SOLUTION_EXPLORER*/true/*USE_SOLUTION_EXPLORER*/;
+// Off by default -- most sites generated with this tool aren't Microsoft's own code, so the
+// .NET/Microsoft logo marks in the header are opt-in via the HtmlGenerator /showBranding flag
+// rather than something every consumer has to remember to hide. The "Source Browser" home link
+// itself is unaffected either way.
+var showBranding = /*SHOW_BRANDING*/false/*SHOW_BRANDING*/;
 var anchorSplitChar = ",";
 
 var externalUrlMap = [
@@ -207,10 +212,26 @@ function onHeaderLoad() {
     // Place the cursor at the end of the search box by default
     searchBox.focus();
 
+    if (!showBranding) {
+        var dotnetLogo = document.getElementById("dotnetLogo");
+        if (dotnetLogo) {
+            dotnetLogo.classList.add("brandingHidden");
+        }
+
+        var logoText = document.getElementById("logoText");
+        if (logoText) {
+            logoText.classList.add("brandingHidden");
+        }
+    }
+
     // Reflect the current pane state on the narrow-screen toggle button.
     updatePaneToggleLabel(top.document.body
         && top.document.body.classList
         && top.document.body.classList.contains("showNav"));
+
+    // Landscape phones use the single-pane layout but keep the desktop-width header,
+    // so reveal the pane toggle in the header for them (CSS can't detect this here).
+    updateLandscapePhonePane();
 
     searchBox.onkeyup = function () {
         if (this.value != lastSearchString || (event && event.keyCode == 13)) {
@@ -227,6 +248,7 @@ function onHeaderLoad() {
 
 function onResultsLoad() {
     ensureSearchBox();
+    initRepoFilter(function () { runSearch(); });
 
     if (searchBox && searchBox.value && searchBox.value.length > 2) {
         runSearch();
@@ -632,6 +654,41 @@ function toggleMobilePane() {
     setMobilePane(!topBody.classList.contains("showNav"));
 }
 
+// Landscape phones are wide enough to miss the max-width breakpoints but too short for a
+// comfortable side-by-side split, so the top document switches to the single-pane layout
+// for them purely in CSS (see the landscape term on the pane breakpoint in styles.css).
+// The pane toggle, however, lives in the fixed 58px-tall header iframe whose own viewport
+// is always short + landscape, so a CSS media query there can't tell a landscape phone
+// from a portrait tablet. Mirror the same device-level query here in JS -- evaluated
+// against `top` so it reflects the device viewport regardless of which frame calls in --
+// and flag the header body so the .headerBody.landscapePhone rule reveals the toggle.
+function updateLandscapePhonePane() {
+    var header = top.h;
+    if (!header || !header.document || !header.document.body || !top.matchMedia) {
+        return;
+    }
+
+    var mq = top.landscapePhoneQuery;
+    if (!mq) {
+        mq = top.matchMedia("(orientation: landscape) and (max-height: 500px) and (pointer: coarse)");
+        top.landscapePhoneQuery = mq;
+
+        var relay = function () { updateLandscapePhonePane(); };
+        if (mq.addEventListener) {
+            mq.addEventListener("change", relay);
+        } else if (mq.addListener) {
+            // Safari < 14 only exposes the deprecated MediaQueryList.addListener.
+            mq.addListener(relay);
+        }
+    }
+
+    if (mq.matches) {
+        header.document.body.classList.add("landscapePhone");
+    } else {
+        header.document.body.classList.remove("landscapePhone");
+    }
+}
+
 function isFile(path) {
     if (endsWithIgnoreCase(path, ".html")) {
         path = path.slice(0, path.length - 5);
@@ -655,14 +712,145 @@ function ensureSearchBox() {
     }
 }
 
+// The repo filter now lives in whichever page's content it actually scopes -- results.html's
+// result list or SolutionExplorer.html's tree -- rather than the header, since each of those
+// pages is reloaded independently by the nav frame. The selected value is persisted on `top`
+// (the one frame that's never reloaded) so picking a repo in one view keeps the other in sync.
+function getSelectedRepoFilter() {
+    return (typeof top !== "undefined" && top.selectedRepoFilter) ? top.selectedRepoFilter : "";
+}
+
+function setSelectedRepoFilter(repo) {
+    if (typeof top !== "undefined") {
+        top.selectedRepoFilter = repo || "";
+    }
+}
+
+// Populates the current page's repo filter dropdown (if it has one -- see
+// results.html/SolutionExplorer.html) only when the site actually has more than one distinct
+// tagged repo -- for a single-repo/untagged site it stays hidden and search/browsing behave
+// exactly as they did before repo tagging existed. Once populated, it's embedded directly into
+// the page's "note" strip (the "N results found:" bar on results.html, or the static intro note
+// on SolutionExplorer.html) so it reads as a filter on that content rather than a separate
+// control. onChanged(repo) is invoked whenever the user picks a different repo, so the caller can
+// decide what "re-scope this page" means for it (re-run search, re-filter the tree, etc.).
+function initRepoFilter(onChanged) {
+    var repoFilter = document.getElementById("repo-filter");
+    if (!repoFilter) {
+        return;
+    }
+
+    fetch("api/repos", { method: "GET", headers: { "Accept": "application/json" } })
+        .then(function (response) { return response.ok ? response.json() : []; })
+        .then(function (repos) {
+            if (!repos || repos.length <= 1) {
+                return;
+            }
+
+            var allOption = document.createElement("option");
+            allOption.value = "";
+            allOption.textContent = "All repos";
+            repoFilter.appendChild(allOption);
+
+            repos.forEach(function (repo) {
+                var option = document.createElement("option");
+                option.value = repo;
+                option.textContent = repo;
+                repoFilter.appendChild(option);
+            });
+
+            repoFilter.value = getSelectedRepoFilter();
+            repoFilter.style.display = "";
+            repoFilter.onchange = function () {
+                setSelectedRepoFilter(this.value);
+                if (typeof onChanged === "function") {
+                    onChanged(this.value);
+                }
+            };
+
+            repoFilterElement = repoFilter;
+            embedRepoFilterInNote(document);
+        })
+        .catch(function () { });
+}
+
+// The repo filter <select> is kept alive as a single persistent DOM node (rather than being
+// re-created) so its options, wiring, and current value survive being moved. It starts out
+// parked right after <body> (see Markup.cs), then gets appended into whichever "note" div is
+// currently first in the page -- results.html regenerates that note's content (and the note
+// element itself) on every keystroke via loadSearchResults(), so this needs to be re-run each
+// time; SolutionExplorer.html's note is static, so this only ever runs once there.
+var repoFilterElement = null;
+
+function embedRepoFilterInNote(scope) {
+    if (!repoFilterElement) {
+        return;
+    }
+
+    var note = scope.querySelector(".note");
+    if (!note) {
+        return;
+    }
+
+    note.classList.add("hasFilter");
+    note.appendChild(repoFilterElement);
+}
+
+// Hides/shows each project's subtree in the merged Solution Explorer (SolutionExplorer.html)
+// based on its data-repo attribute (see SolutionFinalizer.GetProjectExplorerText), which is only
+// emitted at all when the site has a repo tag. A "repoHidden" CSS class (rather than toggling
+// inline display directly) is used so this doesn't fight with the folder expand/collapse logic,
+// which also manipulates display on the same elements.
+function filterSolutionExplorerByRepo(repo) {
+    var nodes = document.querySelectorAll("[data-repo]");
+    for (var i = 0; i < nodes.length; i++) {
+        var node = nodes[i];
+        var hide = !!repo && node.getAttribute("data-repo") !== repo;
+        node.classList.toggle("repoHidden", hide);
+    }
+
+    // Once scoped to a single repo, that repo's own grouping header (see
+    // Program.GetSolutionExplorerGroupingFolder -- only emitted when the site spans more than one
+    // repo) is redundant: the user already picked it from the dropdown. Unwrap it -- hide the
+    // header label and force its folder open -- so the tree reads the same as an ungrouped site
+    // instead of showing an always-selected wrapper around everything. Other repos' headers are
+    // left alone; they're already fully hidden by the data-repo pass above.
+    var repoTitles = document.querySelectorAll(".repoTitle");
+    for (var i = 0; i < repoTitles.length; i++) {
+        var title = repoTitles[i];
+        var isSelectedRepo = !!repo && title.getAttribute("data-repo") === repo;
+        title.classList.toggle("repoUnwrapped", isSelectedRepo);
+
+        if (isSelectedRepo) {
+            expandFolderIfNeeded(title.nextElementSibling);
+        }
+    }
+}
+
 function onSearchChange() {
     ensureSearchBox();
     if (searchBox.value.length > 2) {
         if (searchTimerID == -1) {
             searchTimerID = setTimeout(runSearch, 200);
         }
+    } else if (searchBox.value.length === 0 && useSolutionExplorer) {
+        // Nothing to search for -- go back to the primary Solution Explorer view (the same one
+        // shown on first load) instead of leaving an empty/prompt-only results pane behind.
+        returnToSolutionExplorer();
     } else {
         loadSearchResults("<div class='note'>Enter at least 3 characters.</div>");
+    }
+}
+
+// Restores the nav frame to the Solution Explorer and drops any stale "#q=" search hash, so
+// clearing the search box gets the user back to where they started.
+function returnToSolutionExplorer() {
+    if (top.location.hash) {
+        top.history.replaceState(null, top.document.title, top.location.pathname + top.location.search);
+    }
+
+    if (top.n) {
+        redirectLocation(top.n, "SolutionExplorer.html");
     }
 }
 
@@ -675,7 +863,14 @@ function runSearch() {
     }
 
     setPageTitle(searchBox.value);
-    lastQuery = getUrl("api/symbols/?symbol=" + encodeURIComponent(searchBox.value), loadSearchResults);
+
+    var query = searchBox.value;
+    var selectedRepo = getSelectedRepoFilter();
+    if (selectedRepo) {
+        query = "repo:" + selectedRepo + " " + query;
+    }
+
+    lastQuery = getUrl("api/symbols/?symbol=" + encodeURIComponent(query), loadSearchResults);
 }
 
 function getUrl(url, callback) {
@@ -708,6 +903,14 @@ function loadSearchResults(data) {
 
         if (container) {
             container.innerHTML = data;
+
+            // The repo filter select lives in the nav frame's own execution context (it's the
+            // one that renders results.html), so re-embed it there, not in this (header) frame's
+            // context, now that the note it was sitting in just got replaced wholesale above.
+            if (typeof top.n.embedRepoFilterInNote === "function") {
+                top.n.embedRepoFilterInNote(container);
+            }
+
             if (searchBox && searchBox.value && searchBox.value.length > 2) {
                 setHash("q=" + encodeURIComponent(searchBox.value));
             }
@@ -1193,6 +1396,12 @@ function onSolutionExplorerLoad() {
 function loadSolutionExplorer() {
     makeFoldersCollapsible(/* closed folder */"202.png", "201.png", "content/icons/", initializeSolutionExplorerFolder);
     document.getElementById("rootFolder").style.display = "block";
+
+    // Apply whatever repo is currently selected (persisted on `top`) so navigating to the
+    // Solution Explorer after already picking a repo in search stays scoped the same way, even
+    // before the dropdown itself has finished being populated below.
+    filterSolutionExplorerByRepo(getSelectedRepoFilter());
+    initRepoFilter(function (repo) { filterSolutionExplorerByRepo(repo); });
 }
 
 function initializeNamespaceExplorer() {
