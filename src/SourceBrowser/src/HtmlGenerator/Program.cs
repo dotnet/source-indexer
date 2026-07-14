@@ -329,7 +329,6 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             var processedAssemblyList = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var typeForwards = new Dictionary<ValueTuple<string, string>, string>();
 
-            var domain = AppDomain.CreateDomain("TypeForwards");
             foreach (var path in solutionFilePaths)
             {
                 if (
@@ -341,11 +340,9 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 }
                 using (Disposable.Timing($"Reading type forwards from {path}"))
                 {
-                    GetTypeForwards(path, properties, typeForwards, domain);
+                    GetTypeForwards(path, properties, typeForwards);
                 }
             }
-            AppDomain.Unload(domain);
-            domain = null;
 
             // Solution tag is auto-derived from each top-level input's file name when it's a
             // .sln/.slnx; standalone project/binlog inputs aren't part of a solution, so they
@@ -467,7 +464,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             }
         }
 
-        private static void GetTypeForwards(string path, IReadOnlyDictionary<string, string> properties, Dictionary<(string, string), string> typeForwards, AppDomain domain)
+        private static void GetTypeForwards(string path, IReadOnlyDictionary<string, string> properties, Dictionary<(string, string), string> typeForwards)
         {
             if (path.EndsWith(".binlog", StringComparison.Ordinal) ||
                 path.EndsWith(".buildlog", StringComparison.Ordinal))
@@ -492,8 +489,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             }
 
             {
-                var obj = (TypeForwardReader) domain.CreateInstanceFromAndUnwrap(Assembly.GetEntryAssembly().CodeBase,
-                    "Microsoft.SourceBrowser.HtmlGenerator.TypeForwardReader");
+                var obj = new TypeForwardReader();
                 var forwards = obj.GetTypeForwards(path, properties);
                 foreach (var forward in forwards)
                 {

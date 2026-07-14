@@ -39,8 +39,6 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 result = Array.Empty<Tuple<string, string, string>>();
             }
 
-            Log.Close();
-            Log.WaitForCompletion().Wait();
             return result;
         }
 
@@ -48,7 +46,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         {
             var workspace = SolutionGenerator.CreateWorkspace(properties.ToImmutableDictionary());
             Solution solution;
-            if (path.EndsWith(".sln", StringComparison.Ordinal))
+            if (path.EndsWith(".sln", StringComparison.Ordinal) || path.EndsWith(".slnx", StringComparison.Ordinal))
             {
                 solution = workspace.OpenSolutionAsync(path).GetAwaiter().GetResult();
             }
