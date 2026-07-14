@@ -197,6 +197,7 @@
       <SourceIndexCmd>$(SourceIndexCmd) /donotincludereferencedprojects</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /nobuiltinfederations</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /noplugins</SourceIndexCmd>
+      <SourceIndexCmd>$(SourceIndexCmd) /showBranding</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /out:"$(OutDir)index/"</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /in:"$(OutDir)index.list"</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd)@(ClonedRepository -> ' /serverPath:"%(LocalPath)=%(ServerPath)"', '')</SourceIndexCmd>

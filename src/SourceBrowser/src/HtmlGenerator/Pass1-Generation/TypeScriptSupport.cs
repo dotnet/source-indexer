@@ -107,7 +107,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             catch (Win32Exception)
             {
                 Log.Write("Warning: Node.js is required to generate TypeScript files. Skipping generation. Download Node.js from https://nodejs.org.", ConsoleColor.Yellow);
-                Log.Exception("Node.js is not installed.");
+                Log.Exception("Node.js is not installed.", isSevere: false);
                 return;
             }
 

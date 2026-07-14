@@ -104,8 +104,13 @@ namespace Microsoft.SourceBrowser.Common
                 return;
             }
 
-            Write(message, isSevere ? ConsoleColor.Red : ConsoleColor.Yellow);
-            WriteToFile(message, ErrorLogFilePath);
+            // Tag the severity into the message text itself so it survives redirection: the console
+            // color (Red vs Yellow) is lost once output is captured to a file or CI log, leaving severe
+            // errors -- the ones that increment ErrorCount and drive HtmlGenerator's non-zero exit --
+            // indistinguishable from benign first-chance noise. The tag makes them greppable everywhere.
+            string tagged = (isSevere ? "[SEVERE] " : "[WARN] ") + message;
+            Write(tagged, isSevere ? ConsoleColor.Red : ConsoleColor.Yellow);
+            WriteToFile(tagged, ErrorLogFilePath);
         }
 
         public static void Message(string message)
