@@ -203,6 +203,11 @@ function onHeaderLoad() {
     // Place the cursor at the end of the search box by default
     searchBox.focus();
 
+    // Reflect the current pane state on the narrow-screen toggle button.
+    updatePaneToggleLabel(top.document.body
+        && top.document.body.classList
+        && top.document.body.classList.contains("showNav"));
+
     searchBox.onkeyup = function () {
         if (this.value != lastSearchString || (event && event.keyCode == 13)) {
             lastSearchString = this.value;
@@ -231,6 +236,13 @@ function i(lineNumberCount) {
         return;
     }
 
+    // Programmatic navigation into the content pane (e.g. a deep link / hash
+    // load, where there's no tap to catch) should also switch to it on narrow
+    // screens. Taps on content links are handled by switchToContentPaneOnTap,
+    // which runs in the still-visible nav frame -- iOS Safari defers an
+    // iframe's onload while it is display:none, so we can't rely on this alone.
+    setMobilePane(false);
+
     var isLargeFile = lineNumberCount > 30000;
 
     setPageTitle(document.title);
@@ -256,6 +268,9 @@ function i(lineNumberCount) {
                 var assemblyName = getAssemblyName();
                 top.n.location = "/" + assemblyName + "/ProjectExplorer.html";
                 setHash(assemblyName);
+                // Match showDocumentOutline/showNamespaceExplorer: on narrow
+                // screens switch to the nav pane so the explorer is visible.
+                setMobilePane(true);
                 return false;
             }
         }
@@ -294,6 +309,10 @@ function ix(lineNumberCount) {
         redirectToIndex();
         return;
     }
+
+    // See `i`: switch to the content pane for programmatic loads of an XML
+    // document; taps are handled by switchToContentPaneOnTap.
+    setMobilePane(false);
 
     var isLargeFile = lineNumberCount > 30000;
 
@@ -492,6 +511,10 @@ function ro() {
             fileHeader.style.backgroundImage = imageUrl;
         }
     }
+
+    // References just populated the nav pane; on narrow screens switch to it
+    // so the results are visible (matches the search-results flow).
+    setMobilePane(true);
 }
 
 function onDocumentOutlineLoad() {
@@ -565,6 +588,44 @@ function resultClick(sender) {
     } else {
         currentResult.className = "resultItem currentResult";
     }
+}
+
+// Narrow-screen single-pane support. On wide screens both panes are always
+// visible, so the showNav class on the top document's body is inert there.
+function setMobilePane(showNav) {
+    var topBody = top.document.body;
+    if (!topBody || !topBody.classList) {
+        return;
+    }
+
+    if (showNav) {
+        topBody.classList.add("showNav");
+    } else {
+        topBody.classList.remove("showNav");
+    }
+
+    updatePaneToggleLabel(showNav);
+}
+
+function updatePaneToggleLabel(showNav) {
+    var header = top.h;
+    if (!header || !header.document) {
+        return;
+    }
+
+    var toggle = header.document.getElementById("paneToggle");
+    if (toggle) {
+        toggle.textContent = showNav ? "Code" : "Results";
+    }
+}
+
+function toggleMobilePane() {
+    var topBody = top.document.body;
+    if (!topBody || !topBody.classList) {
+        return;
+    }
+
+    setMobilePane(!topBody.classList.contains("showNav"));
 }
 
 function isFile(path) {
@@ -642,6 +703,9 @@ function loadSearchResults(data) {
             if (searchBox && searchBox.value && searchBox.value.length > 2) {
                 setHash("q=" + escape(searchBox.value));
             }
+
+            // On narrow screens surface the results the user is searching for.
+            setMobilePane(true);
 
             if (data && data.length > 40 && data.slice(0, 40) === '<div class="note">Index is being rebuilt') {
                 searchTimerID = -1;
@@ -858,6 +922,7 @@ function addToolbar() {
 
 function showDocumentOutline() {
     top.n.location = "/documentoutline.html";
+    setMobilePane(true);
 }
 
 function showNamespaceExplorer() {
@@ -865,6 +930,7 @@ function showNamespaceExplorer() {
     var namespacesUrl = "/" + assemblyName + "/namespaces.html";
     top.n.location = namespacesUrl;
     setHash(assemblyName + ",namespaces");
+    setMobilePane(true);
 }
 
 // Firefox doesn't support innerText, but it supports textContent
@@ -1363,3 +1429,42 @@ function getExtension(filePath) {
 function isSupportedExtension(extension) {
     return supportedFileExtensions.indexOf(extension) != -1;
 }
+
+// The File/Project footer (`.dH`) is `position: fixed` and grows as the paths
+// wrap, so a hard-coded bottom reserve on the code container (`.cz`) either
+// wastes space or lets the footer cover the code area's horizontal scrollbar.
+// Reserve exactly the footer's rendered height instead, and re-sync on resize
+// (e.g. device rotation) since wrapping - and therefore the height - changes.
+function syncFooterReserve() {
+    var footer = document.querySelector(".dH");
+    var container = document.querySelector(".cz");
+    if (!footer || !container) {
+        return;
+    }
+
+    container.style.marginBottom = (footer.offsetHeight + 8) + "px";
+}
+
+window.addEventListener("load", syncFooterReserve);
+window.addEventListener("resize", syncFooterReserve);
+
+// Switch to the content pane on narrow screens when the user taps a link that
+// loads it (`target="s"`) -- a search result, a solution/project explorer file,
+// or a reference. We handle this from the tap rather than the content frame's
+// onload because the tap happens in the nav frame, which is still visible;
+// iOS Safari defers an iframe's onload while it is `display: none`, so the
+// content frame can't reliably un-hide itself from its own load handler.
+function switchToContentPaneOnTap(event) {
+    var node = event.target;
+    while (node && node.nodeType === 1) {
+        if (node.tagName === "A") {
+            if (node.target === "s") {
+                setMobilePane(false);
+            }
+            return;
+        }
+        node = node.parentNode;
+    }
+}
+
+document.addEventListener("click", switchToContentPaneOnTap, true);

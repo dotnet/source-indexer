@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="src/Directory.Build.props" />
+  </Folder>
+  <Project Path="src/BinLogParser/BinLogParser.csproj" />
+  <Project Path="src/BinLogToSln/BinLogToSln.csproj" />
+  <Project Path="src/BinLogToSln.Tests/BinLogToSln.Tests.csproj" />
+  <Project Path="src/Common/Common.csproj" />
+  <Project Path="src/GitGlyph/GitGlyph.csproj" />
+  <Project Path="src/HtmlGenerator.Tests/HtmlGenerator.Tests.csproj" />
+  <Project Path="src/HtmlGenerator/HtmlGenerator.csproj" />
+  <Project Path="src/MEF/MEF.csproj" />
+  <Project Path="src/SourceIndexServer.Tests/SourceIndexServer.Tests.csproj" />
+  <Project Path="src/SourceIndexServer/SourceIndexServer.csproj" />
+</Solution>

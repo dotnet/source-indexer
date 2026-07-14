@@ -104,7 +104,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         }
 
         private const string referencesFileHeader = @"<!DOCTYPE html>
-<html><head><title>{0}</title><link rel=""stylesheet"" href=""../../styles.css""/><script src=""../../scripts.js""></script></head><body onload=""ro();"">";
+<html><head><meta charset=""utf-8""><meta name=""viewport"" content=""width=device-width, initial-scale=1""><title>{0}</title><link rel=""stylesheet"" href=""../../styles.css""/><script src=""../../scripts.js""></script></head><body onload=""ro();"">";
 
         public static void WriteReferencesFileHeader(StreamWriter writer, string title)
         {
@@ -116,7 +116,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         public static void WriteReferencesNotFoundFile(string folder)
         {
             const string html = @"<!DOCTYPE html>
-<html><head><link rel=""stylesheet"" href=""styles.css""/></head>
+<html><head><meta charset=""utf-8""><meta name=""viewport"" content=""width=device-width, initial-scale=1""><link rel=""stylesheet"" href=""styles.css""/></head>
 <body><div class=""rH"">No references found</div></body></html>";
             string filePath = Path.Combine(folder, zeroFileName);
             if (!File.Exists(filePath))
@@ -134,6 +134,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 string contents = @"<!DOCTYPE html>
 <html>
 <head>
+<meta charset=""utf-8"">
+<meta name=""viewport"" content=""width=device-width, initial-scale=1"">
 <title>Redirecting...</title>
 <link rel=""stylesheet"" href=""../styles.css"">
 <script src=""../scripts.js""></script>
@@ -157,9 +159,9 @@ redirectToReferences();
         }
 
         private static string documentHtmlPrefixTemplate = @"<!DOCTYPE html>
-<html><head><title>{0}</title><link rel=""stylesheet"" href=""{1}styles.css""><script src=""{1}scripts.js""></script></head>
+<html><head><meta charset=""utf-8""><meta name=""viewport"" content=""width=device-width, initial-scale=1""><title>{0}</title><link rel=""stylesheet"" href=""{1}styles.css""><script src=""{1}scripts.js""></script></head>
 <body class=""cB"" onload=""{3}({2});"">";
-        private static string documentTablePrefix = @"<div class=""cz""><table class=""tb"" cellpadding=""0"" cellspacing=""0""><tr>{1}<td valign=""top"" align=""right""><pre id=""ln"">{0}</pre></td><td valign=""top"" align=""left""><pre id=""code"">";
+        private static string documentTablePrefix = @"<div class=""cz""><div class=""tb""><div class=""gutter"">{1}<pre id=""ln"">{0}</pre></div><div class=""codeScroll""><pre id=""code"">";
 
         public static string GetDocumentPrefix(string title, string relativePathToRoot, int lineCount, string customJSOnloadFunction = "i")
         {
@@ -177,7 +179,7 @@ redirectToReferences();
             var lineNumberText = GenerateLineNumberText(pregenerateLineNumbers, documentUrl);
             if (!string.IsNullOrWhiteSpace(glyphHtml))
             {
-                glyphHtml = $@"<td valign=""top"" align=""right""><pre id=""glyph"">{glyphHtml}</pre></td>";
+                glyphHtml = $@"<pre id=""glyph"">{glyphHtml}</pre>";
             }
 
             return string.Format(documentTablePrefix, lineNumberText, glyphHtml);
@@ -205,7 +207,7 @@ redirectToReferences();
 
         public static string GetDocumentSuffix()
         {
-            return "</pre></td></tr></table></div></body></html>";
+            return "</pre></div></div></div></body></html>";
         }
 
         public static void WriteMetadataToSourceRedirectPrefix(StreamWriter writer)
@@ -257,7 +259,7 @@ Don't use this page directly, pass #symbolId to get redirected.
 
         public static void WriteProjectExplorerPrefix(StringBuilder sb, string projectTitle)
         {
-            sb.AppendFormat(@"<!DOCTYPE html><html><head><title>{0}</title>
+            sb.AppendFormat(@"<!DOCTYPE html><html><head><meta charset=""utf-8""><meta name=""viewport"" content=""width=device-width, initial-scale=1""><title>{0}</title>
 <link rel=""stylesheet"" href=""../styles.css"">
 <script src=""../scripts.js""></script>
 </head><body class=""projectExplorerBody"">
@@ -272,7 +274,7 @@ Don't use this page directly, pass #symbolId to get redirected.
 
         public static void WriteSolutionExplorerPrefix(TextWriter writer)
         {
-            writer.WriteLine(@"<!DOCTYPE html><html><head><title>Solution Explorer</title><link rel=""stylesheet"" href=""styles.css"" /><script src=""scripts.js""></script></head>
+            writer.WriteLine(@"<!DOCTYPE html><html><head><meta charset=""utf-8""><meta name=""viewport"" content=""width=device-width, initial-scale=1""><title>Solution Explorer</title><link rel=""stylesheet"" href=""styles.css"" /><script src=""scripts.js""></script></head>
 <body class=""solutionExplorerBody"">
     <div>
         <div class=""note"">
@@ -289,7 +291,7 @@ Don't use this page directly, pass #symbolId to get redirected.
 
         public static void WriteNamespaceExplorerPrefix(string assemblyName, StreamWriter sw, string pathPrefix = "")
         {
-            sw.WriteLine(string.Format(@"<!DOCTYPE html><html><head><title>Namespaces</title>
+            sw.WriteLine(string.Format(@"<!DOCTYPE html><html><head><meta charset=""utf-8""><meta name=""viewport"" content=""width=device-width, initial-scale=1""><title>Namespaces</title>
 <link rel=""stylesheet"" href=""{0}styles.css"">
 <script src=""{0}scripts.js""></script>
 </head><body class=""namespaceExplorerBody"">
@@ -340,7 +342,7 @@ Don't use this page directly, pass #symbolId to get redirected.
 
         public static string GetResultsHtmlPrefix()
         {
-            return @"<!DOCTYPE html><html><head><title>Results</title>
+            return @"<!DOCTYPE html><html><head><meta charset=""utf-8""><meta name=""viewport"" content=""width=device-width, initial-scale=1""><title>Results</title>
 <link rel=""stylesheet"" href=""styles.css"" />
 <script src=""scripts.js""></script>
 </head>
@@ -363,7 +365,7 @@ Enter a type or member name or <a href=""/#q=assembly%20"" target=""_top"" class
         }
 
         private static string partialTypeDisambiguationFileTemplate = @"<!DOCTYPE html>
-<html><head><link rel=""stylesheet"" href=""{0}"">
+<html><head><meta charset=""utf-8""><meta name=""viewport"" content=""width=device-width, initial-scale=1""><link rel=""stylesheet"" href=""{0}"">
 </head><body><div class=""partialTypeHeader"">Partial Type</div>
 {1}
 </body></html>";

@@ -1,9 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net472</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <!-- FIXME -->
-    <NoWarn>$(NoWarn);VSTHRD002</NoWarn>
+    <NoWarn>$(NoWarn);VSTHRD002;VSTHRD103</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

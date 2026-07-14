@@ -120,7 +120,7 @@ extends:
             command: 'build'
             projects: |
               src\source-indexer.sln
-              src\SourceBrowser\SourceBrowser.sln
+              src\SourceBrowser\SourceBrowser.slnx
             arguments: '/p:PackageOutputPath=$(Build.ArtifactStagingDirectory)/packages /p:EnableDebugLogging=true /bl:$(Build.ArtifactStagingDirectory)/logs/build.binlog'
 
         - ${{ if parameters.buildIndexAndDeploy }}:

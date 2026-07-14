@@ -1,21 +1,132 @@
-﻿html {
+:root {
+    /* Opt every element (incl. native form controls and scrollbars) into
+       light/dark theming so the browser renders them correctly in dark mode. */
+    color-scheme: light dark;
+
+    /* Single source of truth for the core surface palette. Component-specific
+       colors still live in their own rules; these drive the base surfaces and
+       are overridden as a group in the prefers-color-scheme: dark block below. */
+    --color-page-background: white;
+    --color-page-foreground: black;
+    --color-pane-border: #aaa;
+
+    /* Selection / focus highlight; identical in light and dark, so it is not
+       overridden in the dark block below. */
+    --color-selection: #3399ff;
+}
+
+html {
     display: flex;
+    background-color: var(--color-page-background);
+
+    /* Disable mobile browser font-boosting. It inflates text per-block by width,
+       so the wide #code pre would grow more than the narrow #ln pre and the line
+       numbers would drift out of alignment with their code lines down the page. */
+    -webkit-text-size-adjust: 100%;
+    -moz-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+
+    /* Suppress the default grey tap-flash on touch; the :active states on
+       interactive elements already provide press feedback. */
+    -webkit-tap-highlight-color: transparent;
 }
 
 body {
-    font-family: Segoe UI, Tahoma, Helvetica, sans-serif;
+    font-family: "Segoe UI", system-ui, Tahoma, Helvetica, Arial, sans-serif;
     cursor: text;
     margin: 0px;
     padding: 0px;
     flex: 1;
+    background-color: var(--color-page-background);
+    color: var(--color-page-foreground);
 }
 
 .body, p, ul, ol, h1, h2, h3 {
     margin: 20px;
 }
 
+/* Top-level layout for index.html (replaces the legacy <frameset>). The three
+   panes are named iframes (h/n/s) so all existing top.h/top.n/top.s frame
+   coordination in scripts.js keeps working unchanged. */
+.indexBody {
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.headerFrame {
+    flex: none;
+    width: 100%;
+    height: 58px;
+    border: 0;
+}
+
+.paneContainer {
+    flex: 1 1 auto;
+    display: flex;
+    min-height: 0;
+}
+
+.navFrame {
+    flex: none;
+    width: 504px;
+    height: 100%;
+    border: 0;
+    border-right: 1px solid var(--color-pane-border);
+}
+
+.contentFrame {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+    border: 0;
+}
+
+/* On narrow screens show one pane at a time instead of a 504px nav pane
+   crowding the content. The header toggle button (and the search / result-click
+   flows in scripts.js) flip the body's showNav class to pick which pane is
+   visible; the content/document pane is shown by default. */
+@media only screen and (max-width: 700px) {
+    .paneContainer {
+        flex-direction: column;
+    }
+
+    .navFrame,
+    .contentFrame {
+        flex: 1 1 auto;
+        width: 100%;
+        height: auto;
+        border: 0;
+    }
+
+    .navFrame {
+        display: none;
+    }
+
+    body.showNav .navFrame {
+        display: block;
+    }
+
+    body.showNav .contentFrame {
+        display: none;
+    }
+
+    /* Let long result rows and reference snippets wrap instead of forcing the
+       full-width nav pane to scroll sideways to read them. Tree nodes (folder /
+       type / file names) stay nowrap since they are short. */
+    .rL, a.rL, .referenceLine,
+    .resultItem,
+    .reference, .referenceDisabled {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+}
+
 h1 {
-    font-family: 'Segoe UI Light', 'Segoe UI', Tahoma, Helvetica, sans-serif;
+    font-family: 'Segoe UI Light', 'Segoe UI', system-ui, Tahoma, Helvetica, Arial, sans-serif;
     font-weight: 100;
     background-color: #0099ce;
     color: white;
@@ -23,7 +134,7 @@ h1 {
 }
 
 pre {
-    font-family: Consolas, 'Courier New', 'Andale Mono', 'Lucida Console', monospace;
+    font-family: Consolas, ui-monospace, SFMono-Regular, Menlo, 'Courier New', 'Andale Mono', 'Lucida Console', monospace;
     font-size: 12pt;
     line-height: 125%;
     tab-size: 4;
@@ -141,7 +252,7 @@ tr .ex {
     content: url(content/icons/plus.png);
 }
 
-.resultGroupHeader:hover {
+.resultGroupHeader:hover, .resultGroupHeader:active {
     background-color: #d4edff;
 }
 
@@ -169,7 +280,7 @@ tr .ex {
     content: url(content/icons/plus.png);
 }
 
-.rA:hover {
+.rA:hover, .rA:active {
     background-color: #d4edff;
 }
 
@@ -183,13 +294,13 @@ tr .ex {
 }
 
 .rL, a.rL, .referenceLine {
-    font-family: Consolas, 'Courier New', 'Andale Mono', 'Lucida Console', monospace;
+    font-family: Consolas, ui-monospace, SFMono-Regular, Menlo, 'Courier New', 'Andale Mono', 'Lucida Console', monospace;
     font-size: small;
     white-space: nowrap;
     display: block;
 }
 
-    .rL:hover, .referenceLine:hover {
+    .rL:hover, .referenceLine:hover, .rL:active, .referenceLine:active {
         background-color: #eeeeee;
     }
 
@@ -241,7 +352,7 @@ a i {
     border-bottom-style: solid;
 }
 
-    .resultItem:hover {
+    .resultItem:hover, .resultItem:active {
         background-color: #f6f6f6;
     }
 
@@ -313,7 +424,7 @@ a i {
 }
 
     .typeDeclarationNode:focus, .tDN:focus {
-        background-color: #3399ff;
+        background-color: var(--color-selection);
         color: white;
     }
 
@@ -355,7 +466,7 @@ a i {
 }
 
     .cs:focus {
-        background-color: #3399ff;
+        background-color: var(--color-selection);
         color: white;
     }
 
@@ -375,7 +486,7 @@ a i {
 }
 
     .vb:focus {
-        background-color: #3399ff;
+        background-color: var(--color-selection);
         color: white;
     }
 
@@ -395,7 +506,7 @@ a i {
 }
 
     .csproj:focus {
-        background-color: #3399ff;
+        background-color: var(--color-selection);
         color: white;
     }
 
@@ -415,7 +526,7 @@ a i {
 }
 
     .vbproj:focus {
-        background-color: #3399ff;
+        background-color: var(--color-selection);
         color: white;
     }
 
@@ -435,7 +546,7 @@ a i {
 }
 
     .xaml:focus {
-        background-color: #3399ff;
+        background-color: var(--color-selection);
         color: white;
     }
 
@@ -455,7 +566,7 @@ a i {
 }
 
     .xml:focus {
-        background-color: #3399ff;
+        background-color: var(--color-selection);
         color: white;
     }
 
@@ -475,7 +586,7 @@ a i {
 }
 
     .resx:focus {
-        background-color: #3399ff;
+        background-color: var(--color-selection);
         color: white;
     }
 
@@ -495,12 +606,12 @@ a i {
 }
 
     .ts:focus {
-        background-color: #3399ff;
+        background-color: var(--color-selection);
         color: white;
     }
 
 .selectedFilename {
-    background-color: #3399ff;
+    background-color: var(--color-selection);
     color: white;
 }
 
@@ -561,21 +672,48 @@ a i {
 }
 
 .tb {
-    border: 0;
+    display: flex;
+    align-items: flex-start;
+    /* Grow to the code's width so the page itself (not a nested region) owns
+       horizontal scrolling. This keeps the browser's own horizontal scrollbar
+       at the viewport bottom where it's always reachable, instead of at the
+       bottom of the (tall) code where you'd have to scroll all the way down. */
+    width: max-content;
+    min-width: 100%;
+}
+
+/* Keep the line-number (and glyph) gutter frozen on the left while long code
+   lines scroll horizontally, and scrolling vertically with the code. `.tb` is
+   the sticky element's containing block and is wider than the viewport, while
+   the page (body) is the scrollport -- no ancestor sets `overflow`, which is
+   what silently breaks sticky. The opaque background and `z-index` mask the
+   code as it scrolls underneath. */
+.gutter {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    flex: none;
+    display: flex;
+    align-items: flex-start;
+    background-color: var(--color-page-background);
+}
+
+.codeScroll {
+    flex: none;
 }
 
 #ln, #glyph {
+    flex: none;
     margin-left: 16px;
     margin-right: 24px;
     margin-top: 0;
     color: #247b95;
     text-align: right;
-    vertical-align: top;
 }
 
 #code {
+    flex: none;
     margin: 0;
-    vertical-align: top;
     text-align: left;
 }
 
@@ -585,9 +723,28 @@ a i {
     bottom: 0;
     background-color: aliceblue;
     padding: 8px;
+    /* Pad past the iOS home-indicator / browser chrome safe area so the last
+       wrapped line isn't clipped at the very bottom of the viewport. */
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
     color: gray;
-    height: 50px;
+    /* Grow with the content instead of a hard 50px. On mobile the File/Project
+       paths wrap to extra lines; a fixed height pinned to `bottom: 0` pushed the
+       overflow below the viewport and cut it off. */
+    box-sizing: border-box;
+    min-height: 50px;
+    /* Long unbroken paths/URLs (no spaces) otherwise set the table cell's
+       min-content width, pushing the `width: 100%` table wider than the viewport
+       so the text runs off the edge. Allow such tokens to break and wrap. */
+    overflow-wrap: anywhere;
     opacity: 0.85;
+    /* Keep the footer above the code/gutter. The gutter and the
+       `-webkit-overflow-scrolling: touch` code scroller are composited on iOS,
+       and without an explicit stacking context Safari paints the line numbers
+       over the fixed footer as they scroll past it. Promoting `.dH` to its own
+       layer with a `z-index` forces the footer to stay on top. */
+    z-index: 100;
+    transform: translateZ(0);
+    backface-visibility: hidden;
 }
 
 .headerBody {
@@ -666,6 +823,11 @@ a i {
     top: 0px;
     right: 10px;
     padding: 18px;
+}
+
+/* Narrow-screen single-pane toggle; only shown at the <=700px breakpoint. */
+#paneToggle {
+    display: none;
 }
 
 #downloadButton {
@@ -869,7 +1031,7 @@ ol a, ol a:link, ol a:hover, ol a:focus, ol a:active,
     opacity: 0.9;
 }
 
-    .documentOutlineButton:hover {
+    .documentOutlineButton:hover, .documentOutlineButton:active {
         border-color: #eeccc0;
         background-color: #fff5ec;
     }
@@ -888,7 +1050,7 @@ ol a, ol a:link, ol a:hover, ol a:focus, ol a:active,
     opacity: 0.9;
 }
 
-    .projectExplorerButton:hover {
+    .projectExplorerButton:hover, .projectExplorerButton:active {
         border-color: #90e6d4;
         background-color: #dcfff8;
     }
@@ -907,12 +1069,37 @@ ol a, ol a:link, ol a:hover, ol a:focus, ol a:active,
     opacity: 0.9;
 }
 
-    .namespaceExplorerButton:hover {
+    .namespaceExplorerButton:hover, .namespaceExplorerButton:active {
         border-color: #e0e0e0;
         background-color: #f0f0f0;
     }
 
-.documentOutlineDiv:hover {
+/* Promote the fixed toolbar buttons to their own compositing layer so iOS
+   Safari keeps them steady instead of repainting (jittering) them while the
+   code window scrolls. */
+.documentOutlineButton,
+.projectExplorerButton,
+.namespaceExplorerButton {
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+}
+
+/* Touch pointers: the stacked explorer buttons render at 48px (32px icon +
+   8px padding), a fine tap size, but the 50px offsets leave only a 2px gap
+   between adjacent targets. Space them out so neighboring buttons don't abut
+   and cause mis-taps. Left as-is for mouse pointers. */
+@media (pointer: coarse) {
+    .projectExplorerButton {
+        top: 56px;
+    }
+
+    .namespaceExplorerButton {
+        top: 112px;
+    }
+}
+
+.documentOutlineDiv:hover, .documentOutlineDiv:active {
     background-color: #f6f6f6;
 }
 
@@ -1006,125 +1193,90 @@ ol a, ol a:link, ol a:hover, ol a:focus, ol a:active,
     color: #747474;
 }
 
-@media only screen and (max-width: 462px) {
+/* Header layout is defined for the full-width case above; these breakpoints
+   progressively hide the non-essential header chrome as the viewport narrows.
+   Layered max-width queries stack, so e.g. below 462px all three apply. */
+@media only screen and (max-width: 1280px) {
     #dotnetLogo {
         display: none;
     }
 
+    #currentVersion {
+        display: none;
+    }
+}
+
+@media only screen and (max-width: 869px) {
+    #logoText {
+        display: none;
+    }
+}
+
+@media only screen and (max-width: 700px) {
+    #headerMenu {
+        display: none;
+    }
+
+    /* At this width only the search box and pane toggle remain visible, so lay
+       them out as flex siblings and let the browser reserve exact space for
+       each. The toggle label ("Results"/"Code") varies in width, so the old
+       absolute toggle plus a fixed padding-right reservation overlapped the
+       search box in portrait; flex avoids the magic number entirely. */
     #searchBoxAndImages {
-        padding-right: 58px;
+        display: flex;
+        align-items: center;
         box-sizing: border-box;
-        display: block;
-    }
-
-    #search-box {
         width: 100%;
-    }
-
-    #logoText {
-        display: none;
-    }
-
-    #currentVersion {
-        display: none;
-    }
-
-    #headerMenu {
-        display: none;
-    }
-}
-
-@media only screen and (min-width: 463px) and (max-width: 869px) {
-    #dotnetLogo {
-        display: none;
-    }
-
-    #searchBoxAndImages {
+        padding-left: 8px;
     }
 
     #search-box {
-        width: 405px;
+        box-sizing: border-box;
+        /* Zero flex-basis (not `auto`) so the box grows from 0 rather than from
+           its base `width: 405px`. iOS Safari uses an input's intrinsic size as
+           the `auto` basis and won't shrink it even with `min-width: 0`, which
+           pushed the pane toggle off screen in portrait. */
+        flex: 1 1 0;
+        width: 0;
+        min-width: 0;
+        margin: 10px 0;
     }
 
-    #logoText {
-        display: none;
-    }
-
-    #currentVersion {
-        display: none;
-    }
-
-    #headerMenu {
+    #paneToggle {
         display: inline-block;
-    }
-}
-
-@media only screen and (min-width: 870px) and (max-width: 1280px) {
-    #dotnetLogo {
-        display: none;
-    }
-
-    #searchBoxAndImages {
-    }
-
-    #search-box {
-        width: 405px;
-    }
-
-    #logoText {
-        display: inline-block;
-    }
-
-    #currentVersion {
-        display: none;
-    }
-
-    #headerMenu {
-        display: inline-block;
-    }
-}
-
-@media only screen and (min-width: 1281px) {
-    #dotnetLogo {
-        display: inline-block;
-    }
-
-    #searchBoxAndImages {
-    }
-
-    #search-box {
-        width: 405px;
-    }
-
-    #logoText {
-        display: inline-block;
-    }
-
-    #currentVersion {
-        display: inline-block;
-    }
-
-    #headerMenu {
-        display: inline-block;
+        flex: none;
+        margin: 0;
+        padding: 18px 14px;
+        color: white;
+        font-size: 14px;
+        line-height: 20px;
+        white-space: nowrap;
+        cursor: pointer;
+        user-select: none;
+        -webkit-user-select: none;
     }
 }
 
 @media (prefers-color-scheme: dark) {
+    /* Flip the shared palette; the base surfaces (html/body/panes) pick these
+       up automatically through the custom properties declared in :root. */
+    :root {
+        --color-page-background: black;
+        --color-page-foreground: #aaa;
+        --color-pane-border: #333;
+    }
+
+    /* Default text color for elements that don't inherit it (notably native
+       form controls like the search box); component-specific colors are set by
+       their own rules below. Backgrounds don't need a universal reset -- every
+       themed background is a class/id rule that outranks the page default, so a
+       light background never bleeds onto the dark page. */
     * {
-        background: transparent;
-        color: #aaa;
+        color: var(--color-page-foreground);
     }
 
     .imagePlusMinus, .resultGroupHeader::before, .rA::before {
         filter: invert(1);
-    }
-
-    html {
-        background: black;
-    }
-
-    body {
-        background: black;
     }
 
     h1 {
@@ -1178,7 +1330,7 @@ ol a, ol a:link, ol a:hover, ol a:focus, ol a:active,
         background-color: #333;
     }
 
-        .resultGroupHeader:hover {
+        .resultGroupHeader:hover, .resultGroupHeader:active {
             background-color: #555;
         }
 
@@ -1186,20 +1338,12 @@ ol a, ol a:link, ol a:hover, ol a:focus, ol a:active,
         background-color: #123;
     }
 
-        .rA:hover {
+        .rA:hover, .rA:active {
             background-color: #123;
         }
 
-    .resultGroupProjectPath {
-        color: silver;
-    }
-
-    .rL:hover, .referenceLine:hover {
+    .rL:hover, .referenceLine:hover, .rL:active, .referenceLine:active {
         background-color: #333;
-    }
-
-    a b {
-        color: #247b95;
     }
 
     a i {
@@ -1221,67 +1365,13 @@ ol a, ol a:link, ol a:hover, ol a:focus, ol a:active,
         border-bottom-color: transparent;
     }
 
-        .resultItem:hover {
+        .resultItem:hover, .resultItem:active {
             background-color: #222;
         }
 
     .referenceDisabled {
         color: lightgray;
     }
-
-    .typeDeclarationNode:focus, .tDN:focus {
-        background-color: #3399ff;
-        color: white;
-    }
-
-    .cs:focus {
-        background-color: #3399ff;
-        color: white;
-    }
-
-    .vb:focus {
-        background-color: #3399ff;
-        color: white;
-    }
-
-    .csproj:focus {
-        background-color: #3399ff;
-        color: white;
-    }
-
-    .vbproj:focus {
-        background-color: #3399ff;
-        color: white;
-    }
-
-    .xaml:focus {
-        background-color: #3399ff;
-        color: white;
-    }
-
-    .xml:focus {
-        background-color: #3399ff;
-        color: white;
-    }
-
-    .resx:focus {
-        background-color: #3399ff;
-        color: white;
-    }
-
-    .ts:focus {
-        background-color: #3399ff;
-        color: white;
-    }
-
-    .selectedFilename {
-        background-color: #3399ff;
-        color: white;
-    }
-
-        .selectedFilename:link, .selectedFilename:visited, .selectedFilename:hover, .selectedFilename:active {
-            color: white;
-        }
 
     .currentResult {
         border-left-color: lightgray;
@@ -1307,10 +1397,6 @@ ol a, ol a:link, ol a:hover, ol a:focus, ol a:active,
         color: white;
     }
 
-    #ln, #glyph {
-        color: #247b95;
-    }
-
     .dH {
         background: linear-gradient(to right, #232 0%,#000 100%);
         color: gray;
@@ -1324,35 +1410,6 @@ ol a, ol a:link, ol a:hover, ol a:focus, ol a:active,
     #search-box {
         background-color: black;
         border-color: #555;
-    }
-
-    #logoText {
-        color: white;
-    }
-
-    #downloadButton {
-        background-color: #68217A;
-        color: white;
-    }
-
-    #feedbackButtonLink {
-        color: white;
-    }
-
-    #downloadButtonLink {
-        color: white;
-    }
-
-    #licenseButtonLink {
-        color: white;
-    }
-
-    #helpButtonLink {
-        color: white;
-    }
-
-    .result {
-        background-color: lightgoldenrodyellow;
     }
 
     .r {
@@ -1444,11 +1501,6 @@ ol a, ol a:link, ol a:hover, ol a:focus, ol a:active,
         color: #C0C0C0;
     }
 
-    .xlee {
-        color: #B96464;
-        background-color: #FFFEBF;
-    }
-
     a.s, a.s:hover {
         color: #8C6A5C;
     }
@@ -1480,7 +1532,7 @@ ol a, ol a:link, ol a:hover, ol a:focus, ol a:active,
         opacity: 0.9;
     }
 
-        .documentOutlineButton:hover {
+        .documentOutlineButton:hover, .documentOutlineButton:active {
             border-color: #eeccc0;
             background-color: #000;
         }
@@ -1491,7 +1543,7 @@ ol a, ol a:link, ol a:hover, ol a:focus, ol a:active,
         opacity: 0.9;
     }
 
-        .projectExplorerButton:hover {
+        .projectExplorerButton:hover, .projectExplorerButton:active {
             border-color: #90e6d4;
             background-color: #000;
         }
@@ -1502,12 +1554,12 @@ ol a, ol a:link, ol a:hover, ol a:focus, ol a:active,
         opacity: 0.9;
     }
 
-        .namespaceExplorerButton:hover {
+        .namespaceExplorerButton:hover, .namespaceExplorerButton:active {
             border-color: #e0e0e0;
             background-color: #000;
         }
 
-    .documentOutlineDiv:hover {
+    .documentOutlineDiv:hover, .documentOutlineDiv:active {
         background-color: #345;
     }
 
@@ -1527,20 +1579,6 @@ ol a, ol a:link, ol a:hover, ol a:focus, ol a:active,
 
         .inactiveTab:link, .inactiveTab:visited, .inactiveTab:hover, .inactiveTab:active {
             color: #777;
-        }
-
-    #sourcesList li {
-        background-color: steelblue;
-        color: white;
-    }
-
-    .externalIndexLinks li {
-        background-color: purple;
-        color: white;
-    }
-
-        .externalIndexLinks li a {
-            color: white;
         }
 
     .msbuildlink {

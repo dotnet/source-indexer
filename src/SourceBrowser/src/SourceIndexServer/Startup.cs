@@ -66,12 +66,6 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
                 KnownProxies = { }
             });
 
-            app.Use(async (context, next) =>
-            {
-                context.Response.Headers["X-UA-Compatible"] = "IE=edge";
-                await next();
-            });
-
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();

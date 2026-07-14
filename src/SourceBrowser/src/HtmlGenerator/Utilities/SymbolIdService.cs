@@ -1,7 +1,6 @@
 using System;
 using System.Reflection;
 using Microsoft.CodeAnalysis;
-using Microsoft.VisualStudio.Language.Intellisense;
 
 namespace Microsoft.SourceBrowser.HtmlGenerator
 {

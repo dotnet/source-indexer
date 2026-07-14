@@ -48,7 +48,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             string rawReferencesFile = referencesFile;
             referencesFile = Path.ChangeExtension(referencesFile, ".html");
 
-            var referenceKindGroups = CreateReferences(referencesLines, out int totalReferenceCount, out string symbolName);
+            var referenceKindGroups = CreateReferences(referencesLines, out string symbolName);
 
             using (var writer = new StreamWriter(referencesFile, append: false, encoding: Encoding.UTF8))
             {
@@ -66,11 +66,11 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     WriteImplementedInterfaceMembers(id, writer);
                 }
 
-                foreach (var referenceKind in referenceKindGroups.OrderBy(t => (int)t.Item1))
+                foreach (var referenceKind in referenceKindGroups.OrderBy(k => (int)k.Kind))
                 {
                     string formatString = "";
 
-                    switch (referenceKind.Item1)
+                    switch (referenceKind.Kind)
                     {
                         case ReferenceKind.Reference:
                             formatString = "{0} reference{1} to {2}";
@@ -130,11 +130,10 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                             formatString = "{0} call{1} to MSBuild task {2}";
                             break;
                         default:
-                            throw new NotImplementedException("Missing case for " + referenceKind.Item1);
+                            throw new NotImplementedException("Missing case for " + referenceKind.Kind);
                     }
 
-                    var referencesOfSameKind = referenceKind.Item2.OrderBy(g => g.Item1);
-                    totalReferenceCount = CountItems(referenceKind);
+                    int totalReferenceCount = referenceKind.Count;
                     string headerText = string.Format(
                         formatString,
                         totalReferenceCount,
@@ -143,24 +142,25 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
                     Write(writer, string.Format(@"<div class=""rH"">{0}</div>", headerText));
 
-                    foreach (var sameAssemblyReferencesGroup in referencesOfSameKind)
+                    foreach (var sameAssemblyReferencesGroup in referenceKind.Assemblies.OrderBy(a => a.AssemblyName))
                     {
-                        string assemblyName = sameAssemblyReferencesGroup.Item1;
-                        Write(writer, "<div class=\"rA\">{0} ({1})</div>", assemblyName, CountItems(sameAssemblyReferencesGroup));
+                        string assemblyName = sameAssemblyReferencesGroup.AssemblyName;
+                        Write(writer, "<div class=\"rA\">{0} ({1})</div>", assemblyName, sameAssemblyReferencesGroup.Count);
                         Write(writer, "<div class=\"rG\" id=\"{0}\">", assemblyName);
 
-                        foreach (var sameFileReferencesGroup in sameAssemblyReferencesGroup.Item2.OrderBy(g => g.Item1))
+                        foreach (var sameFileReferencesGroup in sameAssemblyReferencesGroup.Files.OrderBy(f => f.FilePath))
                         {
                             Write(writer, "<div class=\"rF\">");
-                            WriteLine(writer, "<div class=\"rN\">{0} ({1})</div>", sameFileReferencesGroup.Item1, CountItems(sameFileReferencesGroup));
+                            WriteLine(writer, "<div class=\"rN\">{0} ({1})</div>", sameFileReferencesGroup.FilePath, sameFileReferencesGroup.Count);
 
-                            foreach (var sameLineReferencesGroup in sameFileReferencesGroup.Item2)
+                            foreach (var sameLineReferencesGroup in sameFileReferencesGroup.Lines)
                             {
-                                var url = sameLineReferencesGroup.First().Url;
+                                var references = sameLineReferencesGroup.References;
+                                var url = references[0].Url;
                                 Write(writer, "<a href=\"{0}\">", url);
 
-                                Write(writer, "<b>{0}</b>", sameLineReferencesGroup.Key);
-                                MergeOccurrences(writer, sameLineReferencesGroup);
+                                Write(writer, "<b>{0}</b>", sameLineReferencesGroup.LineNumber);
+                                MergeOccurrences(writer, references);
                                 WriteLine(writer, "</a>");
                             }
 
@@ -230,67 +230,53 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             }
         }
 
-        private static int CountItems(Tuple<string, IEnumerable<IGrouping<int, Reference>>> sameFileReferencesGroup)
+        // Materialized reference tree: built once in a single pass over the raw reference
+        // lines with per-level counts precomputed. This replaces the previous lazy nested
+        // GroupBy chain, which re-executed the grouping on every re-enumeration and required
+        // separate CountItems passes that fully re-walked each subtree.
+        private sealed class ReferenceKindGroup
         {
-            int count = 0;
-
-            foreach (var line in sameFileReferencesGroup.Item2)
-            {
-                foreach (var occurrence in line)
-                {
-                    count++;
-                }
-            }
-
-            return count;
+            public ReferenceKind Kind;
+            public int Count;
+            public readonly List<ReferenceAssemblyGroup> Assemblies = new List<ReferenceAssemblyGroup>();
+            public readonly Dictionary<string, ReferenceAssemblyGroup> AssemblyMap = new Dictionary<string, ReferenceAssemblyGroup>();
         }
 
-        private static int CountItems(
-            Tuple<string, IEnumerable<Tuple<string, IEnumerable<IGrouping<int, Reference>>>>> resultsInAssembly)
+        private sealed class ReferenceAssemblyGroup
         {
-            int count = 0;
-            foreach (var file in resultsInAssembly.Item2)
-            {
-                count += CountItems(file);
-            }
-
-            return count;
+            public string AssemblyName;
+            public int Count;
+            public readonly List<ReferenceFileGroup> Files = new List<ReferenceFileGroup>();
+            public readonly Dictionary<string, ReferenceFileGroup> FileMap = new Dictionary<string, ReferenceFileGroup>();
         }
 
-        private static int CountItems(
-            Tuple<ReferenceKind, IEnumerable<Tuple<string, IEnumerable<Tuple<string, IEnumerable<IGrouping<int, Reference>>>>>>> results)
+        private sealed class ReferenceFileGroup
         {
-            int count = 0;
-            foreach (var item in results.Item2)
-            {
-                count += CountItems(item);
-            }
-
-            return count;
+            public string FilePath;
+            public int Count;
+            public readonly List<ReferenceLineGroup> Lines = new List<ReferenceLineGroup>();
+            public readonly Dictionary<int, ReferenceLineGroup> LineMap = new Dictionary<int, ReferenceLineGroup>();
         }
 
-        private static
-            IEnumerable<Tuple<ReferenceKind,
-                IEnumerable<Tuple<string,
-                    IEnumerable<Tuple<string,
-                        IEnumerable<IGrouping<int, Reference>>
-                    >>
-                >>
-            >> CreateReferences(
+        private sealed class ReferenceLineGroup
+        {
+            public int LineNumber;
+            public readonly List<Reference> References = new List<Reference>();
+        }
+
+        private static List<ReferenceKindGroup> CreateReferences(
             string[] referencesLines,
-            out int totalReferenceCount,
             out string referencedSymbolName)
         {
-            totalReferenceCount = 0;
             referencedSymbolName = null;
 
-            var list = new List<Reference>(referencesLines.Length / 2);
+            var kindGroups = new List<ReferenceKindGroup>();
+            var kindMap = new Dictionary<ReferenceKind, ReferenceKindGroup>();
 
             for (int i = 0; i < referencesLines.Length; i += 2)
             {
                 var reference = new Reference(referencesLines[i], referencesLines[i + 1]);
-                list.Add(reference);
-                totalReferenceCount++;
+
                 if (referencedSymbolName == null &&
                     reference.ToSymbolName != "this" &&
                     reference.ToSymbolName != "base" &&
@@ -300,38 +286,45 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 {
                     referencedSymbolName = reference.ToSymbolName;
                 }
+
+                if (!kindMap.TryGetValue(reference.Kind, out var kindGroup))
+                {
+                    kindGroup = new ReferenceKindGroup { Kind = reference.Kind };
+                    kindMap.Add(reference.Kind, kindGroup);
+                    kindGroups.Add(kindGroup);
+                }
+
+                kindGroup.Count++;
+
+                if (!kindGroup.AssemblyMap.TryGetValue(reference.FromAssemblyId, out var assemblyGroup))
+                {
+                    assemblyGroup = new ReferenceAssemblyGroup { AssemblyName = reference.FromAssemblyId };
+                    kindGroup.AssemblyMap.Add(reference.FromAssemblyId, assemblyGroup);
+                    kindGroup.Assemblies.Add(assemblyGroup);
+                }
+
+                assemblyGroup.Count++;
+
+                if (!assemblyGroup.FileMap.TryGetValue(reference.FromLocalPath, out var fileGroup))
+                {
+                    fileGroup = new ReferenceFileGroup { FilePath = reference.FromLocalPath };
+                    assemblyGroup.FileMap.Add(reference.FromLocalPath, fileGroup);
+                    assemblyGroup.Files.Add(fileGroup);
+                }
+
+                fileGroup.Count++;
+
+                if (!fileGroup.LineMap.TryGetValue(reference.ReferenceLineNumber, out var lineGroup))
+                {
+                    lineGroup = new ReferenceLineGroup { LineNumber = reference.ReferenceLineNumber };
+                    fileGroup.LineMap.Add(reference.ReferenceLineNumber, lineGroup);
+                    fileGroup.Lines.Add(lineGroup);
+                }
+
+                lineGroup.References.Add(reference);
             }
 
-            var result = list.GroupBy
-            (
-                r0 => r0.Kind,
-                (kind, referencesOfSameKind) => Tuple.Create
-                (
-                    kind,
-                    referencesOfSameKind.GroupBy
-                    (
-                        r1 => r1.FromAssemblyId,
-                        (assemblyName, referencesInSameAssembly) => Tuple.Create
-                        (
-                            assemblyName,
-                            referencesInSameAssembly.GroupBy
-                            (
-                                r2 => r2.FromLocalPath,
-                                (filePath, referencesInSameFile) => Tuple.Create
-                                (
-                                    filePath,
-                                    referencesInSameFile.GroupBy
-                                    (
-                                        r3 => r3.ReferenceLineNumber
-                                    )
-                                )
-                            )
-                        )
-                    )
-                )
-            );
-
-            return result;
+            return kindGroups;
         }
 
         private static void MergeOccurrences(StreamWriter writer, IEnumerable<Reference> referencesOnTheSameLine)

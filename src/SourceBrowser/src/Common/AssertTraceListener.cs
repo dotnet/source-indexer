@@ -4,20 +4,19 @@ using System.Linq;
 
 namespace Microsoft.SourceBrowser.Common
 {
-#if NET472
     public class AssertTraceListener : TraceListener
     {
         public static void Register()
         {
-            foreach (var existingListener in Debug.Listeners.OfType<TraceListener>().ToArray())
+            foreach (var existingListener in Trace.Listeners.OfType<TraceListener>().ToArray())
             {
                 if (existingListener is DefaultTraceListener)
                 {
-                    Debug.Listeners.Remove(existingListener);
+                    Trace.Listeners.Remove(existingListener);
                 }
             }
 
-            Debug.Listeners.Add(new AssertTraceListener());
+            Trace.Listeners.Add(new AssertTraceListener());
         }
 
         public override void Fail(string message, string detailMessage)
@@ -59,5 +58,4 @@ namespace Microsoft.SourceBrowser.Common
             Log.Write(message);
         }
     }
-#endif
 }

@@ -1,1 +1,1 @@
-msbuild /r /m /bl
+dotnet build SourceBrowser.slnx -bl %*

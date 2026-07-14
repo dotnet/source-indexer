@@ -35,11 +35,18 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
         private void GetLocationsToPatch(string referencesFolder, Dictionary<string, List<long>> locationsToPatch, Dictionary<string, List<Tuple<string, long>>> symbolIDToListOfLocationsMap)
         {
+            // Enumerate the references folder once instead of issuing a File.Exists syscall per
+            // declared symbol; a symbol needs backpatching only when it has no references file.
+            var symbolsWithReferences = Directory.Exists(referencesFolder)
+                ? new HashSet<string>(
+                    Directory.EnumerateFiles(referencesFolder, "*.txt").Select(Path.GetFileNameWithoutExtension),
+                    StringComparer.OrdinalIgnoreCase)
+                : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
             foreach (var kvp in symbolIDToListOfLocationsMap)
             {
                 var symbolId = kvp.Key;
-                var referencesFileForSymbol = Path.Combine(referencesFolder, symbolId + ".txt");
-                if (!File.Exists(referencesFileForSymbol))
+                if (!symbolsWithReferences.Contains(symbolId))
                 {
                     foreach (var location in kvp.Value)
                     {

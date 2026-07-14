@@ -1,41 +1,31 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Source Browser</title>
     <link rel="search" type="application/opensearchdescription+xml" href="opensearch" title="Source Browser">
     <link rel="stylesheet" href="styles.css">
     <script src="scripts.js"></script>
 </head>
-<frameset rows="58,*"
-          border="0"
-          onload="onPageLoaded();">
-    <frame name="h"
-           src="header.html"
-           scrolling="no"
-           noresize="noresize"
-           role="toolbar"
-           aria-label="header">
-        <frameset id="splitter"
-                  cols="504,*"
-                  frameborder="1"
-                  border="20"
-                  bordercolor="#aaa"
-                  framespacing="20">
-            <frame name="n"
-                   id="n"
-                   src="results.html"
-                   border="0"
-                   frameborder="0"
-                   role="directory"
-                   aria-label="search-results">
-            <frame name="s"
-                   id="s"
-                   src="overview.html"
-                   border="0"
-                   frameborder="0"
-                   role="document"
-                   aria-label="content">
-        </frameset>
-</frameset>
+<body class="indexBody" onload="onPageLoaded();">
+    <iframe name="h"
+            id="h"
+            class="headerFrame"
+            src="header.html"
+            scrolling="no"
+            title="header"></iframe>
+    <div class="paneContainer" id="splitter">
+        <iframe name="n"
+                id="n"
+                class="navFrame"
+                src="results.html"
+                title="search-results"></iframe>
+        <iframe name="s"
+                id="s"
+                class="contentFrame"
+                src="overview.html"
+                title="content"></iframe>
+    </div>
+</body>
 </html>

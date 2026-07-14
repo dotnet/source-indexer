@@ -1,8 +1,6 @@
 using System;
+using System.Collections.Concurrent;
 using System.IO;
-using System.Reactive.Concurrency;
-using System.Reactive.Linq;
-using System.Reactive.Subjects;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,7 +17,7 @@ namespace Microsoft.SourceBrowser.Common
         private static string messageLogFilePath = Path.GetFullPath(MessageLogFile);
 
         private static TaskCompletionSource<object> completedTask = new TaskCompletionSource<object>();
-        private static readonly Subject<IMessage> Messages = new Subject<IMessage>();
+        private static readonly BlockingCollection<IMessage> Messages = new BlockingCollection<IMessage>();
 
         private static void OnNext(IMessage msg)
         {
@@ -34,17 +32,24 @@ namespace Microsoft.SourceBrowser.Common
             }
         }
 
-        private static Thread ThreadFactory(ThreadStart start)
-        {
-            var thread = new Thread(start);
-            thread.IsBackground = true;
-            thread.Name = "ThreadLogger";
-            return thread;
-        }
-
         static Log()
         {
-            Messages.ObserveOn(new NewThreadScheduler(ThreadFactory)).Subscribe(OnNext, OnCompleted);
+            var thread = new Thread(ProcessMessages)
+            {
+                IsBackground = true,
+                Name = "ThreadLogger",
+            };
+            thread.Start();
+        }
+
+        private static void ProcessMessages()
+        {
+            foreach (var message in Messages.GetConsumingEnumerable())
+            {
+                OnNext(message);
+            }
+
+            OnCompleted();
         }
 
         public static Task WaitForCompletion()
@@ -55,6 +60,18 @@ namespace Microsoft.SourceBrowser.Common
         private static void OnCompleted()
         {
             completedTask.SetResult(null);
+        }
+
+        private static void Enqueue(IMessage message)
+        {
+            try
+            {
+                Messages.Add(message);
+            }
+            catch (InvalidOperationException)
+            {
+                // Logging has been closed via Close(); drop the message.
+            }
         }
 
         public static void Exception(Exception e, string message, bool isSevere = true)
@@ -77,7 +94,7 @@ namespace Microsoft.SourceBrowser.Common
         
         private static void WriteToFile(string message, string filePath)
         {
-            Messages.OnNext(new FileMessage(message, filePath));
+            Enqueue(new FileMessage(message, filePath));
         }
 
         private static void InnerWriteToFile(string message, string filePath)
@@ -94,7 +111,7 @@ namespace Microsoft.SourceBrowser.Common
 
         public static void Write(string message, ConsoleColor color = ConsoleColor.Gray)
         {
-            Messages.OnNext(new ConsoleMessage(message, color));
+            Enqueue(new ConsoleMessage(message, color));
         }
 
         private static void InnerWrite(string message, ConsoleColor color = ConsoleColor.Gray)
@@ -130,7 +147,7 @@ namespace Microsoft.SourceBrowser.Common
 
         public static void Close()
         {
-            Messages.OnCompleted();
+            Messages.CompleteAdding();
         }
     }
 

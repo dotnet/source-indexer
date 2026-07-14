@@ -63,7 +63,7 @@ stages:
         command: 'build'
         projects: |
           src\source-indexer.sln
-          src\SourceBrowser\SourceBrowser.sln
+          src\SourceBrowser\SourceBrowser.slnx
         arguments: '/p:PackageOutputPath=$(Build.ArtifactStagingDirectory)/packages'
 
     - task: CodeQL3000Finalize@0

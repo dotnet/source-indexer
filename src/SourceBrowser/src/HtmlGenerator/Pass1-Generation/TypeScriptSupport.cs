@@ -4,14 +4,17 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using Microsoft.SourceBrowser.Common;
-using Newtonsoft.Json;
 
 namespace Microsoft.SourceBrowser.HtmlGenerator
 {
     public class TypeScriptSupport
     {
         private static readonly HashSet<string> alreadyProcessed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // Match Newtonsoft's case-insensitive property matching when reading the analyzer output.
+        private static readonly JsonSerializerOptions DeserializeOptions = new() { PropertyNameCaseInsensitive = true };
         private Dictionary<string, List<Reference>> references;
         private List<string> declarations;
         public Dictionary<string, List<Tuple<string, long>>> SymbolIDToListOfLocationsMap { get; private set; }
@@ -86,7 +89,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 Directory.Delete(output, recursive: true);
             }
 
-            var json = JsonConvert.SerializeObject(new { fileNames, libFile, outputFolder = output });
+            var json = JsonSerializer.Serialize(new { fileNames, libFile, outputFolder = output });
             var argumentsJson = Path.Combine(Common.Paths.BaseAppFolder, "TypeScriptAnalyzerArguments.json");
             File.WriteAllText(argumentsJson, json);
 
@@ -125,7 +128,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     }
 
                     var text = File.ReadAllText(file);
-                    AnalyzedFile analysis = JsonConvert.DeserializeObject<AnalyzedFile>(text);
+                    AnalyzedFile analysis = JsonSerializer.Deserialize<AnalyzedFile>(text, DeserializeOptions);
 
                     EnsureFileGeneratedAndGetUrl(analysis);
                 }
@@ -171,9 +174,16 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             Log.Write(destinationHtmlFilePath);
             var sb = new StringBuilder();
 
-            var lines = File.ReadAllLines(sourceFilePath);
             var text = File.ReadAllText(sourceFilePath);
-            var lineCount = lines.Length;
+            int lineCount = 0;
+            using (var reader = new StringReader(text))
+            {
+                while (reader.ReadLine() != null)
+                {
+                    lineCount++;
+                }
+            }
+
             var lineLengths = TextUtilities.GetLineLengths(text);
 
             var ranges = PrepareRanges(syntacticRanges, semanticRanges, text);
