@@ -1,6 +1,8 @@
 # SourceBrowser
 
-[![NuGet package](https://img.shields.io/nuget/v/SourceBrowser.svg)](https://nuget.org/packages/SourceBrowser)
+[![NuGet package](https://img.shields.io/nuget/v/TannerGooding.SourceBrowser.svg)](https://nuget.org/packages/TannerGooding.SourceBrowser)
+
+> This repository is a continuation of the original [KirillOsenkov/SourceBrowser](https://github.com/KirillOsenkov/SourceBrowser), which is now archived. 💜 Huge thanks to Kirill Osenkov and everyone who contributed to the original project. New work happens here, at [tannergooding/SourceBrowser](https://github.com/tannergooding/SourceBrowser).
 
 Source browser website generator that powers https://referencesource.microsoft.com, http://sourceroslyn.io, https://source.dot.net, and others.
 
@@ -10,10 +12,10 @@ Of course Source Browser allows you to browse its own source code:
 [http://sourcebrowser.azurewebsites.net](http://sourcebrowser.azurewebsites.net)
 
 Now also available on NuGet:
-[https://www.nuget.org/packages/SourceBrowser](https://www.nuget.org/packages/SourceBrowser)
+[https://www.nuget.org/packages/TannerGooding.SourceBrowser](https://www.nuget.org/packages/TannerGooding.SourceBrowser)
 
-## Instructions to Build (requires Visual Studio 2019):
- 1. git clone https://github.com/KirillOsenkov/SourceBrowser
+## Instructions to Build (requires Visual Studio 2026 and the .NET 10 SDK):
+ 1. git clone https://github.com/tannergooding/SourceBrowser
  2. cd SourceBrowser
  3. Build.cmd
  
@@ -25,7 +27,7 @@ Now also available on NuGet:
     code view (see e.g. TestSolution\PlatformInfo.cs, which differs by the `os` axis).
  2. RunTestSite.cmd
 
-## In Visual Studio 2019:
+## In Visual Studio 2026:
  1. Open SourceBrowser.slnx.
  2. Set HtmlGenerator project as startup and hit F5 - it is preconfigured to generate a website for
     TestCode\TestSolution.sln and TestCode\RepoB\RepoB.slnx as two separately-tagged repos with a
@@ -37,7 +39,7 @@ Now also available on NuGet:
  6. Pass /root:<path> if you want to preserve relative .sln folders rather than merging all solutions. This folder must contain all specified .sln or .csproj paths.
  7. Set SourceIndexServer project as startup and run/debug the website.
 
-**Note:** Visual Studio 2019 is required to build Source Browser.
+**Note:** Visual Studio 2026 (with the .NET 10 SDK) is required to build Source Browser.
 
 ## Conceptual design
 
@@ -52,13 +54,21 @@ By default the generator is not incremental: you generate into an empty folder f
  2. The generated website can only be hosted in the root of the domain. Making it run from a subdirectory is non-trivial and unlikely to be supported.
 
 ### Features
-* Solution Explorer - contents of projects merged into single tree on the left
+* Solution Explorer - contents of projects merged into single tree on the left, grouped under Repo and Solution nodes for multi-repo indexes
 * coloring for C#, VB, MSBuild, XAML and TypeScript
 * Go To Definition (click on a reference)
 * Find All Reference (click on a definition)
 * Project Explorer - in any document click on the Project link at the bottom
 * Namespace explorer - for a project view all types and members nested in namespace hierarchy
 * Document Outline - for a document click on the button in top right to display types and members in the current file
+* Fuzzy, camelCase-aware symbol search - exact and prefix matches rank first; quoting turns off prefix/fuzzy matching for exact string search
+* Repo/solution tagging and filtering - tag assemblies by source repo/solution during generation, then scope browsing and search with the repo filter dropdown or the `repo:`/`solution:` search keywords (see [docs/IncrementalConfigAndRepos.md](docs/IncrementalConfigAndRepos.md))
+* Incremental indexing (`/incremental`) - only regenerate projects whose sources or references changed
+* Multi-config sites (`/config:`, `/configAxes:`) - index the same sources built more than one way (e.g. windows vs. linux, x64 vs. arm64) with an in-page config selector
+* Pluggable index storage with an optional Azure Blob backend
+* Responsive layout - the viewer adapts to phones and tablets, collapsing the source and navigation panes into a single switchable pane
+* Reference resolution through forwarded types
+* `BinLogToSln` tool - convert an MSBuild binlog into a buildable solution
 * http://\<URL>/i.txt for the entire solution and /AssemblyName/i.txt (for an assembly) displays source code stats, lines of code, etc
 * http://\<URL>/#EmptyArrayAllocation finds all allocations of empty arrays (this feature is one-off and hardcoded and not extensible)
 * Clicking on the partial keyword will display a list of all files where this type is declared
@@ -68,6 +78,6 @@ By default the generator is not incremental: you generate into an empty folder f
 
 ## Project status and contributions
 
-This is a reference implementation that showcases the concepts and Roslyn usage. It comes with no guarantees, use at your own risk. We will consider accepting high-quality pull requests that add non-trivial value, however we have no plans to do significant work on the application in its current form. Any significant rearchitecture, adding large features, big refactorings won't be accepted because of resource constraints. Feel free to use it to generate websites for your own code, integrate in your CI servers etc. Feel free to do whatever you want in your own forks. Bug reports are gratefully accepted.
+This is a reference implementation that showcases the concepts and Roslyn usage. It comes with no guarantees, use at your own risk. Active development now happens in this repository. High-quality pull requests that add non-trivial value are welcome; please open an issue to discuss larger changes first. Feel free to use it to generate websites for your own code, integrate in your CI servers etc. Feel free to do whatever you want in your own forks. Bug reports are gratefully accepted.
 
-For any questions, feel free to reach out to [@KirillOsenkov](https://twitter.com/KirillOsenkov) on Twitter. Thanks to [@v2_matveev](https://twitter.com/v2_matveev) for contributing TypeScript support! Thanks to numerous other contributors for various fixes and contributions!
+This project builds on the original [SourceBrowser](https://github.com/KirillOsenkov/SourceBrowser) by [@KirillOsenkov](https://twitter.com/KirillOsenkov), now archived. Thanks to [@v2_matveev](https://twitter.com/v2_matveev) for contributing TypeScript support, and to the numerous other contributors for various fixes and contributions!
