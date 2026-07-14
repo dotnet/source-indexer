@@ -5,6 +5,8 @@
         public static readonly string IDResolvingFileName = "A";
         public static readonly string PartialResolvingFileName = "P";
         public static readonly string ReferencesFileName = "R";
+        public static readonly string ReferencePackFileName = "references.pack";
+        public static readonly string ReferenceIndexFileName = "references.index";
         public static readonly string DeclaredSymbolsFileName = "D";
         public static readonly string MasterIndexFileName = "DeclaredSymbols.txt";
         public static readonly string ReferencedAssemblyList = "References";

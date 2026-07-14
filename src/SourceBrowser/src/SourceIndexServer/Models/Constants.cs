@@ -9,6 +9,8 @@
         public static readonly string MSBuildTargetsAssembly = "MSBuildTargets";
         public static readonly string MSBuildTasksAssembly = "MSBuildTasks";
         public static readonly string ReferencesFileName = "R";
+        public static readonly string ReferencePackFileName = "references.pack";
+        public static readonly string ReferenceIndexFileName = "references.index";
         public static readonly string GuidAssembly = "GuidAssembly";
     }
 }

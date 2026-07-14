@@ -22,17 +22,26 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             string solutionDestinationFolder,
             string projectDestinationFolder,
             Dictionary<string, IEnumerable<string>> symbolIDToListOfLocationsMap,
-            string prefix = "")
+            string prefix = "",
+            Dictionary<string, int> fileIndexLookup = null)
         {
             var fileName = Path.Combine(projectDestinationFolder, Constants.IDResolvingFileName + prefix + ".html");
+            bool isTopLevel = prefix.Length == 0;
 
             using (var writer = new StreamWriter(fileName, append: true, encoding: Encoding.UTF8))
             {
-                Markup.WriteMetadataToSourceRedirectPrefix(writer);
+                Markup.WriteMetadataToSourceRedirectPrefix(writer, includeFileList: !isTopLevel);
 
-                if (prefix?.Length == 0)
+                if (isTopLevel)
                 {
                     writer.WriteLine("redirectToNextLevelRedirectFile();");
+
+                    // The file-path array is identical for every bucket, so emit it once into a
+                    // shared A.files.js that each bucket references rather than inlining a ~600 KB
+                    // copy 16 times. The lookup maps each path to its index in that shared array.
+                    var files = ExtractFilePaths(symbolIDToListOfLocationsMap);
+                    fileIndexLookup = new Dictionary<string, int>(files.Length, StringComparer.OrdinalIgnoreCase);
+                    WriteSharedFileList(projectDestinationFolder, files, fileIndexLookup);
 
                     var maps = SplitByFirstLetter(symbolIDToListOfLocationsMap);
                     foreach (var map in maps)
@@ -41,7 +50,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                             solutionDestinationFolder,
                             projectDestinationFolder,
                             map.Value,
-                            map.Key.ToString());
+                            map.Key.ToString(),
+                            fileIndexLookup);
                     }
                 }
                 else
@@ -50,11 +60,30 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                         writer,
                         solutionDestinationFolder,
                         projectDestinationFolder,
-                        symbolIDToListOfLocationsMap);
+                        symbolIDToListOfLocationsMap,
+                        fileIndexLookup);
                 }
 
                 Markup.WriteMetadataToSourceRedirectSuffix(writer);
             }
+        }
+
+        private static void WriteSharedFileList(
+            string projectDestinationFolder,
+            string[] files,
+            Dictionary<string, int> fileIndexLookup)
+        {
+            var fileName = Path.Combine(projectDestinationFolder, Constants.IDResolvingFileName + ".files.js");
+
+            using var writer = new StreamWriter(fileName, append: false, encoding: Encoding.UTF8);
+            writer.WriteLine("var f = [");
+            for (int i = 0; i < files.Length; i++)
+            {
+                fileIndexLookup.Add(files[i], i);
+                writer.WriteLine("\"" + files[i] + "\",");
+            }
+
+            writer.WriteLine("];");
         }
 
         public static Dictionary<char, Dictionary<string, IEnumerable<string>>> SplitByFirstLetter(
@@ -83,20 +112,9 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             StreamWriter writer,
             string solutionDestinationFolder,
             string projectDestinationFolder,
-            Dictionary<string, IEnumerable<string>> symbolIDToListOfLocationsMap)
+            Dictionary<string, IEnumerable<string>> symbolIDToListOfLocationsMap,
+            Dictionary<string, int> fileIndexLookup)
         {
-            var files = ExtractFilePaths(symbolIDToListOfLocationsMap);
-            var fileIndexLookup = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-
-            writer.WriteLine("var f = [");
-            for (int i = 0; i < files.Length; i++)
-            {
-                fileIndexLookup.Add(files[i], i);
-                writer.WriteLine("\"" + files[i] + "\",");
-            }
-
-            writer.WriteLine("];");
-
             writer.WriteLine("var m = new Object();");
 
             foreach (var kvp in symbolIDToListOfLocationsMap.OrderBy(kvp => kvp.Key))

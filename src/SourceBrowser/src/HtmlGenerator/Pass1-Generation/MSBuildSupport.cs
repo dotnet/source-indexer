@@ -12,6 +12,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
     {
         private Project project;
         private bool isRootProject;
+        private ProjectGenerator.ReferenceCollector referenceCollector;
 
         private static readonly char[] complexCharsInProperties = new char[] { '$', ':', '[', ']' };
 
@@ -52,7 +53,13 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         {
             this.project = project;
             this.isRootProject = isRootProject;
+
+            // MSBuild/XML file generation is single-threaded per project (projects are generated
+            // sequentially and the auxiliary files after each project's parallel document loop), so a
+            // plain per-file collector suffices. It is merged into the project's shared map below.
+            this.referenceCollector = new ProjectGenerator.ReferenceCollector();
             base.Generate(localFileSystemFilePath, htmlFilePath, GetDisplayName(htmlFilePath));
+            ProjectGenerator.MergeReferences(this.referenceCollector);
         }
 
         protected override string GetAssemblyName()
@@ -243,7 +250,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 Constants.MSBuildPropertiesAssembly,
                 null,
                 propertyName,
-                isUsage ? ReferenceKind.MSBuildPropertyUsage : ReferenceKind.MSBuildPropertyAssignment);
+                isUsage ? ReferenceKind.MSBuildPropertyUsage : ReferenceKind.MSBuildPropertyAssignment,
+                referenceCollector);
 
             return text;
         }
@@ -292,7 +300,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 Constants.MSBuildItemsAssembly,
                 null,
                 itemName,
-                isUsage ? ReferenceKind.MSBuildItemUsage : ReferenceKind.MSBuildItemAssignment);
+                isUsage ? ReferenceKind.MSBuildItemUsage : ReferenceKind.MSBuildItemAssignment,
+                referenceCollector);
 
             return text;
         }
@@ -335,7 +344,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 Constants.MSBuildTargetsAssembly,
                 null,
                 targetName,
-                isUsage ? ReferenceKind.MSBuildTargetUsage : ReferenceKind.MSBuildTargetDeclaration);
+                isUsage ? ReferenceKind.MSBuildTargetUsage : ReferenceKind.MSBuildTargetDeclaration,
+                referenceCollector);
 
             return text;
         }
@@ -379,7 +389,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 Constants.MSBuildTasksAssembly,
                 null,
                 taskName,
-                isUsage ? ReferenceKind.MSBuildTaskUsage : ReferenceKind.MSBuildTaskDeclaration);
+                isUsage ? ReferenceKind.MSBuildTaskUsage : ReferenceKind.MSBuildTaskDeclaration,
+                referenceCollector);
 
             return text;
         }
@@ -510,7 +521,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                             assemblyName,
                             null,
                             symbolId,
-                            ReferenceKind.Instantiation);
+                            ReferenceKind.Instantiation,
+                            referenceCollector);
 
                         var url = string.Format("/{0}/A.html#{1}", assemblyName, symbolId);
                         var result = string.Format("<a href=\"{0}\" class=\"msbuildlink\">{1}</a>", url, text);

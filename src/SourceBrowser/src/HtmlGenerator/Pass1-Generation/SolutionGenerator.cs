@@ -114,7 +114,13 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                         t => t.Item2                                    //The actual value of the setting
                     )
                 );
-            PluginAggregator = new MEF.PluginAggregator(configs, new Utilities.PluginLogger(), PluginBlacklist);
+            // Built-in plugins are registered explicitly here now that discovery no longer scans the
+            // application directory. A run can still drop any of them by name via /noplugin:<Name>.
+            var plugins = new MEF.ISourceBrowserPlugin[]
+            {
+                new GitGlyph.GitSourceBrowserPlugin(),
+            };
+            PluginAggregator = new MEF.PluginAggregator(plugins, configs, new Utilities.PluginLogger(), PluginBlacklist);
             FirstChanceExceptionHandler.IgnoreModules(PluginAggregator.Select(p => p.PluginModule));
             PluginAggregator.Init();
         }

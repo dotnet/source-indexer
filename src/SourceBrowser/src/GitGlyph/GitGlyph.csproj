@@ -6,7 +6,6 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="LibGit2Sharp" />
-    <PackageReference Include="System.ComponentModel.Composition" />
     <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" >
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

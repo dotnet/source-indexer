@@ -87,7 +87,11 @@ function processHash() {
 
         if (startsWith(anchor, "q=")) {
             anchor = anchor.slice(2);
-            anchor = unescape(anchor);
+            try {
+                anchor = decodeURIComponent(anchor);
+            } catch (e) {
+                // Leave the raw value in place if the hash isn't valid percent-encoding.
+            }
             populateSearchBox(anchor);
             return;
         }
@@ -671,24 +675,28 @@ function runSearch() {
     }
 
     setPageTitle(searchBox.value);
-    lastQuery = getUrl("api/symbols/?symbol=" + escape(searchBox.value), loadSearchResults);
+    lastQuery = getUrl("api/symbols/?symbol=" + encodeURIComponent(searchBox.value), loadSearchResults);
 }
 
 function getUrl(url, callback) {
-    //return $.get(url, null, callback, null);
-    var xhr = new XMLHttpRequest();
-    xhr.open("GET", url, true);
-    xhr.setRequestHeader("Accept", "text/html");
-    xhr.onreadystatechange = function () {
-        if (xhr.readyState == 4) {
-            var data = xhr.responseText;
+    var controller = new AbortController();
+    fetch(url, {
+        method: "GET",
+        headers: { "Accept": "text/html" },
+        signal: controller.signal
+    })
+        .then(function (response) {
+            return response.ok ? response.text() : "";
+        })
+        .then(function (data) {
             if (typeof data === "string" && data.length > 0) {
                 callback(data);
             }
-        }
-    };
-    xhr.send();
-    return xhr;
+        })
+        .catch(function () {
+            // Ignore aborted or failed requests; the next keystroke reissues the search.
+        });
+    return controller;
 }
 
 function loadSearchResults(data) {
@@ -701,7 +709,7 @@ function loadSearchResults(data) {
         if (container) {
             container.innerHTML = data;
             if (searchBox && searchBox.value && searchBox.value.length > 2) {
-                setHash("q=" + escape(searchBox.value));
+                setHash("q=" + encodeURIComponent(searchBox.value));
             }
 
             // On narrow screens surface the results the user is searching for.

@@ -153,16 +153,12 @@ namespace Microsoft.SourceBrowser.Common
             return ToByteArray(reusableBitList.ToArray());
         }
 
-        public IntPtr CompressToNative(string text)
+        public unsafe IntPtr CompressToNative(string text)
         {
             byte[] bytes = Compress(text);
-            IntPtr result = Marshal.AllocHGlobal(bytes.Length);
-            for (int i = 0; i < bytes.Length; i++)
-            {
-                Marshal.WriteByte(result, i, bytes[i]);
-            }
-
-            return result;
+            void* result = NativeMemory.Alloc((nuint)bytes.Length);
+            bytes.CopyTo(new Span<byte>(result, bytes.Length));
+            return (IntPtr)result;
         }
 
         public string Uncompress(byte[] bytes)

@@ -46,7 +46,12 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         public Reference(string separatedLine, string sourceLine)
         {
             var parts = separatedLine.Split(';');
-            FromAssemblyId = string.Intern(parts[0]);
+            // Note: FromAssemblyId is deliberately not string.Intern'd. This constructor runs per
+            // reference inside the parallel Pass2 finalization, and string.Intern takes a process-wide
+            // lock (serializing that work) and roots every distinct string for the process lifetime.
+            // These Reference instances are transient -- grouped, written, and discarded per shard --
+            // so interning buys no lasting sharing while costing contention and unbounded pool growth.
+            FromAssemblyId = parts[0];
             Url = parts[1];
             FromLocalPath = parts[2];
             ReferenceLineNumber = int.Parse(parts[3]);

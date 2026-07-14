@@ -17,6 +17,110 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
         public IEnumerable<string> UsedReferences { get; private set; }
 
+        /// <summary>
+        /// Lock-free, per-partition accumulator for the data a document contributes to the project --
+        /// references as well as declared symbols, redirect-map locations, base members and implemented
+        /// interface members. Each partition Task processes its documents sequentially, so a single
+        /// collector is only ever touched by one document at a time and needs no synchronization. The
+        /// collectors are merged into the project-wide maps single-threaded once generation completes
+        /// (see <see cref="MergeReferences"/> and <see cref="MergeDeclarations"/>), which avoids
+        /// contending project-global locks on the per-symbol hot path.
+        /// </summary>
+        public sealed class ReferenceCollector
+        {
+            public readonly Dictionary<string, Dictionary<string, List<Reference>>> ReferencesByTargetAssemblyAndSymbolId =
+                new Dictionary<string, Dictionary<string, List<Reference>>>();
+
+            public readonly Dictionary<ISymbol, string> DeclaredSymbols =
+                new Dictionary<ISymbol, string>(SymbolEqualityComparer.Default);
+
+            public readonly Dictionary<string, List<Tuple<string, long>>> SymbolIDToListOfLocationsMap =
+                new Dictionary<string, List<Tuple<string, long>>>();
+
+            public readonly Dictionary<ISymbol, ISymbol> BaseMembers =
+                new Dictionary<ISymbol, ISymbol>(SymbolEqualityComparer.Default);
+
+            public readonly MultiDictionary<ISymbol, ISymbol> ImplementedInterfaceMembers =
+                new MultiDictionary<ISymbol, ISymbol>();
+
+            public void Add(string toAssemblyId, string toSymbolId, Reference reference)
+            {
+                if (!ReferencesByTargetAssemblyAndSymbolId.TryGetValue(toAssemblyId, out var referencesToAssembly))
+                {
+                    referencesToAssembly = new Dictionary<string, List<Reference>>(StringComparer.OrdinalIgnoreCase);
+                    ReferencesByTargetAssemblyAndSymbolId.Add(toAssemblyId, referencesToAssembly);
+                }
+
+                if (!referencesToAssembly.TryGetValue(toSymbolId, out var referencesToSymbol))
+                {
+                    referencesToSymbol = new List<Reference>();
+                    referencesToAssembly.Add(toSymbolId, referencesToSymbol);
+                }
+
+                referencesToSymbol.Add(reference);
+            }
+
+            public void AddDeclaredSymbolLocation(string symbolId, string documentRelativeFilePath, long positionInFile)
+            {
+                if (!SymbolIDToListOfLocationsMap.TryGetValue(symbolId, out var bucket))
+                {
+                    bucket = new List<Tuple<string, long>>();
+                    SymbolIDToListOfLocationsMap.Add(symbolId, bucket);
+                }
+
+                bucket.Add(Tuple.Create(documentRelativeFilePath, positionInFile));
+            }
+
+            public void AddBaseMember(ISymbol member, ISymbol baseMember)
+            {
+                BaseMembers[member] = baseMember;
+            }
+
+            public void AddImplementedInterfaceMember(ISymbol implementationMember, ISymbol interfaceMember)
+            {
+                if (implementationMember == null)
+                {
+                    throw new ArgumentNullException(nameof(implementationMember));
+                }
+
+                if (interfaceMember == null)
+                {
+                    throw new ArgumentNullException(nameof(interfaceMember));
+                }
+
+                ImplementedInterfaceMembers.Add(implementationMember, interfaceMember);
+            }
+        }
+
+        /// <summary>
+        /// Merges a per-partition <see cref="ReferenceCollector"/> into the shared project map. Must be
+        /// called single-threaded (i.e. after all generation Tasks have completed), so it takes no locks.
+        /// </summary>
+        public void MergeReferences(ReferenceCollector collector)
+        {
+            foreach (var referencesToAssembly in collector.ReferencesByTargetAssemblyAndSymbolId)
+            {
+                if (!ReferencesByTargetAssemblyAndSymbolId.TryGetValue(referencesToAssembly.Key, out var targetReferencesToAssembly))
+                {
+                    // No other partition touched this assembly; splice the whole subtree in directly.
+                    ReferencesByTargetAssemblyAndSymbolId.Add(referencesToAssembly.Key, referencesToAssembly.Value);
+                    continue;
+                }
+
+                foreach (var referencesToSymbol in referencesToAssembly.Value)
+                {
+                    if (!targetReferencesToAssembly.TryGetValue(referencesToSymbol.Key, out var targetReferencesToSymbol))
+                    {
+                        targetReferencesToAssembly.Add(referencesToSymbol.Key, referencesToSymbol.Value);
+                    }
+                    else
+                    {
+                        targetReferencesToSymbol.AddRange(referencesToSymbol.Value);
+                    }
+                }
+            }
+        }
+
         public void AddReference(
             string documentDestinationPath,
             SourceText referenceText,
@@ -25,7 +129,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             string symbolId,
             int startPosition,
             int endPosition,
-            ReferenceKind kind)
+            ReferenceKind kind,
+            ReferenceCollector collector)
         {
             string referenceString = referenceText.ToString(TextSpan.FromBounds(startPosition, endPosition));
             if (symbol is INamedTypeSymbol && (referenceString == "this" || referenceString == "base"))
@@ -50,7 +155,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 destinationAssemblyName,
                 symbol,
                 symbolId,
-                kind);
+                kind,
+                collector);
         }
 
         public void AddReference(
@@ -63,7 +169,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             string toAssemblyName,
             ISymbol symbol,
             string symbolId,
-            ReferenceKind kind)
+            ReferenceKind kind,
+            ReferenceCollector collector)
         {
             string localPath = Paths.MakeRelativeToFolder(
                 documentDestinationPath,
@@ -106,42 +213,10 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
             reference.Url = linkRelativePath;
 
-            Dictionary<string, List<Reference>> referencesToAssembly = GetReferencesToAssembly(reference.ToAssemblyId);
-            List<Reference> referencesToSymbol = GetReferencesToSymbol(reference, referencesToAssembly);
-            lock (referencesToSymbol)
-            {
-                referencesToSymbol.Add(reference);
-            }
-        }
-
-        private static List<Reference> GetReferencesToSymbol(Reference reference, Dictionary<string, List<Reference>> referencesToAssembly)
-        {
-            List<Reference> referencesToSymbol;
-            lock (referencesToAssembly)
-            {
-                if (!referencesToAssembly.TryGetValue(reference.ToSymbolId, out referencesToSymbol))
-                {
-                    referencesToSymbol = new List<Reference>();
-                    referencesToAssembly.Add(reference.ToSymbolId, referencesToSymbol);
-                }
-            }
-
-            return referencesToSymbol;
-        }
-
-        private Dictionary<string, List<Reference>> GetReferencesToAssembly(string assembly)
-        {
-            Dictionary<string, List<Reference>> referencesToAssembly;
-            lock (ReferencesByTargetAssemblyAndSymbolId)
-            {
-                if (!ReferencesByTargetAssemblyAndSymbolId.TryGetValue(assembly, out referencesToAssembly))
-                {
-                    referencesToAssembly = new Dictionary<string, List<Reference>>(StringComparer.OrdinalIgnoreCase);
-                    ReferencesByTargetAssemblyAndSymbolId.Add(assembly, referencesToAssembly);
-                }
-            }
-
-            return referencesToAssembly;
+            // The caller supplies a collector scoped to its own thread/partition, so this appends with
+            // no synchronization. Collectors are merged into the shared map single-threaded via
+            // MergeReferences once the owning generation phase completes.
+            collector.Add(reference.ToAssemblyId, reference.ToSymbolId, reference);
         }
 
         private static string GetLinkRelativePath(Reference reference)
@@ -234,6 +309,85 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             }
         }
 
+        // Reference data is handed from Pass1 to Pass2 through disk so the two phases stay decoupled
+        // (Pass2 rediscovers projects from the output folder and runs after Pass1's memory is freed).
+        // Rather than one tiny file per referenced symbol -- which produced ~185K files for the largest
+        // assembly and made both the Pass1 write and the Pass2 read/delete filesystem-metadata bound --
+        // references are consolidated into a small, fixed number of shard files per assembly, keyed by a
+        // stable hash of the symbol id. Every project maps a given symbol to the same shard so appends
+        // aggregate correctly, and Pass2 reconstructs each symbol's references by grouping one shard in
+        // memory at a time; the shard count bounds that per-shard grouping memory.
+        public const string ReferenceShardPrefix = "_r";
+        public const string ReferenceShardExtension = ".dat";
+
+        public static readonly int ReferenceShardCount = ComputeReferenceShardCount();
+
+        // ReferenceShardCount is always a power of two, so a symbol id maps to its shard with a cheap
+        // mask instead of a modulo. Kept as its own field so the mask is computed once, not per call.
+        private static readonly int ReferenceShardMask = ReferenceShardCount - 1;
+
+        // This fallback only runs if the GC can't report a memory budget, which is rare -- so bias it
+        // pessimistically. ProcessorCount counts logical cores (hardware threads), and even high-end
+        // workstations are often only ~1-2 GiB per thread today (e.g. a 16-core/32-thread box with 32-64
+        // GB, given current RAM prices), while laptops sit lower still. 1.5 GiB/thread models that range
+        // and errs toward more (smaller, safer) shards; users on unusual hardware can set
+        // SOURCEBROWSER_REFERENCE_SHARDS explicitly.
+        private const int FallbackMiBPerCore = 1536;
+
+        private static int ComputeReferenceShardCount()
+        {
+            if (int.TryParse(Environment.GetEnvironmentVariable("SOURCEBROWSER_REFERENCE_SHARDS"), out int configured) &&
+                configured > 0)
+            {
+                // Round an explicit override up to a power of two so the mask-based placement stays valid.
+                return 1 << CeilLog2(configured);
+            }
+
+            // The shard count is a power of two chosen as the larger of two independent floors:
+            //
+            //  * Hardware parallelism -- at least one shard per logical core, so Pass1's Parallel.For over
+            //    shards can keep every core busy writing distinct files.
+            //
+            //  * Memory pressure -- more, smaller shards when less memory is available, so Pass2's
+            //    one-shard-at-a-time grouping stays bounded. Starting from a 16 GiB comfort point, each
+            //    halving of available memory adds one power of two (16 GiB -> 32, 8 -> 64, 4 -> 128, ...).
+            //
+            // Taking the max keeps both guarantees; the clamp keeps the intermediate file count sane at the
+            // extremes. Shards stay small (tens of MB) at any of these counts, so there is no spill/OOM risk.
+            int processorCount = Environment.ProcessorCount;
+            int coreExponent = CeilLog2(processorCount);
+
+            long availableBytes = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+            if (availableBytes <= 0)
+            {
+                availableBytes = (long)processorCount * FallbackMiBPerCore * 1024 * 1024;
+            }
+            int availableGiB = int.Max(1, (int)(availableBytes / (1024L * 1024 * 1024)));
+            int memoryExponent = 9 - int.Log2(availableGiB);
+
+            int exponent = int.Clamp(int.Max(coreExponent, memoryExponent), 5, 10);
+            return 1 << exponent;
+        }
+
+        private static int CeilLog2(int value) =>
+            value <= 1 ? 0 : int.Log2(value - 1) + 1;
+
+        private static int GetReferenceShard(string symbolId)
+        {
+            // FNV-1a over the symbol id: deterministic within and across processes (unlike
+            // string.GetHashCode, which is randomized per run) so a symbol always lands in the same shard.
+            const uint OffsetBasis = 2166136261;
+            const uint Prime = 16777619;
+
+            uint hash = OffsetBasis;
+            foreach (char c in symbolId)
+            {
+                hash = (hash ^ c) * Prime;
+            }
+
+            return (int)(hash & (uint)ReferenceShardMask);
+        }
+
         public static void GenerateReferencesDataFilesToAssembly(
             string solutionDestinationFolder,
             string toAssemblyId,
@@ -245,30 +399,57 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 Constants.ReferencesFileName);
             Directory.CreateDirectory(assemblyReferencesDataFolder);
 
-            Parallel.ForEach(
-                referencesToAssembly,
+            var symbolsByShard = new List<KeyValuePair<string, List<Reference>>>[ReferenceShardCount];
+            foreach (var referencesToSymbol in referencesToAssembly)
+            {
+                int shard = GetReferenceShard(referencesToSymbol.Key);
+                (symbolsByShard[shard] ??= new List<KeyValuePair<string, List<Reference>>>()).Add(referencesToSymbol);
+            }
+
+            Parallel.For(
+                0,
+                ReferenceShardCount,
                 new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
-                referencesToSymbol =>
+                shard =>
+                {
+                    var symbols = symbolsByShard[shard];
+                    if (symbols == null)
                     {
-                        try
-                        {
-                            var linkDataFile = Path.Combine(assemblyReferencesDataFolder, referencesToSymbol.Key + ".txt");
-                            WriteSymbolReferencesToFile(referencesToSymbol.Value, linkDataFile);
-                        }
-                        catch (ArgumentException ex)
-                        {
-                            Log.Exception("ArgumentException in References.Pass1.cs, line 236: " + ex.ToString() + "\r\n\r\n" + "assemblyReferencesDataFolder: " + assemblyReferencesDataFolder + "   referencesToSymbol.Key: " + referencesToSymbol.Key);
-                        }
-                    });
+                        return;
+                    }
+
+                    var shardFile = Path.Combine(
+                        assemblyReferencesDataFolder,
+                        ReferenceShardPrefix + shard + ReferenceShardExtension);
+
+                    try
+                    {
+                        WriteShardReferencesToFile(symbols, shardFile);
+                    }
+                    catch (ArgumentException ex)
+                    {
+                        Log.Exception("ArgumentException writing reference shard: " + ex.ToString() + "\r\n\r\n" + "assemblyReferencesDataFolder: " + assemblyReferencesDataFolder + "   shard: " + shard);
+                    }
+                });
         }
 
-        public static void WriteSymbolReferencesToFile(IEnumerable<Reference> referencesToSymbol, string linkDataFile)
+        // Each record is three lines: the symbol id followed by the two lines Reference.WriteTo emits.
+        // Projects generate sequentially, so appending to a shard is safe without synchronization; within
+        // one project each shard index is written by exactly one task, so the parallel writes never race.
+        private static void WriteShardReferencesToFile(
+            List<KeyValuePair<string, List<Reference>>> symbols,
+            string shardFile)
         {
-            using (var writer = new StreamWriter(linkDataFile, append: true, encoding: Encoding.UTF8))
+            using (var writer = new StreamWriter(shardFile, append: true, Encoding.UTF8, bufferSize: 65536))
             {
-                foreach (var reference in referencesToSymbol)
+                foreach (var referencesToSymbol in symbols)
                 {
-                    reference.WriteTo(writer);
+                    string symbolId = referencesToSymbol.Key;
+                    foreach (var reference in referencesToSymbol.Value)
+                    {
+                        writer.WriteLine(symbolId);
+                        reference.WriteTo(writer);
+                    }
                 }
             }
         }

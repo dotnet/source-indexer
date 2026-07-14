@@ -24,7 +24,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             ISymbol declaredSymbol,
             string symbolId,
             string documentRelativeFilePath,
-            long positionInFile)
+            long positionInFile,
+            ReferenceCollector collector)
         {
             if (declaredSymbol != null)
             {
@@ -36,40 +37,77 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 }
 
                 // We care about indexing even private symbols for NavigateTo
-                lock (DeclaredSymbols)
+                var declaredSymbolName = declaredSymbol.Name;
+                if (declaredSymbolName != ".ctor" &&
+                    declaredSymbolName != ".cctor" &&
+                    !collector.DeclaredSymbols.ContainsKey(declaredSymbol))
                 {
-                    var declaredSymbolName = declaredSymbol.Name;
-                    if (declaredSymbolName != ".ctor" &&
-                        declaredSymbolName != ".cctor" &&
-                        !DeclaredSymbols.ContainsKey(declaredSymbol))
-                    {
-                        DeclaredSymbols.Add(declaredSymbol, symbolId);
-                    }
+                    collector.DeclaredSymbols.Add(declaredSymbol, symbolId);
                 }
             }
 
-            AddDeclaredSymbolToRedirectMap(SymbolIDToListOfLocationsMap, symbolId, documentRelativeFilePath, positionInFile);
+            collector.AddDeclaredSymbolLocation(symbolId, documentRelativeFilePath, positionInFile);
         }
 
+        /// <summary>
+        /// Adds a single redirect entry to the shared map. Only called from single-threaded passes
+        /// (project-file/XML/loose-file generation and TypeScript), so it takes no locks; the parallel
+        /// document generation instead accumulates into a per-partition <see cref="ReferenceCollector"/>
+        /// that is folded in later by <see cref="MergeDeclarations"/>.
+        /// </summary>
         public static void AddDeclaredSymbolToRedirectMap(
             Dictionary<string, List<Tuple<string, long>>> symbolIDToListOfLocationsMap,
             string symbolId,
             string documentRelativeFilePath,
             long positionInFile)
         {
-            List<Tuple<string, long>> bucket = null;
-            lock (symbolIDToListOfLocationsMap)
+            if (!symbolIDToListOfLocationsMap.TryGetValue(symbolId, out var bucket))
             {
-                if (!symbolIDToListOfLocationsMap.TryGetValue(symbolId, out bucket))
+                bucket = new List<Tuple<string, long>>();
+                symbolIDToListOfLocationsMap.Add(symbolId, bucket);
+            }
+
+            bucket.Add(Tuple.Create(documentRelativeFilePath, positionInFile));
+        }
+
+        /// <summary>
+        /// Folds a per-partition <see cref="ReferenceCollector"/>'s declaration data into the shared
+        /// project maps. Must be called single-threaded (i.e. after all generation Tasks have completed),
+        /// so it takes no locks.
+        /// </summary>
+        public void MergeDeclarations(ReferenceCollector collector)
+        {
+            foreach (var declaredSymbol in collector.DeclaredSymbols)
+            {
+                if (!DeclaredSymbols.ContainsKey(declaredSymbol.Key))
                 {
-                    bucket = new List<Tuple<string, long>>();
-                    symbolIDToListOfLocationsMap.Add(symbolId, bucket);
+                    DeclaredSymbols.Add(declaredSymbol.Key, declaredSymbol.Value);
                 }
             }
 
-            lock (bucket)
+            foreach (var locations in collector.SymbolIDToListOfLocationsMap)
             {
-                bucket.Add(Tuple.Create(documentRelativeFilePath, positionInFile));
+                if (!SymbolIDToListOfLocationsMap.TryGetValue(locations.Key, out var bucket))
+                {
+                    SymbolIDToListOfLocationsMap.Add(locations.Key, locations.Value);
+                }
+                else
+                {
+                    bucket.AddRange(locations.Value);
+                }
+            }
+
+            foreach (var baseMember in collector.BaseMembers)
+            {
+                BaseMembers[baseMember.Key] = baseMember.Value;
+            }
+
+            foreach (var implementedInterfaceMember in collector.ImplementedInterfaceMembers)
+            {
+                foreach (var interfaceMember in implementedInterfaceMember.Value)
+                {
+                    ImplementedInterfaceMembers.Add(implementedInterfaceMember.Key, interfaceMember);
+                }
             }
         }
 
@@ -129,102 +167,46 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             }
         }
 
-        public void AddBaseMember(ISymbol member, ISymbol baseMember)
-        {
-            lock (this.BaseMembers)
-            {
-                this.BaseMembers.Add(member, baseMember);
-            }
-        }
-
         public void GenerateBaseMembers()
         {
             Log.Write("Base members...");
 
-            var assemblyReferencesDataFolder = Path.Combine(
-                    this.SolutionGenerator.SolutionDestinationFolder,
-                    this.AssemblyName,
-                    Constants.ReferencesFileName);
-            Directory.CreateDirectory(assemblyReferencesDataFolder);
-
-            lock (this.BaseMembers)
+            var lines = new List<string>(this.BaseMembers.Count);
+            foreach (var kvp in this.BaseMembers.OrderBy(b => SymbolIdService.GetId(b.Key)))
             {
-                var lines = new List<string>(this.BaseMembers.Count);
-                foreach (var kvp in this.BaseMembers.OrderBy(b => SymbolIdService.GetId(b.Key)))
-                {
-                    var fromMemberId = SymbolIdService.GetId(kvp.Key);
-                    var line =
-                        fromMemberId + ";" +
-                        SymbolIdService.GetAssemblyId(kvp.Value.ContainingAssembly) + ";" +
-                        SymbolIdService.GetId(kvp.Value);
-                    lines.Add(line);
-
-                    // just make sure the references file for this symbol exists, so that even if symbols
-                    // that aren't referenced anywhere get a reference file with a base member link if there
-                    // is a base member for the symbol
-                    var referencesFile = Path.Combine(assemblyReferencesDataFolder, fromMemberId + ".txt");
-                    File.AppendAllText(referencesFile, "");
-                }
-
-                var fileName = Path.Combine(ProjectDestinationFolder, Constants.BaseMembersFileName + ".txt");
-                File.WriteAllLines(fileName, lines);
-            }
-        }
-
-        public void AddImplementedInterfaceMember(ISymbol implementationMember, ISymbol interfaceMember)
-        {
-            if (implementationMember == null)
-            {
-                throw new ArgumentNullException(nameof(implementationMember));
+                var fromMemberId = SymbolIdService.GetId(kvp.Key);
+                var line =
+                    fromMemberId + ";" +
+                    SymbolIdService.GetAssemblyId(kvp.Value.ContainingAssembly) + ";" +
+                    SymbolIdService.GetId(kvp.Value);
+                lines.Add(line);
             }
 
-            if (interfaceMember == null)
-            {
-                throw new ArgumentNullException(nameof(interfaceMember));
-            }
-
-            lock (this.ImplementedInterfaceMembers)
-            {
-                this.ImplementedInterfaceMembers.Add(implementationMember, interfaceMember);
-            }
+            var fileName = Path.Combine(ProjectDestinationFolder, Constants.BaseMembersFileName + ".txt");
+            File.WriteAllLines(fileName, lines);
         }
 
         public void GenerateImplementedInterfaceMembers()
         {
             Log.Write("Implemented interface members...");
 
-            var assemblyReferencesDataFolder = Path.Combine(
-                    this.SolutionGenerator.SolutionDestinationFolder,
-                    this.AssemblyName,
-                    Constants.ReferencesFileName);
-            Directory.CreateDirectory(assemblyReferencesDataFolder);
-
-            lock (this.ImplementedInterfaceMembers)
+            var lines = new List<string>(this.ImplementedInterfaceMembers.Count);
+            foreach (var kvp in this.ImplementedInterfaceMembers.OrderBy(kvp => SymbolIdService.GetId(kvp.Key)))
             {
-                var lines = new List<string>(this.ImplementedInterfaceMembers.Count);
-                foreach (var kvp in this.ImplementedInterfaceMembers.OrderBy(kvp => SymbolIdService.GetId(kvp.Key)))
+                var fromMemberId = SymbolIdService.GetId(kvp.Key);
+
+                foreach (var implementedInterfaceMember in kvp.Value.OrderBy(s => SymbolIdService.GetId(s)))
                 {
-                    var fromMemberId = SymbolIdService.GetId(kvp.Key);
-
-                    foreach (var implementedInterfaceMember in kvp.Value.OrderBy(s => SymbolIdService.GetId(s)))
-                    {
-                        var line =
-                            fromMemberId + ";" +
-                            SymbolIdService.GetAssemblyId(implementedInterfaceMember.ContainingAssembly) + ";" +
-                            SymbolIdService.GetId(implementedInterfaceMember);
-                        lines.Add(line);
-                    }
-
-                    // just make sure the references file for this symbol exists, so that even if symbols
-                    // that aren't referenced anywhere get a reference file with a base member link if there
-                    // is a base member for the symbol
-                    var referencesFile = Path.Combine(assemblyReferencesDataFolder, fromMemberId + ".txt");
-                    File.AppendAllText(referencesFile, "");
+                    var line =
+                        fromMemberId + ";" +
+                        SymbolIdService.GetAssemblyId(implementedInterfaceMember.ContainingAssembly) + ";" +
+                        SymbolIdService.GetId(implementedInterfaceMember);
+                    lines.Add(line);
                 }
-
-                var fileName = Path.Combine(ProjectDestinationFolder, Constants.ImplementedInterfaceMembersFileName + ".txt");
-                File.WriteAllLines(fileName, lines);
             }
+
+            var fileName = Path.Combine(ProjectDestinationFolder, Constants.ImplementedInterfaceMembersFileName + ".txt");
+            File.WriteAllLines(fileName, lines);
         }
     }
 }

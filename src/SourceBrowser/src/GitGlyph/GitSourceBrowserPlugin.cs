@@ -1,15 +1,14 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.ComponentModel.Composition;
 using LibGit2Sharp;
 using Microsoft.SourceBrowser.MEF;
 
 namespace GitGlyph
 {
-    [Export(typeof(ISourceBrowserPlugin))]
-    [ExportMetadata("Name", "Git")]
     public class GitSourceBrowserPlugin : ISourceBrowserPlugin, IDisposable
     {
+        public string Name => "Git";
+
         private ILog Logger { get; set; }
         private readonly List<Repository> repositoriesToDispose;
 

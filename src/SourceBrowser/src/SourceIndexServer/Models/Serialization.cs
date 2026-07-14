@@ -46,15 +46,11 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
             return symbol;
         }
 
-        public static IntPtr WriteNativeBytes(byte[] bytes)
+        public static unsafe IntPtr WriteNativeBytes(byte[] bytes)
         {
-            IntPtr result = Marshal.AllocHGlobal(bytes.Length);
-            for (int i = 0; i < bytes.Length; i++)
-            {
-                Marshal.WriteByte(result, i, bytes[i]);
-            }
-
-            return result;
+            void* result = NativeMemory.Alloc((nuint)bytes.Length);
+            bytes.CopyTo(new Span<byte>(result, bytes.Length));
+            return (IntPtr)result;
         }
 
         public static byte[] ReadBytes(BinaryReader reader)

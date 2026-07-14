@@ -440,7 +440,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
             }
         }
 
-        public void Dispose()
+        public unsafe void Dispose()
         {
             if (huffman == null || symbols == null || assemblies == null || projects == null)
             {
@@ -451,7 +451,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
             {
                 if (this.symbols[i].Description != IntPtr.Zero)
                 {
-                    Marshal.FreeHGlobal(this.symbols[i].Description);
+                    NativeMemory.Free((void*)this.symbols[i].Description);
                 }
             }
 

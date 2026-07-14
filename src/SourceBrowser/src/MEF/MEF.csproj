@@ -5,7 +5,6 @@
 
   <ItemGroup>
     <PackageReference Include="ManagedEsent" />
-    <PackageReference Include="System.ComponentModel.Composition" />
     <PackageReference Include="Microsoft.Build" />
     <PackageReference Include="Microsoft.CodeAnalysis.Analyzers">
       <PrivateAssets>all</PrivateAssets>

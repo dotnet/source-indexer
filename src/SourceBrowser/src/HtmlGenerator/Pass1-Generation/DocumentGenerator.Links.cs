@@ -47,7 +47,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     "EmptyArrayAllocation",
                     range.ClassifiedSpan.TextSpan.Start,
                     range.ClassifiedSpan.TextSpan.End,
-                    ReferenceKind.EmptyArrayAllocation);
+                    ReferenceKind.EmptyArrayAllocation,
+                    referenceCollector);
                 return null;
             }
 
@@ -112,7 +113,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 }
                 else
                 {
-                    projectGenerator.AddImplementedInterfaceMember(
+                    referenceCollector.AddImplementedInterfaceMember(
                         declaredSymbol,
                         explicitlyImplementedMember);
                     return ProcessReference(
@@ -343,7 +344,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 symbolId,
                 spanStart,
                 spanEnd,
-                ReferenceKind.GuidUsage);
+                ReferenceKind.GuidUsage,
+                referenceCollector);
 
             return link;
         }
@@ -366,7 +368,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                             range,
                             member,
                             ReferenceKind.InterfaceMemberImplementation);
-                        projectGenerator.AddImplementedInterfaceMember(declaredSymbol, member);
+                        referenceCollector.AddImplementedInterfaceMember(declaredSymbol, member);
                     }
                 }
             }
@@ -391,7 +393,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                         range,
                         overriddenMethod,
                         ReferenceKind.Override);
-                    projectGenerator.AddBaseMember(method, overriddenMethod);
+                    referenceCollector.AddBaseMember(method, overriddenMethod);
                 }
             }
 
@@ -404,7 +406,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                         range,
                         overriddenProperty,
                         ReferenceKind.Override);
-                    projectGenerator.AddBaseMember(property, overriddenProperty);
+                    referenceCollector.AddBaseMember(property, overriddenProperty);
                 }
             }
 
@@ -417,7 +419,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                         range,
                         overriddenEvent,
                         ReferenceKind.Override);
-                    projectGenerator.AddBaseMember(eventSymbol, overriddenEvent);
+                    referenceCollector.AddBaseMember(eventSymbol, overriddenEvent);
                 }
             }
         }

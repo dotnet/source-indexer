@@ -1,8 +1,6 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel.Composition;
-using System.ComponentModel.Composition.Hosting;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 
@@ -10,12 +8,6 @@ namespace Microsoft.SourceBrowser.MEF
 {
     public class PluginAggregator : IReadOnlyCollection<SourceBrowserPluginWrapper>, IDisposable
     {
-        private CompositionContainer container;
-
-        [ImportMany]
-#pragma warning disable CS0649
-        IEnumerable<Lazy<ISourceBrowserPlugin, ISourceBrowserPluginMetadata>> plugins;
-#pragma warning restore CS0649
         private List<SourceBrowserPluginWrapper> Plugins;
         private ILog Logger;
 
@@ -23,21 +15,17 @@ namespace Microsoft.SourceBrowser.MEF
 
         public int Count => Plugins.Count;
 
-        public PluginAggregator(Dictionary<string, Dictionary<string, string>> pluginConfigurations, ILog logger, IEnumerable<string> blackList)
+        // Plugins are now registered explicitly by the host rather than discovered at runtime via a MEF
+        // DirectoryCatalog. The blacklist still lets a run drop a plugin by name (e.g. /noplugin:Git).
+        public PluginAggregator(IEnumerable<ISourceBrowserPlugin> plugins, Dictionary<string, Dictionary<string, string>> pluginConfigurations, ILog logger, IEnumerable<string> blackList)
         {
             PluginConfigurations = pluginConfigurations;
             Logger = logger;
 
-            // Create the CompositionContainer with the parts in the catalog
-            container = new CompositionContainer(new DirectoryCatalog(AppDomain.CurrentDomain.BaseDirectory));
-
-            // Fill the imports of this object
-            container.ComposeParts(this);
-
             var blackListSet = new HashSet<string>(blackList ?? Array.Empty<string>());
 
             Plugins = plugins
-            .Select(pair => new SourceBrowserPluginWrapper(pair.Value, pair.Metadata, Logger))
+            .Select(plugin => new SourceBrowserPluginWrapper(plugin, Logger))
             .Where(w => !blackListSet.Contains(w.Name))
             .ToList();
         }
@@ -77,7 +65,13 @@ namespace Microsoft.SourceBrowser.MEF
             return Plugins.SelectMany(p => p.ManufactureTextVisitors(project.FilePath));
         }
 
-        public void Dispose() => container?.Dispose();
+        public void Dispose()
+        {
+            foreach (var plugin in Plugins)
+            {
+                plugin.Dispose();
+            }
+        }
 
         public IEnumerator<SourceBrowserPluginWrapper> GetEnumerator() => Plugins.GetEnumerator();
 

@@ -5,6 +5,7 @@
     <AssemblyName>Microsoft.SourceBrowser.SourceIndexServer</AssemblyName>
     <RootNamespace>Microsoft.SourceBrowser.SourceIndexServer</RootNamespace>
     <AspNetCoreHostingModel>OutOfProcess</AspNetCoreHostingModel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>

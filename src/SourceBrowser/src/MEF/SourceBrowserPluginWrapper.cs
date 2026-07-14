@@ -1,25 +1,21 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Reflection;
 
 namespace Microsoft.SourceBrowser.MEF
 {
     /// <summary>
-    /// A wrapper around MEF-imported objects to prevent exceptions from bubbling up
+    /// A wrapper around plugin instances to prevent exceptions from bubbling up
     /// </summary>
-    public class SourceBrowserPluginWrapper : ISourceBrowserPlugin, ISourceBrowserPluginMetadata
+    public class SourceBrowserPluginWrapper : ISourceBrowserPlugin, IDisposable
     {
-        private ISourceBrowserPluginMetadata Metadata;
         private ISourceBrowserPlugin Plugin;
         private ILog Logger;
 
-        public SourceBrowserPluginWrapper(ISourceBrowserPlugin plugin, ISourceBrowserPluginMetadata metadata, ILog logger)
+        public SourceBrowserPluginWrapper(ISourceBrowserPlugin plugin, ILog logger)
         {
             Plugin = plugin;
-            Metadata = metadata;
             Logger = logger;
         }
 
@@ -29,7 +25,7 @@ namespace Microsoft.SourceBrowser.MEF
             {
                 try
                 {
-                    return Metadata.Name;
+                    return Plugin.Name;
                 }
                 catch (Exception ex)
                 {
@@ -78,5 +74,13 @@ namespace Microsoft.SourceBrowser.MEF
         }
 
         public Module PluginModule => Plugin.GetType().Module;
+
+        public void Dispose()
+        {
+            if (Plugin is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
+        }
     }
 }
