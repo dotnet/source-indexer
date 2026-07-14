@@ -152,7 +152,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
 
             string header = "MSBuild targets that match '" + query.OriginalString + "' (" + count + ")";
             WriteLine("<div class=\"resultGroupAssemblyName\">{0}</div>", header);
-            WriteLine("</d>");
+            WriteLine("</a>");
             WriteLine("<div id=\"{0}\">", "MSBuild Targets");
 
             foreach (var text in query.ResultMSBuildTargets)

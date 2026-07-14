@@ -294,6 +294,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             }
 
             return filePath.EndsWith(".sln", StringComparison.OrdinalIgnoreCase) ||
+                   filePath.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase) ||
                    filePath.EndsWith(".binlog", StringComparison.OrdinalIgnoreCase) ||
                    filePath.EndsWith(".buildlog", StringComparison.OrdinalIgnoreCase) ||
                    filePath.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase) ||

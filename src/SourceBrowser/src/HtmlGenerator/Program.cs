@@ -9,8 +9,10 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
-using Microsoft.Build.Evaluation;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Build.Locator;
+using Microsoft.CodeAnalysis;
 using Microsoft.SourceBrowser.BinLogParser;
 using Microsoft.SourceBrowser.Common;
 
@@ -18,7 +20,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 {
     public class Program
     {
-        private static void Main(string[] args)
+        private static async Task Main(string[] args)
         {
             AppDomain.CurrentDomain.AssemblyLoad += (s, e) =>
             {
@@ -27,11 +29,11 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             // This loads the real MSBuild from the toolset so that all targets and SDKs can be found
             // as if a real build is happening
             MSBuildLocator.RegisterDefaults();
-            RealMain(args);
+            await RealMain(args);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void RealMain(string[] args)
+        private static async Task RealMain(string[] args)
         {
             var options = CommandLineOptions.Parse(args);
 
@@ -91,8 +93,18 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     federation.AddFederation(entry.Key, entry.Value);
                 }
 
-                IndexSolutions(options.Projects, options.Properties, federation, options.ServerPathMappings, options.PluginBlacklist, options.DoNotIncludeReferencedProjects, options.RootPath,
-                    options.IncludeSourceGeneratedDocuments);
+                using (var cts = new CancellationTokenSource())
+                {
+                    Console.CancelKeyPress += (sender, eventArgs) =>
+                    {
+                        Console.WriteLine("Cancellation requested...");
+                        cts.Cancel();
+                        eventArgs.Cancel = true;
+                    };
+
+                    await IndexSolutionsAsync(options.Projects, options.Properties, federation, options.ServerPathMappings, options.PluginBlacklist, cts.Token, options.DoNotIncludeReferencedProjects, options.RootPath,
+                        options.IncludeSourceGeneratedDocuments);
+                }
                 FinalizeProjects(options.EmitAssemblyList, federation);
                 WebsiteFinalizer.Finalize(websiteDestination, options.EmitAssemblyList, federation);
             }
@@ -107,8 +119,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 + "[/useplugins] "
                 + "[/noplugins] "
                 + "[/noplugin:Git] "
-                + "<pathtosolution1.csproj|vbproj|sln|binlog|buildlog|dll|exe> [more solutions/projects..] "
-                + "[/root:<root folder to enable relative .sln folders>] "
+                + "<pathtosolution1.csproj|vbproj|sln|slnx|binlog|buildlog|dll|exe> [more solutions/projects..] "
+                + "[/root:<root folder to enable relative .sln/.slnx folders>] "
                 + "[/in:<filecontaingprojectlist>] "
                 + "[/nobuiltinfederations] "
                 + "[/offlinefederation:server=assemblyListFile] "
@@ -121,7 +133,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
         private static readonly Folder<ProjectSkeleton> mergedSolutionExplorerRoot = new Folder<ProjectSkeleton>();
 
-        private static IEnumerable<string> GetAssemblyNames(string filePath)
+        private static async Task<IEnumerable<string>> GetAssemblyNamesAsync(string filePath, CancellationToken cancellationToken)
         {
             if (filePath.EndsWith(".binlog", System.StringComparison.OrdinalIgnoreCase) ||
                 filePath.EndsWith(".buildlog", System.StringComparison.OrdinalIgnoreCase))
@@ -130,15 +142,16 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 return invocations.Select(i => Path.GetFileNameWithoutExtension(i.Parsed.OutputFileName)).ToArray();
             }
 
-            return AssemblyNameExtractor.GetAssemblyNames(filePath);
+            return await AssemblyNameExtractor.GetAssemblyNamesAsync(filePath, cancellationToken);
         }
 
-        private static void IndexSolutions(
+        private static async Task IndexSolutionsAsync(
             IEnumerable<string> solutionFilePaths,
             IReadOnlyDictionary<string, string> properties,
             Federation federation,
             IReadOnlyDictionary<string, string> serverPathMappings,
             IEnumerable<string> pluginBlacklist,
+            CancellationToken cancellationToken,
             bool doNotIncludeReferencedProjects = false,
             string rootPath = null,
             bool includeSourceGeneratedDocuments = true)
@@ -149,7 +162,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             {
                 using (Disposable.Timing("Reading assembly names from " + path))
                 {
-                    foreach (var assemblyName in GetAssemblyNames(path))
+                    foreach (var assemblyName in await GetAssemblyNamesAsync(path, cancellationToken))
                     {
                         assemblyNames.Add(assemblyName);
                     }
@@ -213,21 +226,24 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                                 continue;
                             }
                             Log.Write($"Indexing Project: {invocation.ProjectFilePath}");
-                            GenerateFromBuildLog.GenerateInvocation(
+                            await GenerateFromBuildLog.GenerateInvocationAsync(
                                 invocation,
+                                cancellationToken,
                                 serverPathMappings,
                                 processedAssemblyList,
                                 assemblyNames,
                                 solutionFolder,
-                                typeForwards);
+                                typeForwards,
+                                includeSourceGeneratedDocuments);
                         }
                         
                         continue;
                     }
 
-                    using (var solutionGenerator = new SolutionGenerator(
+                    using (var solutionGenerator = await SolutionGenerator.CreateAsync(
                         path,
                         Paths.SolutionDestinationFolder,
+                        cancellationToken,
                         properties: properties.ToImmutableDictionary(),
                         federation: federation,
                         serverPathMappings: serverPathMappings,
@@ -237,7 +253,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                         typeForwards: typeForwards))
                     {
                         solutionGenerator.GlobalAssemblyList = assemblyNames;
-                        solutionGenerator.Generate(processedAssemblyList, solutionFolder);
+                        await solutionGenerator.GenerateAsync(cancellationToken, processedAssemblyList, solutionFolder);
                     }
                 }
 
