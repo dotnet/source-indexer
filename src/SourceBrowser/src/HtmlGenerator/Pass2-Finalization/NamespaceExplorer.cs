@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 
 namespace Microsoft.SourceBrowser.HtmlGenerator
 {
@@ -16,73 +19,103 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             var fileName = Path.Combine(rootPath, Constants.Namespaces);
             NamespaceTreeNode root = ConstructTree(types);
 
+            // The tree is emitted as a compact JSON payload the client materializes lazily, rather than
+            // as one multi-MB nested-<div> document. On large indexes the full HTML was ~7MB and forced
+            // the browser to parse and build tens of thousands of collapsed DOM nodes up front; the JSON
+            // form is a few hundred KB and the client only creates DOM for branches the user expands.
             using (var sw = new StreamWriter(fileName))
             {
                 Markup.WriteNamespaceExplorerPrefix(assemblyName, sw, pathPrefix);
-                WriteChildren(root, sw, pathPrefix);
+                WriteData(root, assemblyName, pathPrefix, sw);
                 Markup.WriteNamespaceExplorerSuffix(sw);
             }
+        }
+
+        private void WriteData(NamespaceTreeNode root, string assemblyName, string pathPrefix, StreamWriter sw)
+        {
+            sw.Write("<script>var namespaceExplorerData=");
+
+            var options = new JsonWriterOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+            using (var stream = new MemoryStream())
+            {
+                using (var json = new Utf8JsonWriter(stream, options))
+                {
+                    json.WriteStartObject();
+                    json.WriteString("assemblyName", assemblyName);
+                    json.WriteString("pathPrefix", pathPrefix);
+                    json.WritePropertyName("children");
+                    WriteChildrenJson(root, json);
+                    json.WriteEndObject();
+                }
+
+                stream.Position = 0;
+                using (var reader = new StreamReader(stream))
+                {
+                    sw.Write(reader.ReadToEnd());
+                }
+            }
+
+            sw.WriteLine(";</script>");
+        }
+
+        // Each node is a fixed-shape array so the payload stays small:
+        //   namespace     -> [name, [children...]]
+        //   leaf type     -> [name, glyph, id]
+        //   type w/ nested -> [name, glyph, id, [children...]]
+        // The client distinguishes types from namespaces by whether element 1 is a number (a glyph).
+        private void WriteChildrenJson(NamespaceTreeNode node, Utf8JsonWriter json)
+        {
+            json.WriteStartArray();
+            if (node.Children != null)
+            {
+                foreach (var child in node.Children)
+                {
+                    WriteNodeJson(child.Value, json);
+                }
+            }
+            json.WriteEndArray();
+        }
+
+        private void WriteNodeJson(NamespaceTreeNode node, Utf8JsonWriter json)
+        {
+            json.WriteStartArray();
+
+            if (node.TypeDeclaration != null)
+            {
+                var type = node.TypeDeclaration;
+                json.WriteStringValue(type.Name);
+                json.WriteNumberValue(type.Glyph);
+                json.WriteStringValue(Serialization.ULongToHexString(type.ID));
+
+                if (node.Children != null)
+                {
+                    WriteChildrenJson(node, json);
+                }
+            }
+            else
+            {
+                json.WriteStringValue(node.Title);
+                WriteChildrenJson(node, json);
+            }
+
+            json.WriteEndArray();
         }
 
         public NamespaceTreeNode ConstructTree(IEnumerable<DeclaredSymbolInfo> types)
         {
             var root = new NamespaceTreeNode("");
-            foreach (var type in types)
+
+            // DeclaredSymbols enumerates in a nondeterministic order because it is folded from a
+            // ConcurrentBag of per-partition collectors. Since GetOrCreate merges case-insensitively,
+            // the casing that survives for a shared namespace/type node -- and therefore the emitted
+            // order relative to a case-differing sibling -- is whichever type is seen first. Insert in a
+            // stable order (by symbol id) so the output is reproducible run-to-run.
+            foreach (var type in types.OrderBy(type => type.ID))
             {
                 Insert(root, type);
             }
 
             return root;
-        }
-
-        private void WriteChildren(NamespaceTreeNode node, StreamWriter sw, string pathPrefix)
-        {
-            if (node.Children == null)
-            {
-                return;
-            }
-
-            foreach (var child in node.Children)
-            {
-                WriteChild(child.Value, sw, pathPrefix);
-            }
-        }
-
-        private void WriteChild(NamespaceTreeNode node, StreamWriter sw, string pathPrefix)
-        {
-            if (node.TypeDeclaration != null)
-            {
-                WriteType(node.TypeDeclaration, sw, node.Children != null ? "folderTitle" : "typeTitle", pathPrefix);
-            }
-            else
-            {
-                WriteNamespace(node.Title, sw);
-            }
-
-            if (node.Children != null)
-            {
-                sw.WriteLine("<div class=\"folder\">");
-                WriteChildren(node, sw, pathPrefix);
-                sw.Write("</div>");
-            }
-
-            sw.WriteLine();
-        }
-
-        private void WriteNamespace(string title, StreamWriter sw)
-        {
-            sw.Write(string.Format("<div class=\"folderTitle\">{0}</div>", Markup.HtmlEscape(title)));
-        }
-
-        private void WriteType(DeclaredSymbolInfo typeDeclaration, StreamWriter sw, string className, string pathPrefix)
-        {
-            string typeUrl = typeDeclaration.GetUrl();
-            sw.Write(string.Format("<div class=\"{3}\"><a class=\"tDN\" href=\"{0}\" target=\"s\"><img class=\"tDNI\" src=\"{4}content/icons/{2}.png\" />{1}</a></div>",
-                typeUrl,
-                Markup.HtmlEscape(typeDeclaration.Name),
-                typeDeclaration.Glyph,
-                className,
-                pathPrefix));
         }
 
         private void Insert(NamespaceTreeNode root, DeclaredSymbolInfo type)

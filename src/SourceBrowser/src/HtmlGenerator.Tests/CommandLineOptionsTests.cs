@@ -68,5 +68,18 @@ namespace HtmlGenerator.Tests
             CommandLineOptions.Parse("/serverPath:\"a\"=c\"b\"").ServerPathMappings.ShouldBeEmpty();
             CommandLineOptions.Parse("/serverPath:\"a\"=\"b\"c").ServerPathMappings.ShouldBeEmpty();
         }
+
+        [TestMethod]
+        public void No_warnings_switch_is_recognized()
+        {
+            CommandLineOptions.Parse("/noWarnings").SuppressWarnings.ShouldBeTrue();
+            CommandLineOptions.Parse("/nowarnings").SuppressWarnings.ShouldBeTrue();
+        }
+
+        [TestMethod]
+        public void Warnings_are_enabled_by_default()
+        {
+            CommandLineOptions.Parse("/force").SuppressWarnings.ShouldBeFalse();
+        }
     }
 }

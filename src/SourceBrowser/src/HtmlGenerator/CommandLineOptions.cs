@@ -23,7 +23,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             bool loadPlugins,
             bool excludeTests,
             string rootPath,
-            bool includeSourceGeneratedDocuments)
+            bool includeSourceGeneratedDocuments,
+            bool suppressWarnings)
         {
             SolutionDestinationFolder = solutionDestinationFolder;
             Projects = projects;
@@ -40,6 +41,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             ExcludeTests = excludeTests;
             RootPath = rootPath;
             IncludeSourceGeneratedDocuments = includeSourceGeneratedDocuments;
+            SuppressWarnings = suppressWarnings;
         }
 
         public string SolutionDestinationFolder { get; }
@@ -57,6 +59,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         public bool LoadPlugins { get; }
         public bool ExcludeTests { get; }
         public string RootPath { get; }
+        public bool SuppressWarnings { get; }
 
         public static CommandLineOptions Parse(params string[] args)
         {
@@ -75,6 +78,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             var excludeTests = false;
             var includeSourceGeneratedDocuments = true;
             var rootPath = (string)null;
+            var suppressWarnings = false;
 
             foreach (var arg in args)
             {
@@ -226,6 +230,12 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     continue;
                 }
 
+                if (string.Equals(arg, "/noWarnings", StringComparison.OrdinalIgnoreCase))
+                {
+                    suppressWarnings = true;
+                    continue;
+                }
+
                 if (arg.StartsWith("/root:", StringComparison.Ordinal))
                 {
                     rootPath = Path.GetFullPath(arg.Substring("/root:".Length).StripQuotes());
@@ -270,7 +280,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 loadPlugins,
                 excludeTests,
                 rootPath,
-                includeSourceGeneratedDocuments);
+                includeSourceGeneratedDocuments,
+                suppressWarnings);
         }
 
         private static void AddProject(List<string> projects, string path)

@@ -10,10 +10,16 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
     {
         private static readonly HttpClient httpClient = new HttpClient();
 
+        // Order matters: GetExternalAssemblyIndex returns the first federation that owns an assembly,
+        // so earlier entries take precedence. source.dot.net indexes modern .NET and is preferred first.
+        // referencesource.microsoft.com used to serve the .NET Framework index but is now dead -- it
+        // just 301-redirects to https://github.com/microsoft/referencesource -- so it is no longer a
+        // usable federation and has been dropped. See
+        // https://github.com/KirillOsenkov/SourceBrowser/issues/199.
         public static IEnumerable<string> DefaultFederatedIndexUrls = new[]
         {
-            "https://referencesource.microsoft.com",
-            "http://sourceroslyn.io"
+            "https://source.dot.net",
+            "https://sourceroslyn.io"
         };
 
         private class Info

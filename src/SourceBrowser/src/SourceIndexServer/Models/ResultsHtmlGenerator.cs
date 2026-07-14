@@ -272,6 +272,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
                     NumberOfReferences = GetNumberOfReferences(g.Key, index)
                 })
                 .OrderBy(g => g.AssemblyWeight)
+                .ThenBy(g => DeclaredSymbolInfo.GetAssemblyRank(g.AssemblyName))
                 .ThenByDescending(g => g.NumberOfReferences);
             foreach (var symbolsInAssembly in groups)
             {

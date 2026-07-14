@@ -1196,7 +1196,106 @@ function loadSolutionExplorer() {
 }
 
 function initializeNamespaceExplorer() {
-    makeFoldersCollapsible(/* namespace */"90.png", "90.png", "../content/icons/", /*initializeSolutionExplorerFolder:*/ null);
+    // The namespace tree ships as a compact JSON payload (namespaceExplorerData) instead of a
+    // multi-MB nested-<div> document. Build DOM for the top level now and defer each subtree until
+    // its folder is first expanded, so only the branches the user opens are ever materialized.
+    var data = window.namespaceExplorerData;
+    if (!data) {
+        return;
+    }
+
+    var ctx = {
+        asm: data.assemblyName,
+        icons: data.pathPrefix + "content/icons/"
+    };
+
+    var children = data.children || [];
+    for (var i = 0; i < children.length; i++) {
+        renderNamespaceNode(document.body, children[i], ctx);
+    }
+}
+
+// A node is a fixed-shape array: [name, [children]] for a namespace, [name, glyph, id] for a leaf
+// type, or [name, glyph, id, [children]] for a type with nested types. Element 1 being a number means
+// it is a type (that number is the glyph); the last element being an array means it has children.
+function renderNamespaceNode(container, node, ctx) {
+    var isType = typeof node[1] === "number";
+    var children = Array.isArray(node[node.length - 1]) ? node[node.length - 1] : null;
+
+    var titleDiv = document.createElement("div");
+    titleDiv.className = children ? "folderTitle" : "typeTitle";
+
+    if (isType) {
+        var link = document.createElement("a");
+        link.className = "tDN";
+        link.href = "/" + ctx.asm + "/A.html#" + node[2];
+        link.target = "s";
+
+        var typeIcon = document.createElement("img");
+        typeIcon.className = "tDNI";
+        typeIcon.src = ctx.icons + node[1] + ".png";
+
+        link.appendChild(typeIcon);
+        link.appendChild(document.createTextNode(node[0]));
+        titleDiv.appendChild(link);
+    } else {
+        titleDiv.appendChild(document.createTextNode(node[0]));
+    }
+
+    container.appendChild(titleDiv);
+
+    if (children) {
+        var folderDiv = document.createElement("div");
+        folderDiv.className = "folder";
+        folderDiv.style.display = "none";
+        container.appendChild(folderDiv);
+        addNamespaceFolderToggle(titleDiv, folderDiv, children, ctx);
+    }
+}
+
+// Mirrors addImagesToFolder for the namespace tree: a plain namespace gets a folder icon plus a +/-
+// toggle and the whole row toggles; a type-with-children keeps its own icon/link and only the +/-
+// toggles so the link stays clickable. Children are rendered on first expand.
+function addNamespaceFolderToggle(titleDiv, folderDiv, children, ctx) {
+    var firstChild = titleDiv.firstChild;
+    var isTypeFolder = isLink(firstChild);
+
+    var plusMinus = document.createElement("img");
+    plusMinus.src = ctx.icons + "plus.png";
+    plusMinus.className = "imagePlusMinus";
+
+    if (isTypeFolder) {
+        titleDiv.insertBefore(plusMinus, firstChild);
+    } else {
+        var folderImage = document.createElement("img");
+        folderImage.src = ctx.icons + "90.png";
+        folderImage.className = "imageFolder";
+        titleDiv.insertBefore(folderImage, firstChild);
+        titleDiv.insertBefore(plusMinus, folderImage);
+    }
+
+    var built = false;
+    var handler = function () {
+        if (folderDiv.style.display === "none") {
+            plusMinus.src = ctx.icons + "minus.png";
+            if (!built) {
+                for (var i = 0; i < children.length; i++) {
+                    renderNamespaceNode(folderDiv, children[i], ctx);
+                }
+                built = true;
+            }
+            folderDiv.style.display = "block";
+        } else {
+            plusMinus.src = ctx.icons + "plus.png";
+            folderDiv.style.display = "none";
+        }
+    };
+
+    if (isTypeFolder) {
+        plusMinus.onclick = handler;
+    } else {
+        titleDiv.onclick = handler;
+    }
 }
 
 function initializeSolutionExplorerFolder(folder) {

@@ -75,7 +75,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             // add the file itself as a "declared symbol", so that clicking on document in search
             // results redirects to the document
             referenceCollector.AddDeclaredSymbolLocation(
-                SymbolIdService.GetId(this.Document),
+                SymbolIdService.GetId(documentRelativeFilePathWithoutHtmlExtension),
                 documentRelativeFilePathWithoutHtmlExtension,
                 0);
 
@@ -131,7 +131,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
         private void CalculateDocumentDestinationPath()
         {
-            documentRelativeFilePathWithoutHtmlExtension = Paths.GetRelativeFilePathInProject(Document);
+            documentRelativeFilePathWithoutHtmlExtension = projectGenerator.GetDocumentRelativePath(Document);
             documentDestinationFilePath = Path.Combine(ProjectDestinationFolder, documentRelativeFilePathWithoutHtmlExtension) + ".html";
         }
 

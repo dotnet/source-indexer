@@ -180,6 +180,76 @@ namespace Microsoft.SourceBrowser.HtmlGenerator.Tests
         }
 
         [TestMethod]
+        public void DisambiguateRelativePaths_NoCollision_PassesThroughUnchanged()
+        {
+            var relativePaths = new[] { @"System\Collections\IEnumerable.cs", @"System\Collections\IEnumerator.cs" };
+            var identityKeys = new[] { @"c:\src\a\IEnumerable.cs", @"c:\src\a\IEnumerator.cs" };
+
+            var actual = Paths.DisambiguateRelativePaths(relativePaths, identityKeys);
+
+            CollectionAssert.AreEqual(relativePaths, actual);
+        }
+
+        [TestMethod]
+        public void DisambiguateRelativePaths_SameFileSurfacedTwice_KeepsOriginalPathForBoth()
+        {
+            // Same physical file linked into the project more than once (e.g. a shared/linked
+            // source file) -- this is the existing, legitimate dedup and must not be disambiguated.
+            var relativePaths = new[] { @"System\Collections\IEnumerable.cs", @"System\Collections\IEnumerable.cs" };
+            var identityKeys = new[] { @"c:\src\shared\IEnumerable.cs", @"c:\src\shared\IEnumerable.cs" };
+
+            var actual = Paths.DisambiguateRelativePaths(relativePaths, identityKeys);
+
+            CollectionAssert.AreEqual(relativePaths, actual);
+        }
+
+        [TestMethod]
+        public void DisambiguateRelativePaths_DifferentFilesCollide_AssignsDeterministicSuffixes()
+        {
+            // Two genuinely different physical files that happen to resolve to the same
+            // folders+filename (the #194 repro: two unrelated "IEnumerable.cs" files).
+            var relativePaths = new[] { @"System\Collections\IEnumerable.cs", @"System\Collections\IEnumerable.cs" };
+            var identityKeys = new[] { @"c:\src\b\IEnumerable.cs", @"c:\src\a\IEnumerable.cs" };
+
+            var actual = Paths.DisambiguateRelativePaths(relativePaths, identityKeys);
+
+            // Ordered by identity key ("a" before "b"), so the "a" file (index 1) keeps the
+            // original path and the "b" file (index 0) gets the suffix -- regardless of input order.
+            Assert.AreEqual(@"System\Collections\IEnumerable_2.cs", actual[0]);
+            Assert.AreEqual(@"System\Collections\IEnumerable.cs", actual[1]);
+        }
+
+        [TestMethod]
+        public void DisambiguateRelativePaths_ThreeDifferentFilesCollide_AssignsIncrementingSuffixes()
+        {
+            var relativePaths = new[]
+            {
+                @"System\Collections\IEnumerable.cs",
+                @"System\Collections\IEnumerable.cs",
+                @"System\Collections\IEnumerable.cs",
+            };
+            var identityKeys = new[] { @"c:\src\a\IEnumerable.cs", @"c:\src\b\IEnumerable.cs", @"c:\src\c\IEnumerable.cs" };
+
+            var actual = Paths.DisambiguateRelativePaths(relativePaths, identityKeys);
+
+            Assert.AreEqual(@"System\Collections\IEnumerable.cs", actual[0]);
+            Assert.AreEqual(@"System\Collections\IEnumerable_2.cs", actual[1]);
+            Assert.AreEqual(@"System\Collections\IEnumerable_3.cs", actual[2]);
+        }
+
+        [TestMethod]
+        public void DisambiguateRelativePaths_CollisionAtProjectRoot_SuffixesFileNameOnly()
+        {
+            var relativePaths = new[] { "IEnumerable.cs", "IEnumerable.cs" };
+            var identityKeys = new[] { @"c:\src\b\IEnumerable.cs", @"c:\src\a\IEnumerable.cs" };
+
+            var actual = Paths.DisambiguateRelativePaths(relativePaths, identityKeys);
+
+            Assert.AreEqual("IEnumerable_2.cs", actual[0]);
+            Assert.AreEqual("IEnumerable.cs", actual[1]);
+        }
+
+        [TestMethod]
         public void GetFullPathInFolderCone1()
         {
             TestGetFullPathInFolderCone(

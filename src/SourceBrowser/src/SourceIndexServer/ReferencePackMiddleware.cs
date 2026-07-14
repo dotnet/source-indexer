@@ -54,16 +54,17 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
             await _next(context);
         }
 
-        // Index data the server reads at startup plus the per-project finalization intermediates. All of
-        // these live under the index root purely for server/build use and are never linked or fetched by
-        // the browser, which only calls api/symbols and navigates .html/.js. Notably absent: i.txt (per
-        // project stats) and diagnostics.txt, which users do open directly, so those stay servable.
+        // Index data the server reads at startup plus the per-project finalization intermediates. These
+        // are the raw search index and per-project link tables -- internal server/build data that is
+        // never linked or fetched by the browser, which only calls api/symbols and navigates .html/.js.
+        // Notably absent, and therefore still servable: i.txt and diagnostics.txt (users open these
+        // directly) and the Assemblies.txt / Projects.txt content listings, which are just enumerations
+        // of what the site serves (and Assemblies.txt is the federation manifest other SourceBrowser
+        // instances fetch to federate against this site).
         private static readonly HashSet<string> ServerOnlyFileNames = new(StringComparer.OrdinalIgnoreCase)
         {
             "DeclaredSymbols.txt",                 // master search index
             "Huffman.txt",                         // master huffman tables
-            Constants.MasterProjectMap + ".txt",   // Projects.txt
-            Constants.MasterAssemblyMap + ".txt",  // Assemblies.txt
             "D.txt",                               // per-project declared symbols
             "BaseMembers.txt",                     // per-project base member links
             "ImplementedInterfaceMembers.txt",     // per-project interface member links

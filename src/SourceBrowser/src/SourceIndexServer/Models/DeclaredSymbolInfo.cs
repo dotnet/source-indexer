@@ -51,6 +51,34 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
             }
         }
 
+        // Bias results toward the canonical framework assemblies so a well-known BCL type (e.g.
+        // System.Collections.Generic.Dictionary) outranks an equally-weighted same-named type from a
+        // niche assembly like Microsoft.CodeAnalysis. Lower is better; only used as a tiebreaker after
+        // match quality has been compared, so it never promotes a worse match.
+        // See https://github.com/KirillOsenkov/SourceBrowser/issues/249.
+        public static int GetAssemblyRank(string assemblyName)
+        {
+            if (assemblyName == null)
+            {
+                return 3;
+            }
+
+            if (assemblyName == "System.Private.CoreLib" ||
+                assemblyName == "System.Runtime" ||
+                assemblyName == "mscorlib")
+            {
+                return 0;
+            }
+
+            if (assemblyName == "System" ||
+                assemblyName.StartsWith("System.", StringComparison.Ordinal))
+            {
+                return 1;
+            }
+
+            return 2;
+        }
+
         public bool Equals(DeclaredSymbolInfo other)
         {
             if (other == null)

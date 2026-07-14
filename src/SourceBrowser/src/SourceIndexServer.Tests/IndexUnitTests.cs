@@ -101,6 +101,132 @@ namespace Microsoft.SourceBrowser.HtmlGenerator.Tests
                 new[] { "binary" });
         }
 
+        // https://github.com/KirillOsenkov/SourceBrowser/issues/29 -- "NeCl" is the issue's own
+        // example, and matches neither "MyNewClass" nor "NewClass" via prefix (nor even via the
+        // SortedSearch bounds check, since 'C' doesn't line up with "NewClass"[2] == 'w') -- both
+        // are only found through the unified fuzzy (boundary-aware subsequence) fallback.
+        [TestMethod]
+        public void TestCamelCaseSearch_MatchesIssue29Example()
+        {
+            Test(
+                new[] { "MyNewClass", "NewClass", "SomethingElse" },
+                "NeCl",
+                new[] { "MyNewClass", "NewClass" });
+        }
+
+        [TestMethod]
+        public void TestCamelCaseSearch_SkipsLeadingHump()
+        {
+            Test(
+                new[] { "MyNewClass", "Unrelated" },
+                "NeCl",
+                new[] { "MyNewClass" });
+        }
+
+        [TestMethod]
+        public void TestSubstringAnywhereSearch()
+        {
+            Test(
+                new[] { "unrelated", "xxwidgetxx" },
+                "widget",
+                new[] { "xxwidgetxx" });
+        }
+
+        [TestMethod]
+        public void TestVerbatimQuery_DoesNotUseCamelOrSubstringFallback()
+        {
+            Test(
+                new[] { "MyNewClass", "NewClass" },
+                "\"NeCl\"",
+                new string[0]);
+        }
+
+        // Exact/prefix must always outrank a fuzzy (camelCase-hump-boundary or plain substring)
+        // match -- regardless of Name-sort order among the candidates. Within the fuzzy band, a
+        // camelCase-hump-boundary-aligned match ("MyWidgetFactory", where "widget" starts right at
+        // the "Widget" hump) scores higher than an arbitrary mid-word substring match
+        // ("xxwidgetxx") via SymbolNameMatcher.TryScoreFuzzy's boundary bonus, so it still ranks
+        // above it -- the same single scorer produces both outcomes.
+        [TestMethod]
+        public void TestRankingOrder_ExactBeatsPrefixBeatsCamelBeatsSubstring()
+        {
+            Test(
+                new[] { "MyWidgetFactory", "widget", "widgetFactory", "xxwidgetxx" },
+                "widget",
+                new[] { "widget", "widgetFactory", "MyWidgetFactory", "xxwidgetxx" });
+        }
+
+        // Phase-4 perf-gate regression: once the prefix pass has already filled the MaxRawResults
+        // display cap with prefix-or-better matches, the fuzzy fallback scan is skipped entirely
+        // for the rest of this interpretation -- see the prefixOrBetterCount guard in
+        // Index.FindSymbols. This asserts the *result* is unaffected by that skip: the
+        // fallback-only candidates never appear, exactly as if the (skipped) scan had actually run
+        // and correctly ranked them below the cutoff.
+        [TestMethod]
+        public void TestPrefixCapFill_SkipsFallbackScanWithoutChangingResults()
+        {
+            var prefixHits = Enumerable.Range(0, Index.MaxRawResults)
+                .Select(i => "Widget" + i.ToString("D3"))
+                .ToArray();
+
+            // "xxWidgetxx" is substring-only, "MyWidgetFactory" is camelCase-hump-only -- neither
+            // is a prefix match for "Widget", so both would only ever be found by the fallback
+            // scan the guard is meant to skip.
+            var fallbackOnly = new[] { "xxWidgetxx", "MyWidgetFactory" };
+
+            var input = prefixHits
+                .Concat(fallbackOnly)
+                .OrderBy(s => s, System.StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            Test(input, "Widget", prefixHits);
+        }
+
+        // Regression for a truncate-before-rank bug in the fuzzy fallback scan itself:
+        // MaxCandidatesPerPass used to stop the SCAN after collecting MaxCandidatesPerPass fuzzy
+        // matches, in Name-sorted (scan) order -- but the fuzzy tier ranks by a *continuous*
+        // score (SymbolNameMatcher.TryScoreFuzzy), not scan order, so a genuinely higher-scoring
+        // match that happens to sort alphabetically after more than MaxCandidatesPerPass weaker
+        // matches would never even be scored, let alone ranked, and would silently vanish from
+        // the results. Build more low-scoring fuzzy matches than MaxCandidatesPerPass, all
+        // sorting before a single high-scoring match ("NewClass", the issue's own #29 example)
+        // for the same query, and assert the high-scoring match still surfaces. This must fail
+        // against the version of Index.FindSymbols that capped the fuzzy scan itself and pass
+        // once every prune-surviving candidate is scored (with only the final, globally-ranked
+        // result list truncated to MaxRawResults).
+        [TestMethod]
+        public void TestFuzzyFallback_DoesNotTruncateBeforeRankingAcrossManyCandidates()
+        {
+            int fillerCount = Index.MaxCandidatesPerPass + 500;
+
+            // Each filler is a valid but weak subsequence match for "NeCl": the letters appear
+            // lower-case, consecutively, with no camelCase-hump/start-of-string boundary and no
+            // case agreement -- so it scores well below "NewClass", which matches "NeCl" with a
+            // start-of-string bonus, a hump-boundary bonus at "Class", and full case agreement.
+            var filler = Enumerable.Range(0, fillerCount)
+                .Select(i => $"Aaa{i:D6}necl")
+                .ToArray();
+
+            var input = filler
+                .Concat(new[] { "NewClass" })
+                .OrderBy(s => s, System.StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            using (var index = new Index())
+            {
+                index.symbols = new List<IndexEntry>(input.Select(s => new IndexEntry(s)));
+                index.PopulateSymbolsById();
+
+                var foundSymbols = index.FindSymbols("NeCl");
+
+                Assert.IsNotNull(foundSymbols);
+                Assert.IsTrue(
+                    foundSymbols.Any(s => s.Name == "NewClass"),
+                    "The higher-scoring fuzzy match 'NewClass' must not be dropped just because " +
+                    "more than MaxCandidatesPerPass weaker fuzzy matches sort alphabetically before it.");
+            }
+        }
+
         public class EntryList : List<KeyValuePair<string, string>>
         {
             public void Add(string name, string description)

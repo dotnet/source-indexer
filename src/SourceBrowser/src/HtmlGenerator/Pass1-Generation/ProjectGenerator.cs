@@ -30,6 +30,29 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         public IEnumerable<MEF.ISymbolVisitor> PluginSymbolVisitors { get; private set; }
         public IEnumerable<MEF.ITextVisitor> PluginTextVisitors { get; private set; }
 
+        // Populated once, single-threaded, before documents are partitioned for parallel generation
+        // (see GenerateAsync). Maps each Document to a relative destination path that's been
+        // disambiguated from any other Document that would otherwise collide on the same
+        // folders+filename (see Paths.DisambiguateRelativePaths).
+        private Dictionary<DocumentId, string> documentRelativePaths;
+
+        /// <summary>
+        /// Returns the (possibly disambiguated) relative destination path for <paramref name="document"/>.
+        /// Falls back to the raw, non-disambiguated computation for documents outside the normal
+        /// per-project document set (e.g. this can be reached for any document, but is only
+        /// disambiguated for documents in this project's <c>documents</c> list).
+        /// </summary>
+        public string GetDocumentRelativePath(Document document)
+        {
+            if (documentRelativePaths != null &&
+                documentRelativePaths.TryGetValue(document.Id, out var relativePath))
+            {
+                return relativePath;
+            }
+
+            return Paths.GetRelativeFilePathInProject(document);
+        }
+
         public ProjectGenerator(SolutionGenerator solutionGenerator, Project project) : this()
         {
             this.SolutionGenerator = solutionGenerator;
@@ -149,6 +172,20 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     }
                 }
 
+                // Compute unique destination paths up front, single-threaded, so that two distinct
+                // documents that happen to resolve to the same folders+filename (e.g. two unrelated
+                // "IEnumerable.cs" files) don't silently collide once generation is partitioned and
+                // parallelized below -- see Paths.DisambiguateRelativePaths for the exact semantics.
+                var rawRelativePaths = documents.Select(Paths.GetRelativeFilePathInProject).ToArray();
+                var identityKeys = documents.Select(d => d.FilePath ?? d.Name).ToArray();
+                var disambiguatedRelativePaths = Paths.DisambiguateRelativePaths(rawRelativePaths, identityKeys);
+
+                documentRelativePaths = new Dictionary<DocumentId, string>(documents.Count);
+                for (int i = 0; i < documents.Count; i++)
+                {
+                    documentRelativePaths[documents[i].Id] = disambiguatedRelativePaths[i];
+                }
+
                 var collectors = new ConcurrentBag<ReferenceCollector>();
                 var generationTasks = Partitioner.Create(documents)
                     .GetPartitions(Environment.ProcessorCount)
@@ -178,7 +215,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
                 foreach (var document in documents)
                 {
-                    OtherFiles.Add(Paths.GetRelativeFilePathInProject(document));
+                    OtherFiles.Add(GetDocumentRelativePath(document));
                 }
 
                 if (Configuration.WriteProjectAuxiliaryFilesToDisk)

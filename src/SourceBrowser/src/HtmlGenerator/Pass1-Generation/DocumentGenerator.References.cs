@@ -537,7 +537,12 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 }
                 else
                 {
-                    var referenceRelativeFilePath = Paths.GetRelativePathInProject(syntaxTree, Document.Project);
+                    // Resolve via the actual Document (not just the raw relative path), so that if
+                    // the referenced symbol lives in a document whose destination path was
+                    // disambiguated (see ProjectGenerator.GetDocumentRelativePath) due to a
+                    // same-name collision, the link still points at that document's real page.
+                    var referencedDocument = Document.Project.GetDocument(syntaxTree);
+                    var referenceRelativeFilePath = projectGenerator.GetDocumentRelativePath(referencedDocument);
                     referencedSymbolDestinationFilePath = Path.Combine(projectGenerator.ProjectDestinationFolder, referenceRelativeFilePath);
                 }
 

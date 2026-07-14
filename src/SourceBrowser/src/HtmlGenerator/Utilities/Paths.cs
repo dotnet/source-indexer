@@ -159,6 +159,66 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             return result.ToString();
         }
 
+        /// <summary>
+        /// Resolves a unique relative destination path per item, given each item's (possibly
+        /// colliding) logical relative path and a physical-identity key (e.g. <c>document.FilePath</c>).
+        /// Two items that share both the same relative path AND the same identity key are treated
+        /// as the genuine same shared/linked file surfaced more than once -- they keep the original,
+        /// un-suffixed path so today's single-render-wins behavior for legitimate shared files is
+        /// preserved. Items that share only the relative path but have distinct identity keys are a
+        /// real name collision (e.g. two unrelated "IEnumerable.cs" files landing in the same
+        /// logical folder) and get a deterministic suffix appended to the file name, ordered by
+        /// identity key so the assignment doesn't depend on parallel generation scheduling.
+        /// </summary>
+        /// <param name="relativePaths">The relative path computed for each item, e.g. via <see cref="GetRelativeFilePathInProject(Document)"/>.</param>
+        /// <param name="identityKeys">A key identifying the physical source of each item, e.g. <c>document.FilePath</c>.</param>
+        /// <returns>An array parallel to the inputs with a unique relative path per distinct identity.</returns>
+        public static string[] DisambiguateRelativePaths(IReadOnlyList<string> relativePaths, IReadOnlyList<string> identityKeys)
+        {
+            if (relativePaths.Count != identityKeys.Count)
+            {
+                throw new ArgumentException("relativePaths and identityKeys must have the same length");
+            }
+
+            var result = new string[relativePaths.Count];
+
+            var groupsByRelativePath = Enumerable.Range(0, relativePaths.Count)
+                .GroupBy(i => relativePaths[i], StringComparer.OrdinalIgnoreCase);
+
+            foreach (var group in groupsByRelativePath)
+            {
+                var groupsByIdentity = group
+                    .GroupBy(i => identityKeys[i], StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(g => g.Key, StringComparer.Ordinal)
+                    .ToArray();
+
+                for (int rank = 0; rank < groupsByIdentity.Length; rank++)
+                {
+                    var disambiguatedPath = rank == 0
+                        ? group.Key
+                        : AppendDisambiguatingSuffix(group.Key, rank + 1);
+
+                    foreach (var index in groupsByIdentity[rank])
+                    {
+                        result[index] = disambiguatedPath;
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        private static string AppendDisambiguatingSuffix(string relativePath, int occurrence)
+        {
+            var directory = Path.GetDirectoryName(relativePath);
+            var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(relativePath);
+            var extension = Path.GetExtension(relativePath);
+            var disambiguatedFileName = fileNameWithoutExtension + "_" + occurrence + extension;
+            return string.IsNullOrEmpty(directory)
+                ? disambiguatedFileName
+                : Path.Combine(directory, disambiguatedFileName);
+        }
+
         public static string GetRelativeFilePathInProject(Document document)
         {
             var folders = document.Folders;
