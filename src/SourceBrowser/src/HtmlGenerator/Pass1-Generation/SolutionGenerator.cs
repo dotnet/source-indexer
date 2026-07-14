@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
+using Microsoft.Build.Construction;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.MSBuild;
 using Microsoft.SourceBrowser.Common;
@@ -370,7 +371,18 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             var allProjects = solution.Projects.ToArray();
             if (allProjects.Length == 0)
             {
-                Log.Exception("Solution " + this.ProjectFilePath + " has 0 projects - this is suspicious");
+                // Roslyn's MSBuildWorkspace only loads C# and VB projects; any other project type
+                // (F#, C++, shared projects, ...) is silently skipped via SkipUnrecognizedProjects. A
+                // solution that only contains such projects legitimately loads zero projects, so only
+                // treat an empty solution as suspicious when it declared a project we should have loaded.
+                if (DeclaresLoadableProject(this.ProjectFilePath))
+                {
+                    Log.Exception("Solution " + this.ProjectFilePath + " has 0 projects - this is suspicious");
+                }
+                else
+                {
+                    Log.Message("Solution " + this.ProjectFilePath + " has 0 projects because it contains no C# or VB projects");
+                }
             }
 
             var projectsToProcess = allProjects
@@ -589,7 +601,10 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 return;
             }
 
-            if (message.Contains("because the file extension '.shproj'"))
+            // Roslyn's MSBuildWorkspace only recognizes C# and VB projects; every other project type
+            // (F#, C++, shared projects, ...) raises this diagnostic and is then dropped because
+            // SkipUnrecognizedProjects is set. That is expected, not a failure, so don't log it as severe.
+            if (message.Contains("is not associated with a language"))
             {
                 return;
             }
@@ -602,6 +617,34 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
             Log.Exception("Workspace failed: " + message);
             Log.Write(message, ConsoleColor.Red);
+        }
+
+        private static readonly string[] LoadableProjectExtensions = { ".csproj", ".vbproj" };
+
+        /// <summary>
+        /// Returns true if the solution declares at least one project that Roslyn's MSBuildWorkspace can
+        /// load (C# or VB). Only .sln files can be inspected here, so anything else (e.g. .slnx) is
+        /// assumed loadable to avoid silently swallowing a genuine failure.
+        /// </summary>
+        private static bool DeclaresLoadableProject(string solutionFilePath)
+        {
+            if (!solutionFilePath.EndsWith(".sln", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            try
+            {
+                var solutionFile = SolutionFile.Parse(solutionFilePath);
+                return solutionFile.ProjectsInOrder.Any(p =>
+                    p.ProjectType != SolutionProjectType.SolutionFolder &&
+                    LoadableProjectExtensions.Any(ext =>
+                        (p.AbsolutePath ?? p.RelativePath ?? string.Empty).EndsWith(ext, StringComparison.OrdinalIgnoreCase)));
+            }
+            catch
+            {
+                return true;
+            }
         }
 
         public void AddTypeScriptFile(string filePath)
