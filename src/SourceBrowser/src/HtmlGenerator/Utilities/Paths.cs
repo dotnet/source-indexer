@@ -270,7 +270,64 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
             result = Path.Combine(result, fileName);
 
-            return result;
+            return ShortenRelativePathIfNecessary(result);
+        }
+
+        // Windows' default path limit is 260, but the generated index is later re-rooted under a
+        // deeper prefix at deploy time -- e.g. Azure App Service extracts the zipDeploy package to
+        // C:\local\Temp\zipdeploy\extracted\ -- so a path that fit during generation can exceed the
+        // limit once extracted. Cap the per-project relative path well below that budget so the fully
+        // re-rooted "<extractionRoot>\<AssemblyName>\<relativePath>.html" stays under 248 characters.
+        private const int MaxRelativeFilePathLength = 140;
+
+        /// <summary>
+        /// Bounds the length of a per-project relative destination path so it survives being re-rooted
+        /// under a deeper deployment prefix without exceeding the Windows path limit. Paths at or below
+        /// the limit are returned unchanged, so the overwhelming majority of files -- and every URL and
+        /// Solution Explorer entry derived from them -- are unaffected. Over-long paths (in practice the
+        /// synthetic source-generated document paths, whose folder is a fully-qualified generator type
+        /// name) keep their original leaf file name and top-level folder for display, and have the
+        /// redundant middle collapsed into a short deterministic hash so links stay stable and unique.
+        /// </summary>
+        public static string ShortenRelativePathIfNecessary(string relativePath)
+        {
+            if (relativePath.Length <= MaxRelativeFilePathLength)
+            {
+                return relativePath;
+            }
+
+            var fileName = Path.GetFileName(relativePath);
+            var folder = Path.GetDirectoryName(relativePath);
+
+            // Collapse the folder portion -- in practice the redundant, fully-qualified source-generator
+            // type name -- into a short deterministic hash, keeping the top-level folder (e.g. "Generated")
+            // so the Solution Explorer grouping is preserved. Hashing the full folder keeps the result
+            // unique, so two distinct long folders can't map onto the same shortened path.
+            string prefix = string.Empty;
+            if (!string.IsNullOrEmpty(folder))
+            {
+                var hashedFolder = GetMD5Hash(folder, 16);
+                var separatorIndex = folder.IndexOf('\\');
+                prefix = separatorIndex > 0
+                    ? Path.Combine(folder.Substring(0, separatorIndex), hashedFolder)
+                    : hashedFolder;
+            }
+
+            // Keep the original file name where it fits so the displayed name and URL leaf stay accurate;
+            // only when the leaf alone would still bust the budget do we truncate it, retaining a readable
+            // prefix plus a hash of the original name to stay unique and stable.
+            var maxFileNameLength = MaxRelativeFilePathLength - prefix.Length - 1;
+            if (fileName.Length > maxFileNameLength)
+            {
+                var extension = Path.GetExtension(fileName);
+                var hash = GetMD5Hash(fileName, 16);
+                var stemBudget = maxFileNameLength - hash.Length - 1 - extension.Length;
+                var stem = Path.GetFileNameWithoutExtension(fileName);
+                stem = stemBudget > 0 ? stem.Substring(0, Math.Min(stem.Length, stemBudget)) : string.Empty;
+                fileName = stem + "_" + hash + extension;
+            }
+
+            return string.IsNullOrEmpty(prefix) ? fileName : Path.Combine(prefix, fileName);
         }
 
         private static char[] invalidFileChars = Path.GetInvalidFileNameChars();

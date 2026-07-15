@@ -1,4 +1,5 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using System;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Microsoft.SourceBrowser.HtmlGenerator.Tests
 {
@@ -247,6 +248,60 @@ namespace Microsoft.SourceBrowser.HtmlGenerator.Tests
 
             Assert.AreEqual("IEnumerable_2.cs", actual[0]);
             Assert.AreEqual("IEnumerable.cs", actual[1]);
+        }
+
+        [TestMethod]
+        public void ShortenRelativePathIfNecessary_ShortPath_PassesThroughUnchanged()
+        {
+            var relativePath = @"System\Collections\Generic\List.cs";
+
+            var actual = Paths.ShortenRelativePathIfNecessary(relativePath);
+
+            Assert.AreEqual(relativePath, actual);
+        }
+
+        [TestMethod]
+        public void ShortenRelativePathIfNecessary_LongSourceGeneratedPath_ShortensAndKeepsGroupingAndFileName()
+        {
+            // A representative source-generated document path: Generated\<generator assembly>\<fully
+            // qualified generator type>\<hint name>. The fully-qualified type folder is what blows the
+            // path budget.
+            var relativePath =
+                @"Generated\System.Text.Json.SourceGeneration\System.Text.Json.SourceGeneration.JsonSourceGenerator\" +
+                @"System.Text.Json.Serialization.JsonSerializerContext.SomeVeryLongContextTypeName.g.cs";
+            Assert.IsTrue(relativePath.Length > 140, "test input should exceed the cap");
+
+            var actual = Paths.ShortenRelativePathIfNecessary(relativePath);
+
+            Assert.IsTrue(actual.Length <= 140, "shortened path must fit within the cap");
+            Assert.IsTrue(actual.StartsWith(@"Generated\", StringComparison.Ordinal), "top-level folder is preserved for grouping");
+            Assert.IsTrue(actual.EndsWith(@"SomeVeryLongContextTypeName.g.cs", StringComparison.Ordinal), "leaf file name is preserved");
+            // Deterministic: the same input always maps to the same shortened path so links stay stable.
+            Assert.AreEqual(actual, Paths.ShortenRelativePathIfNecessary(relativePath));
+        }
+
+        [TestMethod]
+        public void ShortenRelativePathIfNecessary_DistinctLongFolders_DoNotCollide()
+        {
+            var basePath = @"Generated\Some.Generator\Some.Generator.TheGenerator";
+            var padding = new string('x', 140);
+            var a = basePath + @"\A\" + padding + ".g.cs";
+            var b = basePath + @"\B\" + padding + ".g.cs";
+
+            Assert.AreNotEqual(
+                Paths.ShortenRelativePathIfNecessary(a),
+                Paths.ShortenRelativePathIfNecessary(b));
+        }
+
+        [TestMethod]
+        public void ShortenRelativePathIfNecessary_LongFileNameAtRoot_ShortensFileName()
+        {
+            var relativePath = new string('a', 200) + ".g.cs";
+
+            var actual = Paths.ShortenRelativePathIfNecessary(relativePath);
+
+            Assert.IsTrue(actual.Length <= 140, "shortened path must fit within the cap");
+            Assert.IsTrue(actual.EndsWith(".cs", StringComparison.Ordinal), "extension is preserved");
         }
 
         [TestMethod]
