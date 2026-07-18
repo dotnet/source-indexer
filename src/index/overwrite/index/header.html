@@ -1,6 +1,8 @@
 ﻿<!DOCTYPE html>
 <html>
 <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Header</title>
     <link rel="stylesheet" href="styles.css" />
     <script src="scripts.js"></script>
@@ -16,6 +18,10 @@
                tabindex="1"
                aria-label="search"/>
         <a id="logoText" href="/" target="_top">.NET Source&nbsp;Browser</a>
+        <a id="paneToggle"
+           href="#"
+           role="button"
+           onclick="toggleMobilePane(); return false;">Results</a>
         <span id="headerMenu">
             <a id="helpButtonLink" href="overview.html" target="s">
                 Help
