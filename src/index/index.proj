@@ -90,6 +90,7 @@
     <ItemGroup>
       <ClonedRepository Include="@(Repository)">
         <ServerPath>%(Url)/tree/$(CommitHash)/</ServerPath>
+        <RepoDisplayName>$([System.String]::Copy('%(Url)').Replace('https://github.com/', ''))</RepoDisplayName>
       </ClonedRepository>
     </ItemGroup>
   </Target>
@@ -115,6 +116,7 @@
     <ItemGroup>
       <ClonedRepositoryV2 Include="@(RepositoryV2)">
         <ServerPath>%(Url)/tree/$(CommitHash)/</ServerPath>
+        <RepoDisplayName>$([System.String]::Copy('%(Url)').Replace('https://github.com/', ''))</RepoDisplayName>
       </ClonedRepositoryV2>
     </ItemGroup>
   </Target>
@@ -200,8 +202,8 @@
       <SourceIndexCmd>$(SourceIndexCmd) /showBranding</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /out:"$(OutDir)index/"</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /in:"$(OutDir)index.list"</SourceIndexCmd>
-      <SourceIndexCmd>$(SourceIndexCmd)@(ClonedRepository -> ' /serverPath:"%(LocalPath)=%(ServerPath)"', '')</SourceIndexCmd>
-      <SourceIndexCmd>$(SourceIndexCmd)@(ClonedRepositoryV2 -> ' /serverPath:"%(LocalPath)=%(ServerPath)"', '')</SourceIndexCmd>
+      <SourceIndexCmd>$(SourceIndexCmd)@(ClonedRepository -> ' /repo:"%(LocalPath)"="%(RepoDisplayName)"="%(ServerPath)"', '')</SourceIndexCmd>
+      <SourceIndexCmd>$(SourceIndexCmd)@(ClonedRepositoryV2 -> ' /repo:"%(LocalPath)"="%(RepoDisplayName)"="%(ServerPath)"', '')</SourceIndexCmd>
     </PropertyGroup>
     <Exec Command="$(SourceIndexCmd)" LogStandardErrorAsError="false"/>
     <Copy SourceFiles="@(OverwriteFiles)" DestinationFiles="@(OverwriteFiles -> '$(OutDir)index/%(RecursiveDir)%(Filename)%(Extension)')"/>
