@@ -17,6 +17,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
         private readonly RequestDelegate _next;
         private readonly string _rootPath;
         private readonly string _rootPathPrefix;
+        private readonly IFileSystem _blobFileSystem;
         private readonly ConcurrentDictionary<string, Lazy<ReferencePack>> _packs = new(StringComparer.OrdinalIgnoreCase);
 
         public ReferencePackMiddleware(RequestDelegate next, string rootPath)
@@ -24,6 +25,14 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
             _next = next;
             _rootPath = rootPath;
             _rootPathPrefix = Path.GetFullPath(rootPath).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+
+            // On the proxied deployment (source.dot.net) the index -- including the reference packs -- is
+            // uploaded to blob storage rather than shipped with the webapp, so the packs must be read from
+            // there. A local deployment leaves this null and reads from disk.
+            if (!string.IsNullOrEmpty(Helpers.IndexProxyUrl))
+            {
+                _blobFileSystem = new AzureBlobFileSystem(Helpers.IndexProxyUrl);
+            }
         }
 
         public async Task InvokeAsync(HttpContext context)
@@ -32,11 +41,11 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
 
             if (TryMatch(path, out string assembly, out string symbolId) &&
                 TryGetPack(assembly) is ReferencePack pack &&
-                pack.TryGetFragment(symbolId, out byte[] fragment))
+                pack.TryGetFragment(symbolId, out long offset, out int length))
             {
                 context.Response.ContentType = "text/html";
-                context.Response.ContentLength = fragment.Length;
-                await context.Response.Body.WriteAsync(fragment, 0, fragment.Length);
+                context.Response.ContentLength = length;
+                await pack.WriteFragmentAsync(offset, length, context.Response.Body);
                 return;
             }
 
@@ -152,6 +161,11 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
         {
             var lazy = _packs.GetOrAdd(assembly, a => new Lazy<ReferencePack>(() =>
             {
+                if (_blobFileSystem is not null)
+                {
+                    return ReferencePack.TryLoadFromBlob(_blobFileSystem, a, out var blobPack) ? blobPack : null;
+                }
+
                 var referencesFolder = Path.Combine(_rootPath, a, Constants.ReferencesFileName);
                 return ReferencePack.TryLoad(referencesFolder, out var pack) ? pack : null;
             }));

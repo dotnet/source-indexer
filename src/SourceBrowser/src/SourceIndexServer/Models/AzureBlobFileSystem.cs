@@ -1,4 +1,5 @@
-﻿using Azure.Core;
+using Azure;
+using Azure.Core;
 using Azure.Identity;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
@@ -6,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Microsoft.SourceBrowser.SourceIndexServer.Models
 {
@@ -67,6 +69,21 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
             BlobClient blob = container.GetBlobClient(name);
 
             return blob.OpenRead();
+        }
+
+        // Streams a byte range of a blob to the destination, used to serve individual reference fragments
+        // out of the packed references.pack without downloading the whole (potentially hundreds of MB) blob
+        // or buffering the fragment in memory.
+        public async Task CopyBytesToAsync(string name, long offset, int length, Stream destination)
+        {
+            name = name.ToLowerInvariant();
+            BlobClient blob = container.GetBlobClient(name);
+
+            var options = new BlobDownloadOptions { Range = new HttpRange(offset, length) };
+            var response = await blob.DownloadStreamingAsync(options).ConfigureAwait(false);
+            using Stream stream = response.Value.Content;
+
+            await stream.CopyToAsync(destination).ConfigureAwait(false);
         }
 
         public IEnumerable<string> ReadLines(string name)

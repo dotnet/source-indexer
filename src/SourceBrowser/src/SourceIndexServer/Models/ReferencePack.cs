@@ -1,35 +1,49 @@
 ﻿using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
+using System.Threading.Tasks;
+using Microsoft.Win32.SafeHandles;
 
 namespace Microsoft.SourceBrowser.SourceIndexServer.Models
 {
     // Reads the packed reference output produced by the HtmlGenerator: a single references.pack holding
     // every per-symbol reference fragment back-to-back, plus a references.index describing each fragment's
     // byte range. Fragments are returned verbatim (preamble and all) so they are byte-identical to the
-    // individual .html files the server used to serve. Positioned reads via RandomAccess are thread-safe,
-    // so a single handle serves concurrent requests without locking.
+    // individual .html files the server used to serve. The index is read once into memory; fragments are
+    // then fetched with positioned reads -- from a local file handle when the index is on disk, or ranged
+    // GETs against blob storage when it is served from Azure (source.dot.net). Both are thread-safe, so a
+    // single pack serves concurrent requests without locking.
     public sealed class ReferencePack : IDisposable
     {
-        private readonly SafeHandleRecord[] _records;
+        private readonly Record[] _records;
         private readonly Dictionary<string, int> _index;
-        private readonly Microsoft.Win32.SafeHandles.SafeFileHandle _packHandle;
+        private readonly IPackData _data;
 
-        private readonly struct SafeHandleRecord
+        private readonly struct Record
         {
             public readonly long Offset;
             public readonly int Length;
 
-            public SafeHandleRecord(long offset, int length)
+            public Record(long offset, int length)
             {
                 Offset = offset;
                 Length = length;
             }
         }
 
-        private ReferencePack(Microsoft.Win32.SafeHandles.SafeFileHandle packHandle, Dictionary<string, int> index, SafeHandleRecord[] records)
+        // Backing store for the concatenated fragment bytes, hiding whether they live on local disk or blob.
+        // Fragments are streamed straight to the response rather than buffered, so a heavily-referenced
+        // symbol's (multi-MB) fragment doesn't force a large-object-heap allocation per request.
+        private interface IPackData : IDisposable
         {
-            _packHandle = packHandle;
+            Task WriteToAsync(long offset, int length, Stream destination);
+        }
+
+        private ReferencePack(IPackData data, Dictionary<string, int> index, Record[] records)
+        {
+            _data = data;
             _index = index;
             _records = records;
         }
@@ -46,61 +60,147 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
                 return false;
             }
 
-            Dictionary<string, int> index;
-            SafeHandleRecord[] records;
-
             using (var stream = new FileStream(indexPath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 1 << 20, FileOptions.SequentialScan))
-            using (var reader = new BinaryReader(stream))
             {
-                int count = reader.ReadInt32();
-                index = new Dictionary<string, int>(count, StringComparer.Ordinal);
-                records = new SafeHandleRecord[count];
-
-                for (int i = 0; i < count; i++)
-                {
-                    var id = reader.ReadString();
-                    long offset = reader.ReadInt64();
-                    int length = reader.ReadInt32();
-
-                    records[i] = new SafeHandleRecord(offset, length);
-                    index[id] = i;
-                }
+                ReadIndex(stream, out var index, out var records);
+                var handle = File.OpenHandle(packPath, FileMode.Open, FileAccess.Read, FileShare.Read, FileOptions.RandomAccess);
+                pack = new ReferencePack(new FilePackData(handle), index, records);
             }
 
-            var handle = File.OpenHandle(packPath, FileMode.Open, FileAccess.Read, FileShare.Read, FileOptions.RandomAccess);
-            pack = new ReferencePack(handle, index, records);
             return true;
         }
 
-        public bool TryGetFragment(string symbolId, out byte[] fragment)
+        // Loads the pack for an assembly whose index is served from blob storage: the small references.index
+        // is read once into memory, and each fragment is then served with a ranged read of references.pack so
+        // the multi-hundred-MB pack is never downloaded in full.
+        public static bool TryLoadFromBlob(IFileSystem fs, string assembly, out ReferencePack pack)
+        {
+            pack = null;
+
+            var packName = $"/{assembly}/{Constants.ReferencesFileName}/{Constants.ReferencePackFileName}";
+            var indexName = $"/{assembly}/{Constants.ReferencesFileName}/{Constants.ReferenceIndexFileName}";
+
+            if (!fs.FileExists(indexName) || !fs.FileExists(packName))
+            {
+                return false;
+            }
+
+            using (var stream = fs.OpenSequentialReadStream(indexName))
+            {
+                ReadIndex(stream, out var index, out var records);
+                pack = new ReferencePack(new BlobPackData(fs, packName), index, records);
+            }
+
+            return true;
+        }
+
+        private static void ReadIndex(Stream stream, out Dictionary<string, int> index, out Record[] records)
+        {
+            using var reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen: true);
+
+            int count = reader.ReadInt32();
+            index = new Dictionary<string, int>(count, StringComparer.Ordinal);
+            records = new Record[count];
+
+            for (int i = 0; i < count; i++)
+            {
+                var id = reader.ReadString();
+                long offset = reader.ReadInt64();
+                int length = reader.ReadInt32();
+
+                records[i] = new Record(offset, length);
+                index[id] = i;
+            }
+        }
+
+        // Looks up a fragment's location in the pack. The bytes are streamed separately via
+        // WriteFragmentAsync so the caller can set Content-Length before writing the body.
+        public bool TryGetFragment(string symbolId, out long offset, out int length)
         {
             if (!_index.TryGetValue(symbolId, out int recordIndex))
             {
-                fragment = null;
+                offset = 0;
+                length = 0;
                 return false;
             }
 
             var record = _records[recordIndex];
-            fragment = new byte[record.Length];
-
-            int read = 0;
-            while (read < record.Length)
-            {
-                int n = System.IO.RandomAccess.Read(_packHandle, fragment.AsSpan(read), record.Offset + read);
-                if (n == 0)
-                {
-                    fragment = null;
-                    return false;
-                }
-                read += n;
-            }
-
+            offset = record.Offset;
+            length = record.Length;
             return true;
+        }
+
+        public Task WriteFragmentAsync(long offset, int length, Stream destination)
+        {
+            return _data.WriteToAsync(offset, length, destination);
         }
 
         public void Dispose()
         {
-            _packHandle.Dispose();
+            _data.Dispose();
+        }
+
+        private sealed class FilePackData : IPackData
+        {
+            private readonly SafeFileHandle _handle;
+
+            public FilePackData(SafeFileHandle handle)
+            {
+                _handle = handle;
+            }
+
+            public async Task WriteToAsync(long offset, int length, Stream destination)
+            {
+                var buffer = ArrayPool<byte>.Shared.Rent(Math.Min(length, 81920));
+                try
+                {
+                    long position = offset;
+                    int remaining = length;
+                    while (remaining > 0)
+                    {
+                        int chunk = Math.Min(remaining, buffer.Length);
+                        int n = await RandomAccess.ReadAsync(_handle, buffer.AsMemory(0, chunk), position).ConfigureAwait(false);
+                        if (n == 0)
+                        {
+                            break;
+                        }
+
+                        await destination.WriteAsync(buffer.AsMemory(0, n)).ConfigureAwait(false);
+                        position += n;
+                        remaining -= n;
+                    }
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(buffer);
+                }
+            }
+
+            public void Dispose()
+            {
+                _handle.Dispose();
+            }
+        }
+
+        private sealed class BlobPackData : IPackData
+        {
+            private readonly IFileSystem _fs;
+            private readonly string _packName;
+
+            public BlobPackData(IFileSystem fs, string packName)
+            {
+                _fs = fs;
+                _packName = packName;
+            }
+
+            public Task WriteToAsync(long offset, int length, Stream destination)
+            {
+                return _fs.CopyBytesToAsync(_packName, offset, length, destination);
+            }
+
+            public void Dispose()
+            {
+            }
         }
     }
 }
