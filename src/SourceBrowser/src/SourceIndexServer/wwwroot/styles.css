@@ -959,6 +959,27 @@ body.solutionExplorerBody #rootFolder {
     min-height: 0;
     overflow: auto;
 }
+
+/* Repo (and, on multi-solution sites, solution) grouping headers stay visible while the tree is
+   scrolled. Sticky top floats the header down as its subtree scrolls past so the current repo stays
+   labeled; sticky left plus a full-pane min-width keeps the tint spanning the view even after a long
+   path has scrolled the tree sideways -- otherwise the band would end at the pane's original right
+   edge. The opaque background (repoTitle already tints; solutionTitle gets one) stops scrolled rows
+   from showing through the pinned header. */
+body.solutionExplorerBody .repoTitle,
+body.solutionExplorerBody .solutionTitle {
+    position: sticky;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    min-width: 100%;
+    width: max-content;
+    box-sizing: border-box;
+}
+
+body.solutionExplorerBody .solutionTitle {
+    background-color: #ffffff;
+}
 /* Hides a Solution Explorer project subtree that doesn't match the selected repo filter (see
    filterSolutionExplorerByRepo in scripts.js). A class rather than inline display is used so this
    doesn't fight with the folder expand/collapse logic, which also toggles display on the same
