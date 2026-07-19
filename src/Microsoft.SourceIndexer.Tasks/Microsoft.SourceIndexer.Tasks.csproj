@@ -8,6 +8,7 @@
     <PackageReference Include="Microsoft.Build.Framework" />
     <PackageReference Include="Microsoft.Build.Tasks.Core" />
     <PackageReference Include="Microsoft.Build.Utilities.Core" />
+    <PackageReference Include="System.Text.Json" />
     <PackageReference Include="SharpZipLib" />
   </ItemGroup>
 </Project>

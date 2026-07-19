@@ -3,6 +3,7 @@
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
 
   <UsingTask TaskName="DownloadStage1Index" AssemblyFile="$(SourceIndexerTasksAssembly)"/>
+  <UsingTask TaskName="GenerateVmrRepoTags" AssemblyFile="$(SourceIndexerTasksAssembly)"/>
 
   <PropertyGroup>
     <WhatIf Condition="'$(WhatIf)' != 'true'">false</WhatIf>
@@ -177,13 +178,26 @@
     </ItemGroup>
   </Target>
 
+  <!-- For VMR entries carrying a source manifest, emit one repo filter tag per subfolder so
+       search can be scoped to the originating repo. Only /repoPath (filter) tags are added;
+       source links keep pointing at the top-level repo. -->
+  <Target Name="GenerateSubRepoTags" DependsOnTargets="ResolveHashV2"
+          Outputs="%(ClonedRepositoryV2.Identity)">
+    <GenerateVmrRepoTags
+        Condition="'%(ClonedRepositoryV2.SubRepoManifest)' != ''"
+        ManifestPath="$([MSBuild]::NormalizePath('%(ClonedRepositoryV2.ExtractPath)', '%(ClonedRepositoryV2.SubRepoManifest)'))"
+        SrcRoot="$([MSBuild]::NormalizePath('%(ClonedRepositoryV2.ExtractPath)', 'src'))">
+      <Output TaskParameter="RepoTags" ItemName="SubRepoTag"/>
+    </GenerateVmrRepoTags>
+  </Target>
+
   <Target Name="BuildGenerator" Condition="!Exists('$(HtmlGeneratorExePath)')">
     <MSBuild Projects="$(SourcesDir)SourceBrowser/src/HtmlGenerator/HtmlGenerator.csproj" Targets="Restore;Build" Properties="SolutionDir=$(SourcesDir)SourceBrowser">
       <Output TaskParameter="TargetOutputs" PropertyName="HtmlGeneratorExePath"/>
     </MSBuild>
   </Target>
 
-  <Target Name="BuildIndex" DependsOnTargets="BuildGenerator;FindBinlogs;FindSolutions">
+  <Target Name="BuildIndex" DependsOnTargets="BuildGenerator;FindBinlogs;FindSolutions;GenerateSubRepoTags">
     <Error Condition="!Exists('$(HtmlGeneratorExePath)')" Text="Html generator executable not found."/>
     <RemoveDuplicates Inputs="@(BinlogToIndex)">
       <Output TaskParameter="Filtered" ItemName="_FilteredBinlog"/>
@@ -204,6 +218,7 @@
       <SourceIndexCmd>$(SourceIndexCmd) /in:"$(OutDir)index.list"</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd)@(ClonedRepository -> ' /repo:"%(LocalPath)"="%(RepoDisplayName)"="%(ServerPath)"', '')</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd)@(ClonedRepositoryV2 -> ' /repo:"%(LocalPath)"="%(RepoDisplayName)"="%(ServerPath)"', '')</SourceIndexCmd>
+      <SourceIndexCmd>$(SourceIndexCmd)@(SubRepoTag -> ' /repoPath:"%(Identity)"="%(RepoDisplayName)"', '')</SourceIndexCmd>
     </PropertyGroup>
     <Exec Command="$(SourceIndexCmd)" LogStandardErrorAsError="false"/>
     <Copy SourceFiles="@(OverwriteFiles)" DestinationFiles="@(OverwriteFiles -> '$(OutDir)index/%(RecursiveDir)%(Filename)%(Extension)')"/>
