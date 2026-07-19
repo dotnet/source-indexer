@@ -13,7 +13,8 @@ namespace Microsoft.SourceIndexer.Tasks
     // /repoPath tagging, not /serverPath, so files still link back to dotnet/dotnet.
     public class GenerateVmrRepoTags : Task
     {
-        // Full path to the extracted VMR's src/source-manifest.json.
+        // Path to the VMR's source-manifest.json, fetched at the pinned commit by the build (the
+        // extracted bundle can be a partial vertical whose manifest is missing or incomplete).
         [Required]
         public string ManifestPath { get; set; }
 
@@ -45,8 +46,9 @@ namespace Microsoft.SourceIndexer.Tasks
 
             if (!File.Exists(ManifestPath))
             {
-                // Non-VMR builds (or a manifest that moved) simply produce no sub-tags.
-                Log.LogMessage(MessageImportance.Normal, $"Source manifest '{ManifestPath}' not found; no sub-repo tags generated.");
+                // A VMR entry that opted into sub-tagging but has no manifest is a misconfiguration
+                // worth surfacing, not a silent no-op.
+                Log.LogWarning($"Source manifest '{ManifestPath}' not found; no sub-repo tags generated.");
                 return;
             }
 
@@ -74,7 +76,7 @@ namespace Microsoft.SourceIndexer.Tasks
             }
 
             RepoTags = tags.ToArray();
-            Log.LogMessage(MessageImportance.Normal, $"Generated {tags.Count} sub-repo tag(s) from '{ManifestPath}'.");
+            Log.LogMessage(MessageImportance.High, $"Generated {tags.Count} sub-repo tag(s) for the VMR.");
         }
 
         // Turns a clone URL into an owner/repo tag, matching the RepoDisplayName convention used for

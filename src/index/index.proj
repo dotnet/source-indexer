@@ -118,6 +118,7 @@
       <ClonedRepositoryV2 Include="@(RepositoryV2)">
         <ServerPath>%(Url)/tree/$(CommitHash)/</ServerPath>
         <RepoDisplayName>$([System.String]::Copy('%(Url)').Replace('https://github.com/', ''))</RepoDisplayName>
+        <CommitSha>$(CommitHash)</CommitSha>
       </ClonedRepositoryV2>
     </ItemGroup>
   </Target>
@@ -180,12 +181,33 @@
 
   <!-- For VMR entries carrying a source manifest, emit one repo filter tag per subfolder so
        search can be scoped to the originating repo. Only /repoPath (filter) tags are added;
-       source links keep pointing at the top-level repo. -->
+       source links keep pointing at the top-level repo.
+
+       The stage1 bundle doesn't ship the VMR's src/source-manifest.json (it's not a project file),
+       so grab just that file from git at the pinned commit -- a treeless, single-file partial fetch,
+       keyed to the full dotnet-dotnet vertical's SHA (never dotnet-dotnet-windows). -->
   <Target Name="GenerateSubRepoTags" DependsOnTargets="ResolveHashV2"
           Outputs="%(ClonedRepositoryV2.Identity)">
+    <PropertyGroup>
+      <_ManifestDir>$(RepositoryPath)%(ClonedRepositoryV2.Identity)-manifest</_ManifestDir>
+    </PropertyGroup>
+    <RemoveDir Condition="'%(ClonedRepositoryV2.SubRepoManifest)' != ''"
+               Directories="$(_ManifestDir)"/>
+    <MakeDir Condition="'%(ClonedRepositoryV2.SubRepoManifest)' != ''"
+             Directories="$(_ManifestDir)"/>
+    <Exec Condition="'%(ClonedRepositoryV2.SubRepoManifest)' != ''"
+          Command="git init -q" WorkingDirectory="$(_ManifestDir)"/>
+    <Exec Condition="'%(ClonedRepositoryV2.SubRepoManifest)' != ''"
+          Command="git remote add origin %(ClonedRepositoryV2.Url).git" WorkingDirectory="$(_ManifestDir)"/>
+    <Exec Condition="'%(ClonedRepositoryV2.SubRepoManifest)' != ''"
+          Command="git -c protocol.version=2 fetch --depth 1 --filter=tree:0 origin %(ClonedRepositoryV2.CommitSha)"
+          WorkingDirectory="$(_ManifestDir)"/>
+    <Exec Condition="'%(ClonedRepositoryV2.SubRepoManifest)' != ''"
+          Command="git show %(ClonedRepositoryV2.CommitSha):%(ClonedRepositoryV2.SubRepoManifest) &gt; source-manifest.json"
+          WorkingDirectory="$(_ManifestDir)"/>
     <GenerateVmrRepoTags
         Condition="'%(ClonedRepositoryV2.SubRepoManifest)' != ''"
-        ManifestPath="$([MSBuild]::NormalizePath('%(ClonedRepositoryV2.ExtractPath)', '%(ClonedRepositoryV2.SubRepoManifest)'))"
+        ManifestPath="$([MSBuild]::NormalizePath('$(_ManifestDir)', 'source-manifest.json'))"
         SrcRoot="$([MSBuild]::NormalizePath('%(ClonedRepositoryV2.ExtractPath)', 'src'))">
       <Output TaskParameter="RepoTags" ItemName="SubRepoTag"/>
     </GenerateVmrRepoTags>
