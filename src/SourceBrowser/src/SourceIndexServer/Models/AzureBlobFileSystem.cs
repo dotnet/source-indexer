@@ -21,7 +21,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
             var clientId = Environment.GetEnvironmentVariable("AZURE_CLIENT_ID");
             credential = string.IsNullOrEmpty(clientId)
                             ? new AzureCliCredential()
-                            : new ManagedIdentityCredential(clientId);
+                            : new ManagedIdentityCredential(ManagedIdentityId.FromUserAssignedClientId(clientId));
 
             container = new BlobContainerClient(new Uri(uri),
                                                 credential);

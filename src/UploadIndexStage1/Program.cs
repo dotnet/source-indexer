@@ -84,7 +84,7 @@ namespace UploadIndexStage1
             else
             {
                 System.Console.WriteLine("Trying to use ManagedIdentityCredential with ClientID");
-                credential = new ManagedIdentityCredential(clientId);
+                credential = new ManagedIdentityCredential(ManagedIdentityId.FromUserAssignedClientId(clientId));
             }
 
             BlobServiceClient blobServiceClient = new(

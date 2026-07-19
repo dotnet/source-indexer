@@ -73,7 +73,7 @@ namespace Microsoft.SourceIndexer.Tasks
             }
             else
             {
-                credential = new ManagedIdentityCredential(ClientId);
+                credential = new ManagedIdentityCredential(ManagedIdentityId.FromUserAssignedClientId(ClientId));
             }
 
             BlobServiceClient blobServiceClient = new(
