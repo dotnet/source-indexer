@@ -329,6 +329,9 @@ function onResultsLoad() {
     ensureSearchBox();
     initRepoFilter(function () { runSearch(); });
 
+    // The pinned-note height (sticky-header offset) depends on the pane width via wrapping.
+    window.addEventListener("resize", function () { updateGroupHeaderOffset(); });
+
     if (searchBox && searchBox.value && searchBox.value.length > 2) {
         runSearch();
     }
@@ -881,6 +884,20 @@ function embedRepoFilterInNote(scope) {
 
     note.classList.add("hasFilter");
     note.appendChild(repoFilterElement);
+
+    updateGroupHeaderOffset(note);
+}
+
+// The top "N results found" note is pinned (position: sticky, top: 0). Sticky group headers must
+// sit just below it, so publish the note's rendered height as --groupHeaderTop for the CSS to use.
+// The height varies with the embedded filter dropdown and with wrapping, so recompute on resize.
+function updateGroupHeaderOffset(note) {
+    if (!note) {
+        note = document.querySelector("#symbols > .note");
+    }
+
+    var height = note ? note.getBoundingClientRect().height : 0;
+    document.documentElement.style.setProperty("--groupHeaderTop", Math.round(height) + "px");
 }
 
 // Hides/shows each project's subtree in the merged Solution Explorer (SolutionExplorer.html)
@@ -996,6 +1013,12 @@ function loadSearchResults(data) {
             // context, now that the note it was sitting in just got replaced wholesale above.
             if (typeof top.n.embedRepoFilterInNote === "function") {
                 top.n.embedRepoFilterInNote(container);
+            }
+
+            // Groups just got replaced, so re-measure the pinned note for the sticky-header offset
+            // (embedRepoFilterInNote only does this when a filter dropdown is present).
+            if (typeof top.n.updateGroupHeaderOffset === "function") {
+                top.n.updateGroupHeaderOffset();
             }
 
             if (searchBox && searchBox.value && searchBox.value.length > 2) {

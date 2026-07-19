@@ -925,9 +925,28 @@ body.resultsBody > .note {
     flex: none;
 }
 
-/* A long result line scrolls within its own group rather than widening the whole pane. */
+/* Each result group spans the full pane width (no side margins) so its header tint reads as a
+   full-width band, and the group's own vertical rhythm is preserved by the bottom margin only. */
 body.resultsBody .resultGroup {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+/* A long result line scrolls within the group's collapsible body -- not the whole group -- so the
+   header above it (which is a sibling of this scroller) stays full-width and can stick on scroll
+   instead of sliding sideways with the content. The small indent keeps items inset under the icon. */
+body.resultsBody .resultGroup > div {
     overflow-x: auto;
+    padding-left: 8px;
+}
+
+/* Project/assembly group headers float at the top of the scroll area while their items scroll past,
+   so the group a result belongs to stays labeled. They stick just below the pinned "N results"
+   note; --groupHeaderTop is that note's measured height (set in embedRepoFilterInNote). */
+body.resultsBody .resultGroupHeader {
+    position: sticky;
+    top: var(--groupHeaderTop, 0px);
+    z-index: 1;
 }
 
 /* SolutionExplorer.html: the header note and footer link stay put; the tree scrolls between. */
