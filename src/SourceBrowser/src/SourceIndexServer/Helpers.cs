@@ -17,7 +17,13 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
                 var fs = new AzureBlobFileSystem(IndexProxyUrl);
                 var props = fs.FileProperties(targetPath);
 
-                context.Response.Headers.Append("Content-Md5", Convert.ToBase64String(props.ContentHash));
+                // Blobs are not guaranteed to carry a Content-MD5 (block-uploaded blobs
+                // lack one unless azcopy is run with --put-md5), so only emit it when present.
+                if (props.ContentHash is { Length: > 0 })
+                {
+                    context.Response.Headers.Append("Content-Md5", Convert.ToBase64String(props.ContentHash));
+                }
+
                 context.Response.Headers.Append("Content-Type", props.ContentType);
                 context.Response.Headers.Append("Etag", props.ETag.ToString());
                 context.Response.Headers.Append("Last-Modified", props.LastModified.ToString("R"));
@@ -51,7 +57,13 @@ namespace Microsoft.SourceBrowser.SourceIndexServer
         {
             var path = context.Request.Path.Value;
 
-            if (!path.EndsWith(".html", StringComparison.Ordinal) && !path.EndsWith(".txt", StringComparison.Ordinal))
+            // The index also ships one generated .js per assembly -- A.files.js, the shared file
+            // list the symbol redirect (A.html) loads -- which lives only in blob storage. Everything
+            // else .js (scripts.js and other chrome) is served locally from wwwroot, so scope the
+            // proxy to just that file rather than all .js.
+            if (!path.EndsWith(".html", StringComparison.Ordinal)
+                && !path.EndsWith(".txt", StringComparison.Ordinal)
+                && !path.EndsWith(".files.js", StringComparison.Ordinal))
             {
                 await next().ConfigureAwait(false);
                 return;
