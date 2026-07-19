@@ -699,14 +699,14 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             return assembly.GetName().Version?.ToString() ?? "unknown";
         }
 
-        // The generated site can run either through SourceIndexServer (which serves wwwroot/scripts.js
-        // as its baseline, byte-identical to the checked-in template) or as pure static files, where
-        // the copy under index/ -- and, at runtime, SourceIndexServer's own RootPath handler, which is
-        // registered ahead of its wwwroot handler -- is what's actually served. Both toggles below
-        // used to independently re-read wwwroot/scripts.js and overwrite index/scripts.js, which meant
-        // combining them (a federation alongside /showBranding) silently discarded whichever ran first.
-        // They're composed into one read-modify sequence here so any combination of flags ends up in
-        // the final file.
+        // scripts.js exists in two places in the generated output: wwwroot/ (the byte-identical checked-in
+        // template) and index/ (the finalized site under RootPath). The federation and /showBranding toggles
+        // below both read wwwroot/scripts.js and rewrite the placeholders. They must be written back to BOTH
+        // copies: SourceIndexServer's RootPath handler serves index/scripts.js when reachable, but the proxy
+        // deployment (Helpers.ServeProxiedIndex) deliberately serves scripts.js and the other chrome locally
+        // from wwwroot -- so writing only index/scripts.js let /showBranding (and federation URLs) silently
+        // fall back to the un-rewritten wwwroot copy on source.dot.net. Composed into one read-modify sequence
+        // so any combination of flags ends up in both files.
         private static void ApplyScriptsJsCustomizations(string destinationFolder, Federation federation, bool showBranding)
         {
             var source = Path.Combine(destinationFolder, "wwwroot/scripts.js");
@@ -745,8 +745,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
             if (changed)
             {
-                var dst = Path.Combine(destinationFolder, "index/scripts.js");
-                File.WriteAllText(dst, text);
+                File.WriteAllText(source, text);
+                File.WriteAllText(Path.Combine(destinationFolder, "index/scripts.js"), text);
             }
         }
     }
