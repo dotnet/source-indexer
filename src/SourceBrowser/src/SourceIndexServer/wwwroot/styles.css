@@ -73,9 +73,9 @@ body {
 .navFrame {
     flex: none;
     width: 504px;
+    min-width: 200px;
     height: 100%;
     border: 0;
-    border-right: 1px solid var(--color-pane-border);
 }
 
 .contentFrame {
@@ -83,6 +83,29 @@ body {
     min-width: 0;
     height: 100%;
     border: 0;
+}
+
+/* Draggable divider between the side-by-side panes (desktop only -- hidden in
+   the single-pane mobile layout below). Doubles as the visual border the
+   navFrame used to own. initPaneResizer() in scripts.js sets navFrame's width
+   from a drag here. */
+.paneResizer {
+    flex: none;
+    width: 6px;
+    height: 100%;
+    background: var(--color-pane-border);
+    cursor: col-resize;
+}
+
+.paneResizer:hover,
+body.resizingPanes .paneResizer {
+    background: var(--color-selection);
+}
+
+/* While dragging, the cursor passes over the iframes; disabling their pointer
+   events keeps mousemove flowing to the top document driving the resize. */
+body.resizingPanes iframe {
+    pointer-events: none;
 }
 
 /* On narrow screens show one pane at a time instead of a 504px nav pane
@@ -111,6 +134,11 @@ body {
     }
 
     .navFrame {
+        display: none;
+    }
+
+    /* The splitter only makes sense in the side-by-side layout. */
+    .paneResizer {
         display: none;
     }
 
@@ -859,6 +887,59 @@ a i {
     background-size: 10px 6px;
 }
 
+/* Keep the note strips -- the repo filter dropdown, "N results found:", "Generated in X ms",
+   and the "Try also browsing" footer link -- pinned and visible, and scroll only the result
+   list/tree between them. Without this a single long result line widens the page and pushes the
+   dropdown off-screen, forcing a horizontal scroll just to reach the filter. Applies to the two
+   nav-frame pages that carry the filter: results.html and SolutionExplorer.html. */
+body.resultsBody,
+body.solutionExplorerBody {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* results.html: #symbols holds the (sticky) note strips and the scrolling result groups. The
+   footer "solution explorer" link is a sibling below it and stays put on its own. */
+body.resultsBody #symbols {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+body.resultsBody #symbols > .note:first-child {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+body.resultsBody #symbols > .note:last-child {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+}
+
+body.resultsBody > .note {
+    flex: none;
+}
+
+/* A long result line scrolls within its own group rather than widening the whole pane. */
+body.resultsBody .resultGroup {
+    overflow-x: auto;
+}
+
+/* SolutionExplorer.html: the header note and footer link stay put; the tree scrolls between. */
+body.solutionExplorerBody > .note {
+    flex: none;
+}
+
+body.solutionExplorerBody #rootFolder {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+}
 /* Hides a Solution Explorer project subtree that doesn't match the selected repo filter (see
    filterSolutionExplorerByRepo in scripts.js). A class rather than inline display is used so this
    doesn't fight with the folder expand/collapse logic, which also toggles display on the same

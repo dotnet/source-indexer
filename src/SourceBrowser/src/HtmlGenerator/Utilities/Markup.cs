@@ -359,7 +359,7 @@ Don't use this page directly, pass #symbolId to get redirected.
 <link rel=""stylesheet"" href=""styles.css"" />
 <script src=""scripts.js""></script>
 </head>
-<body onload=""onResultsLoad();"">
+<body class=""resultsBody"" onload=""onResultsLoad();"">
 <select id=""repo-filter"" style=""display:none"" aria-label=""Filter search to a repo""></select>
 <div id=""symbols"" aria-live=""polite"">
 <div class=""note"">
