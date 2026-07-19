@@ -45,6 +45,9 @@
         public static readonly string ClassificationPunctuation = "punctuation";
         public static readonly string ProjectExplorer = "ProjectExplorer";
         public static readonly string SolutionExplorer = "SolutionExplorer";
+        // Per-project file subtree the merged Solution Explorer defers and the client fetches on
+        // first expand (see SolutionFinalizer.WriteProject), written alongside ProjectExplorer.html.
+        public static readonly string SolutionExplorerFragment = "SolutionExplorerFragment.html";
         public static readonly string HuffmanFileName = "Huffman.txt";
         public static readonly string TopReferencedAssemblies = "TopReferencedAssemblies";
         public static readonly string BaseMembersFileName = "BaseMembers";

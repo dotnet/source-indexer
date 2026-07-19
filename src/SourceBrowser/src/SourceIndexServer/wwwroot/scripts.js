@@ -1679,6 +1679,36 @@ function expandCollapseFolder(capturedFolder, capturedPlusMinus, capturedFolderI
                 capturedFolderImage.src = pathToIcons + openFolderIcon;
             }
 
+            // A project whose file subtree was deferred (see SolutionFinalizer.WriteProject) carries a
+            // data-src instead of inline children. Fetch and inject it on first expand, then wire the
+            // injected subtree the same way makeFoldersCollapsible does the initial document.
+            var deferredSrc = capturedFolder.getAttribute ? capturedFolder.getAttribute("data-src") : null;
+            if (deferredSrc && !capturedFolder.everExpanded) {
+                capturedFolder.everExpanded = true;
+                var initFn = capturedFolder.initialize;
+                capturedFolder.initialize = null;
+                fetch(deferredSrc)
+                    .then(function (r) { return r.ok ? r.text() : ""; })
+                    .then(function (html) {
+                        capturedFolder.innerHTML = html;
+                        var nested = capturedFolder.querySelectorAll(".folder");
+                        for (var j = 0; j < nested.length; j++) {
+                            nested[j].style.display = "none";
+                            nested[j].initialize = initFn;
+                        }
+                        if (initFn) {
+                            initFn(capturedFolder);
+                        }
+                        for (var k = 0; k < capturedFolder.children.length; k++) {
+                            if (capturedFolder.children[k].className === 'folder') {
+                                addImagesToFolder(capturedFolder.children[k], folderIcon, openFolderIcon, pathToIcons);
+                            }
+                        }
+                    });
+                capturedFolder.style.display = 'block';
+                return;
+            }
+
             if (capturedFolder.initialize) {
                 capturedFolder.initialize(capturedFolder);
                 capturedFolder.initialize = null;

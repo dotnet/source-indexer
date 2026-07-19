@@ -1,5 +1,7 @@
 ﻿using System;
 using System.IO;
+using System.Net;
+using System.Text;
 using Microsoft.SourceBrowser.Common;
 using Folder = Microsoft.SourceBrowser.HtmlGenerator.Folder<Microsoft.SourceBrowser.HtmlGenerator.ProjectSkeleton>;
 
@@ -88,9 +90,84 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         private void WriteProject(string assemblyName, string repoName, StreamWriter writer)
         {
             var projectExplorerText = GetProjectExplorerText(assemblyName, repoName);
-            if (!string.IsNullOrEmpty(projectExplorerText))
+            if (string.IsNullOrEmpty(projectExplorerText))
             {
-                writer.WriteLine(projectExplorerText);
+                return;
+            }
+
+            // Split the project's title row from its file subtree and write the subtree to a
+            // per-project fragment the client fetches on first expand (see expandCollapseFolder in
+            // scripts.js). The Solution Explorer document then carries only the repo/solution/project
+            // skeleton, so a large index no longer forces the browser to parse -- and build collapsed
+            // DOM for -- every project's whole file tree up front. Projects with no subtree, or any
+            // that don't split cleanly, fall back to being written inline exactly as before.
+            if (TrySplitProjectSubtree(projectExplorerText, out var titleHtml, out var folderOpenTag, out var subtreeInner)
+                && TryWriteProjectSubtreeFragment(assemblyName, subtreeInner, out var fragmentSrc))
+            {
+                writer.Write(titleHtml);
+                writer.Write(folderOpenTag.Insert(folderOpenTag.Length - 1, " data-src=\"" + WebUtility.HtmlEncode(fragmentSrc) + "\""));
+                writer.WriteLine("</div>");
+                return;
+            }
+
+            writer.WriteLine(projectExplorerText);
+        }
+
+        // GetProjectExplorerText returns a project title div immediately followed by its file-tree
+        // folder div: <div class="projectCSInSolution" ...>Name</div><div class="folder" ...>INNER</div>.
+        // Peel those apart so the title (and its data-repo hook) can stay inline while INNER is deferred.
+        private static bool TrySplitProjectSubtree(string html, out string titleHtml, out string folderOpenTag, out string subtreeInner)
+        {
+            titleHtml = folderOpenTag = subtreeInner = null;
+
+            const string closeTag = "</div>";
+            var titleEnd = html.IndexOf(closeTag, StringComparison.Ordinal);
+            if (titleEnd < 0)
+            {
+                return false;
+            }
+
+            titleEnd += closeTag.Length;
+            var folderOpen = html.IndexOf("<div", titleEnd, StringComparison.Ordinal);
+            if (folderOpen < 0)
+            {
+                return false;
+            }
+
+            var folderOpenEnd = html.IndexOf('>', folderOpen);
+            var lastClose = html.LastIndexOf(closeTag, StringComparison.Ordinal);
+            if (folderOpenEnd < 0 || lastClose <= folderOpenEnd)
+            {
+                return false;
+            }
+
+            var inner = html.Substring(folderOpenEnd + 1, lastClose - (folderOpenEnd + 1));
+            if (inner.Trim().Length == 0)
+            {
+                return false;
+            }
+
+            titleHtml = html.Substring(0, titleEnd);
+            folderOpenTag = html.Substring(folderOpen, folderOpenEnd - folderOpen + 1);
+            subtreeInner = inner;
+            return true;
+        }
+
+        private bool TryWriteProjectSubtreeFragment(string assemblyName, string subtreeInner, out string fragmentSrc)
+        {
+            fragmentSrc = assemblyName + "/" + Constants.SolutionExplorerFragment;
+            try
+            {
+                File.WriteAllText(
+                    Path.Combine(SolutionDestinationFolder, assemblyName, Constants.SolutionExplorerFragment),
+                    subtreeInner,
+                    Encoding.UTF8);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, "Failed writing Solution Explorer fragment for " + assemblyName);
+                return false;
             }
         }
 
