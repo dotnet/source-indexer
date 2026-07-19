@@ -41,9 +41,9 @@
     <PackageVersion Include="Shouldly" Version="4.3.0" />
 
     <!-- other dependencies -->
-    <PackageVersion Include="Basic.CompilerLog.Util" Version="0.9.19" />
+    <PackageVersion Include="Basic.CompilerLog.Util" Version="0.9.47" />
     <PackageVersion Include="LibGit2Sharp" Version="0.31.0" />
-    <PackageVersion Include="MSBuild.StructuredLogger" Version="2.3.113" />
+    <PackageVersion Include="MSBuild.StructuredLogger" Version="2.3.213" />
     <PackageVersion Include="ManagedEsent" Version="2.0.0" />
     <PackageVersion Include="System.Composition" Version="10.0.7" />
     <PackageVersion Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />
@@ -66,7 +66,7 @@
     <PackageVersion Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.7" />
     <PackageVersion Include="Microsoft.Extensions.Logging.AzureAppServices" Version="10.0.7" />
     <PackageVersion Include="System.Resources.Extensions" Version="10.0.7" />
-    <PackageVersion Include="System.Collections.Immutable" Version="10.0.7" />
+    <PackageVersion Include="System.Collections.Immutable" Version="10.0.9" />
     <PackageVersion Include="System.Text.Encodings.Web" Version="10.0.7" />
     <PackageVersion Include="System.Text.Json" Version="10.0.7" />
     <PackageVersion Include="System.Configuration.ConfigurationManager" Version="10.0.7" />
@@ -78,9 +78,9 @@
       <PackageVersion Include="Azure.Identity" Version="1.17.1" />
       <PackageVersion Include="Azure.Storage.Blobs" Version="12.24.1" />
       <PackageVersion Include="Mono.Options" Version="6.12.0.148" />
-      <PackageVersion Include="NuGet.Frameworks" Version="6.13.1" />
+      <PackageVersion Include="NuGet.Frameworks" Version="7.6.0" />
       <PackageVersion Include="SharpZipLib" Version="1.4.2" />
-      <PackageVersion Include="System.Reflection.Metadata" Version="10.0.7" />
+      <PackageVersion Include="System.Reflection.Metadata" Version="10.0.9" />
   </ItemGroup>
 
 </Project>

@@ -12,9 +12,9 @@
   <ItemGroup>
     <PackageReference Include="Basic.CompilerLog.Util" />
     <PackageReference Include="LibGit2Sharp" />
+    <PackageReference Include="Microsoft.CodeAnalysis" />
     <PackageReference Include="Mono.Options" />
     <PackageReference Include="NuGet.Frameworks" />
-    <PackageReference Include="System.Reflection.Metadata" />
   </ItemGroup>
 
   <ItemGroup>
