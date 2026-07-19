@@ -7,10 +7,10 @@
 
   <ItemGroup>
     <!-- msbuild-->
-    <PackageVersion Include="Microsoft.Build.Framework" Version="18.7.1" />
-    <PackageVersion Include="Microsoft.Build.Tasks.Core" Version="18.7.1" />
-    <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="18.7.1" />
-    <PackageVersion Include="Microsoft.Build" Version="18.7.1" />
+    <PackageVersion Include="Microsoft.Build.Framework" Version="18.8.2" />
+    <PackageVersion Include="Microsoft.Build.Tasks.Core" Version="18.8.2" />
+    <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="18.8.2" />
+    <PackageVersion Include="Microsoft.Build" Version="18.8.2" />
 
     <!-- roslyn -->
     <PackageVersion Include="Microsoft.CodeAnalysis" Version="5.6.0" />
@@ -28,13 +28,13 @@
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="5.6.0" />
 
     <!-- test dependencies -->
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
-    <PackageVersion Include="MSTest.TestAdapter" Version="4.0.2" />
-    <PackageVersion Include="MSTest.TestFramework" Version="4.0.2" />
-    <PackageVersion Include="Selenium.WebDriver" Version="3.14.0" />
-    <PackageVersion Include="coverlet.collector" Version="1.2.0" />
-    <PackageVersion Include="nunit" Version="3.12.0" />
-    <PackageVersion Include="NUnit3TestAdapter" Version="3.15.1" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageVersion Include="MSTest.TestAdapter" Version="4.3.2" />
+    <PackageVersion Include="MSTest.TestFramework" Version="4.3.2" />
+    <PackageVersion Include="Selenium.WebDriver" Version="4.46.0" />
+    <PackageVersion Include="coverlet.collector" Version="10.0.1" />
+    <PackageVersion Include="nunit" Version="4.6.1" />
+    <PackageVersion Include="NUnit3TestAdapter" Version="6.2.0" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
@@ -45,7 +45,7 @@
     <PackageVersion Include="LibGit2Sharp" Version="0.31.0" />
     <PackageVersion Include="MSBuild.StructuredLogger" Version="2.3.213" />
     <PackageVersion Include="ManagedEsent" Version="2.0.0" />
-    <PackageVersion Include="System.Composition" Version="10.0.7" />
+    <PackageVersion Include="System.Composition" Version="10.0.10" />
     <PackageVersion Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />
 
     <PackageVersion Include="System.Buffers" Version="4.6.1" />
@@ -55,32 +55,32 @@
     <PackageVersion Include="System.ValueTuple" Version="4.6.2" />
 
     <PackageVersion Include="Microsoft.Build.Locator" Version="1.11.2" />
-    <PackageVersion Include="Microsoft.NET.StringTools" Version="18.7.1" />
+    <PackageVersion Include="Microsoft.NET.StringTools" Version="18.8.2" />
     <PackageVersion Include="Microsoft.VisualStudio.Language.Intellisense" Version="17.14.249" />
     <PackageVersion Include="Microsoft.VisualStudio.SolutionPersistence" Version="1.0.52" />
-    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.301" />
 
-    <PackageVersion Include="GuiLabs.Language.Xml" Version="1.2.93" />
+    <PackageVersion Include="GuiLabs.Language.Xml" Version="1.2.119" />
 
-    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.7" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.7" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.AzureAppServices" Version="10.0.7" />
-    <PackageVersion Include="System.Resources.Extensions" Version="10.0.7" />
-    <PackageVersion Include="System.Collections.Immutable" Version="10.0.9" />
-    <PackageVersion Include="System.Text.Encodings.Web" Version="10.0.7" />
-    <PackageVersion Include="System.Text.Json" Version="10.0.7" />
-    <PackageVersion Include="System.Configuration.ConfigurationManager" Version="10.0.7" />
-    <PackageVersion Include="System.Threading.Tasks.Dataflow" Version="10.0.7" />
+    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.AzureAppServices" Version="10.0.10" />
+    <PackageVersion Include="System.Resources.Extensions" Version="10.0.10" />
+    <PackageVersion Include="System.Collections.Immutable" Version="10.0.10" />
+    <PackageVersion Include="System.Text.Encodings.Web" Version="10.0.10" />
+    <PackageVersion Include="System.Text.Json" Version="10.0.10" />
+    <PackageVersion Include="System.Configuration.ConfigurationManager" Version="10.0.10" />
+    <PackageVersion Include="System.Threading.Tasks.Dataflow" Version="10.0.10" />
   </ItemGroup>
   
   <!-- dependencies for dotnet/source-browser projects -->
   <ItemGroup>
-      <PackageVersion Include="Azure.Identity" Version="1.17.1" />
-      <PackageVersion Include="Azure.Storage.Blobs" Version="12.24.1" />
+      <PackageVersion Include="Azure.Identity" Version="1.21.0" />
+      <PackageVersion Include="Azure.Storage.Blobs" Version="12.29.1" />
       <PackageVersion Include="Mono.Options" Version="6.12.0.148" />
       <PackageVersion Include="NuGet.Frameworks" Version="7.6.0" />
       <PackageVersion Include="SharpZipLib" Version="1.4.2" />
-      <PackageVersion Include="System.Reflection.Metadata" Version="10.0.9" />
+      <PackageVersion Include="System.Reflection.Metadata" Version="10.0.10" />
   </ItemGroup>
 
 </Project>

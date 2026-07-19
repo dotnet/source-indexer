@@ -84,7 +84,7 @@ namespace Microsoft.SourceIndexer.Tasks
             Pageable<BlobItem> blobs;
             try
             {
-                blobs = containerClient.GetBlobs(prefix: RepoName + "/");
+                blobs = containerClient.GetBlobs(traits: BlobTraits.None, states: BlobStates.None, prefix: RepoName + "/", cancellationToken: default);
             }
             catch (AuthenticationFailedException e)
             {

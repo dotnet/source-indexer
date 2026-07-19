@@ -41,7 +41,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
                 dirName += "/";
             }
 
-            return container.GetBlobsByHierarchy(prefix: dirName)
+            return container.GetBlobsByHierarchy(traits: BlobTraits.None, states: BlobStates.None, delimiter: null, prefix: dirName)
                 .Where(item => item.IsBlob)
                 .Select(item => item.Blob.Name)
                 .ToList();

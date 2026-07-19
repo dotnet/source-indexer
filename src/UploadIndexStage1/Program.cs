@@ -142,7 +142,7 @@ namespace UploadIndexStage1
             }
 
             Console.WriteLine("Cleaning up old blobs");
-            List<BlobItem> blobs = containerClient.GetBlobs(prefix: repoName + "/").ToList();
+            List<BlobItem> blobs = containerClient.GetBlobs(traits: BlobTraits.None, states: BlobStates.None, prefix: repoName + "/", cancellationToken: default).ToList();
             List<BlobItem> toDelete = blobs.OrderByDescending(b => b.Name).Skip(10).ToList();
             foreach (BlobItem d in toDelete)
             {
