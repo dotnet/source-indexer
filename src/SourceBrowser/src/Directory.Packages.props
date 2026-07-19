@@ -46,12 +46,7 @@
     <PackageVersion Include="MSBuild.StructuredLogger" Version="2.3.213" />
     <PackageVersion Include="ManagedEsent" Version="2.0.0" />
     <PackageVersion Include="System.Composition" Version="10.0.10" />
-    <PackageVersion Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />
 
-    <PackageVersion Include="System.Buffers" Version="4.6.1" />
-    <PackageVersion Include="System.Memory" Version="4.6.3" />
-    <PackageVersion Include="System.Numerics.Vectors" Version="4.6.1" />
-    <PackageVersion Include="System.Threading.Tasks.Extensions" Version="4.6.3" />
     <PackageVersion Include="System.ValueTuple" Version="4.6.2" />
 
     <PackageVersion Include="Microsoft.Build.Locator" Version="1.11.2" />
@@ -67,10 +62,8 @@
     <PackageVersion Include="Microsoft.Extensions.Logging.AzureAppServices" Version="10.0.10" />
     <PackageVersion Include="System.Resources.Extensions" Version="10.0.10" />
     <PackageVersion Include="System.Collections.Immutable" Version="10.0.10" />
-    <PackageVersion Include="System.Text.Encodings.Web" Version="10.0.10" />
     <PackageVersion Include="System.Text.Json" Version="10.0.10" />
     <PackageVersion Include="System.Configuration.ConfigurationManager" Version="10.0.10" />
-    <PackageVersion Include="System.Threading.Tasks.Dataflow" Version="10.0.10" />
   </ItemGroup>
   
   <!-- dependencies for dotnet/source-browser projects -->

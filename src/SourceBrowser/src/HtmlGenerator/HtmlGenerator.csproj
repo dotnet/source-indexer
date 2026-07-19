@@ -43,18 +43,8 @@
     <PackageReference Include="Microsoft.Build.Utilities.Core" ExcludeAssets="runtime" />
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" />
     <PackageReference Include="Microsoft.NET.StringTools" ExcludeAssets="runtime" />
-    <PackageReference Include="System.Buffers" />
-    <PackageReference Include="System.Collections.Immutable" />
     <PackageReference Include="System.Configuration.ConfigurationManager" />
-    <PackageReference Include="System.Memory" />
-    <PackageReference Include="System.Numerics.Vectors" />
-    <PackageReference Include="System.Reflection.Metadata" />
     <PackageReference Include="System.Resources.Extensions" />
-    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" />
-    <PackageReference Include="System.Text.Encodings.Web" />
-    <PackageReference Include="System.Text.Json" />
-    <PackageReference Include="System.Threading.Tasks.Dataflow" />
-    <PackageReference Include="System.Threading.Tasks.Extensions" />
     <PackageReference Include="System.ValueTuple" />
 
     <PackageReference Include="Microsoft.CodeAnalysis" />
