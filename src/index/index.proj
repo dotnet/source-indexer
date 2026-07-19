@@ -184,7 +184,7 @@
        source links keep pointing at the top-level repo.
 
        The stage1 bundle doesn't ship the VMR's src/source-manifest.json (it's not a project file),
-       so grab just that file from git at the pinned commit -- a treeless, single-file partial fetch,
+       so grab just that file from git at the pinned commit: a treeless, single-file partial fetch,
        keyed to the full dotnet-dotnet vertical's SHA (never dotnet-dotnet-windows). -->
   <Target Name="GenerateSubRepoTags" DependsOnTargets="ResolveHashV2"
           Outputs="%(ClonedRepositoryV2.Identity)">
