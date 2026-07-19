@@ -110,7 +110,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             IReadOnlyDictionary<string, IReadOnlyList<string>> configsByAssembly = null)
         {
             SortProcessedAssemblies();
-            WriteSolutionExplorer(solutionExplorerRoot);
+            WriteSolutionExplorer(emitAssemblyList, solutionExplorerRoot);
             CreateReferencesFiles(additionalReferencedSymbolIdsByAssembly, mergedDivergentReferencesByAssembly, configsByAssembly);
             CreateMasterDeclarationsIndex();
             CreateProjectMap();

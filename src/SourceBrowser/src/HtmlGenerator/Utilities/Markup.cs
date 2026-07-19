@@ -291,9 +291,15 @@ Don't use this page directly, pass #symbolId to get redirected.
 <div id=""rootFolder"" style=""display: none;"" class=""folderTitle"">");
         }
 
-        public static void WriteSolutionExplorerSuffix(TextWriter writer)
+        public static void WriteSolutionExplorerSuffix(TextWriter writer, bool emitAssemblyList)
         {
-            writer.WriteLine("</div><script>onSolutionExplorerLoad();</script></body></html>");
+            // Reciprocal of the "solution explorer" link on the assembly list (results.html); only
+            // emitted when that list was generated, so it never points at an empty results page.
+            var assemblyListLink = emitAssemblyList
+                ? @"<div class=""note"">Try also browsing the <a href=""results.html"" class=""blueLink"">assembly list</a>.</div>"
+                : null;
+
+            writer.WriteLine("</div>" + assemblyListLink + "<script>onSolutionExplorerLoad();</script></body></html>");
         }
 
         public static void WriteNamespaceExplorerPrefix(string assemblyName, StreamWriter sw, string pathPrefix = "")
@@ -357,7 +363,7 @@ Don't use this page directly, pass #symbolId to get redirected.
 <select id=""repo-filter"" style=""display:none"" aria-label=""Filter search to a repo""></select>
 <div id=""symbols"" aria-live=""polite"">
 <div class=""note"">
-Enter a type or member name or <a href=""/#q=assembly%20"" target=""_top"" class=""blueLink"" onclick=""populateSearchBox('assembly '); return false;"">filter the assembly list</a>.
+Enter a type or member name.
 </div>
 <div class=""resultGroup"">
 ";

@@ -7,7 +7,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 {
     public partial class SolutionFinalizer
     {
-        private void WriteSolutionExplorer(Folder root = null)
+        private void WriteSolutionExplorer(bool emitAssemblyList, Folder root = null)
         {
             if (root == null)
             {
@@ -21,7 +21,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 Log.Write("Solution Explorer...");
                 Markup.WriteSolutionExplorerPrefix(writer);
                 WriteFolder(root, writer);
-                Markup.WriteSolutionExplorerSuffix(writer);
+                Markup.WriteSolutionExplorerSuffix(writer, emitAssemblyList);
             }
         }
 

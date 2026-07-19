@@ -133,7 +133,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     // existed. Finalization happens directly, exactly as today -- this is what makes the
                     // no-config case trivially byte-identical (the code path is literally untouched).
                     FinalizeProjects(options.EmitAssemblyList, federation);
-                    WebsiteFinalizer.Finalize(runOutputRoot, options.EmitAssemblyList, federation, options.ShowBranding);
+                    WebsiteFinalizer.Finalize(runOutputRoot, federation, options.ShowBranding);
                 }
                 else
                 {
@@ -239,7 +239,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     // as the default/no-config path would, straight into the shared "index/".
                     Paths.SolutionDestinationFolder = Path.Combine(outRoot, "obj", configs[0]);
                     FinalizeProjects(emitAssemblyList, federation);
-                    WebsiteFinalizer.Finalize(outRoot, emitAssemblyList, federation, showBranding);
+                    WebsiteFinalizer.Finalize(outRoot, federation, showBranding);
                     return;
                 }
 
@@ -256,7 +256,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     StringComparer.Ordinal);
 
                 ConfigAwareProjectFinalizer.Finalize(configObjRoots, Paths.WebsiteDestinationFolder, emitAssemblyList, federation, axisTagsByConfig);
-                WebsiteFinalizer.Finalize(outRoot, emitAssemblyList, federation, showBranding);
+                WebsiteFinalizer.Finalize(outRoot, federation, showBranding);
             });
         }
 
@@ -595,7 +595,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
     internal static class WebsiteFinalizer
     {
-        public static void Finalize(string destinationFolder, bool emitAssemblyList, Federation federation, bool showBranding)
+        public static void Finalize(string destinationFolder, Federation federation, bool showBranding)
         {
             string sourcePath = Assembly.GetEntryAssembly().Location;
             sourcePath = Path.GetDirectoryName(sourcePath);
@@ -611,7 +611,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
             StampOverviewHtmlWithDate(destinationFolder);
 
-            ApplyScriptsJsCustomizations(destinationFolder, emitAssemblyList, federation, showBranding);
+            ApplyScriptsJsCustomizations(destinationFolder, federation, showBranding);
         }
 
         private static void StampOverviewHtmlWithDate(string destinationFolder)
@@ -702,12 +702,12 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         // The generated site can run either through SourceIndexServer (which serves wwwroot/scripts.js
         // as its baseline, byte-identical to the checked-in template) or as pure static files, where
         // the copy under index/ -- and, at runtime, SourceIndexServer's own RootPath handler, which is
-        // registered ahead of its wwwroot handler -- is what's actually served. All three toggles below
+        // registered ahead of its wwwroot handler -- is what's actually served. Both toggles below
         // used to independently re-read wwwroot/scripts.js and overwrite index/scripts.js, which meant
-        // combining more than one (e.g. /assemblylist with a federation, or either alongside
-        // /showBranding) silently discarded whichever ran first. They're composed into one read-modify
-        // sequence here so any combination of flags ends up in the final file.
-        private static void ApplyScriptsJsCustomizations(string destinationFolder, bool emitAssemblyList, Federation federation, bool showBranding)
+        // combining them (a federation alongside /showBranding) silently discarded whichever ran first.
+        // They're composed into one read-modify sequence here so any combination of flags ends up in
+        // the final file.
+        private static void ApplyScriptsJsCustomizations(string destinationFolder, Federation federation, bool showBranding)
         {
             var source = Path.Combine(destinationFolder, "wwwroot/scripts.js");
             if (!File.Exists(source))
@@ -717,12 +717,6 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
             var text = File.ReadAllText(source);
             var changed = false;
-
-            if (emitAssemblyList)
-            {
-                text = text.Replace("/*USE_SOLUTION_EXPLORER*/true/*USE_SOLUTION_EXPLORER*/", "false");
-                changed = true;
-            }
 
             var sb = new StringBuilder();
             foreach (var server in federation.GetServers())
