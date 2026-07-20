@@ -1,4 +1,4 @@
-﻿<Project>
+<Project>
 
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
 
@@ -6,6 +6,10 @@
     <AnalysisLevel>5</AnalysisLevel>
     <LangVersion>latest</LangVersion>
     <DefineConstants Condition="'$(EnableDebugLogging)' == 'true'">$(DefineConstants);DEBUG_LOGGING</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <NuGetVersion>1.0.47</NuGetVersion>
   </PropertyGroup>
 
 </Project>
