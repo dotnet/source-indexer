@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Linq;
 using Microsoft.SourceBrowser.Common;
 using Microsoft.VisualStudio.TestTools.UnitTesting;

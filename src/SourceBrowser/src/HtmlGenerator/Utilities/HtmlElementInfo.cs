@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
 
 namespace Microsoft.SourceBrowser.HtmlGenerator

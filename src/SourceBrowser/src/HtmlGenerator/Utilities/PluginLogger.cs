@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.SourceBrowser.Common;
 
 namespace Microsoft.SourceBrowser.HtmlGenerator.Utilities

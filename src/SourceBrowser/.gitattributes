@@ -1,6 +1,17 @@
 ###############################################################################
-# Don't mess with my line endings.
+# Normalize line endings: check in as LF, check out native.
 ###############################################################################
-* -text
+* text=auto
+
+# Windows batch scripts require CRLF.
+*.cmd text eol=crlf
+
+# Binary assets -- never normalize.
+*.png binary
+*.ico binary
+*.dll binary
+*.snk binary
+
+# Keep vendored files out of language stats.
 src/HtmlGenerator/TypeScriptSupport/analyzer.js linguist-vendored
 src/HtmlGenerator/TypeScriptSupport/lib.d.ts linguist-vendored

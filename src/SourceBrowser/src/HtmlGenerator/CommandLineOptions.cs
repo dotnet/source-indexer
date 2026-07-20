@@ -1,4 +1,4 @@
-﻿using Microsoft.SourceBrowser.Common;
+using Microsoft.SourceBrowser.Common;
 using System;
 using System.Collections.Generic;
 using System.IO;

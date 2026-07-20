@@ -1,4 +1,4 @@
-﻿using Microsoft.Build.Evaluation;
+using Microsoft.Build.Evaluation;
 using Microsoft.VisualStudio.SolutionPersistence;
 using Microsoft.VisualStudio.SolutionPersistence.Model;
 using Microsoft.VisualStudio.SolutionPersistence.Serializer;

@@ -1,4 +1,4 @@
-﻿namespace TestSolution
+namespace TestSolution
 {
     /// <summary>
     /// Demonstrates the multi-config (#104) feature: this file's body differs by the

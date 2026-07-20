@@ -1,4 +1,4 @@
-﻿Module M
+Module M
     Sub S()
         Dim a As Object()
         a = New Object() {}

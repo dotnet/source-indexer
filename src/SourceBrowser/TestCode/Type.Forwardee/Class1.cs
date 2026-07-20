@@ -1,4 +1,4 @@
-﻿namespace System.Test
+namespace System.Test
 {
     public class ClassType
     {

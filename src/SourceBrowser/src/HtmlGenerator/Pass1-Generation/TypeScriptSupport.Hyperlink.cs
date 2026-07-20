@@ -1,4 +1,4 @@
-﻿namespace Microsoft.SourceBrowser.HtmlGenerator
+namespace Microsoft.SourceBrowser.HtmlGenerator
 {
     public class Hyperlink
     {
