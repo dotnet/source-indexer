@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Microsoft.Extensions.FileProviders;
 using Microsoft.SourceBrowser.Common;
 using Microsoft.SourceBrowser.SourceIndexServer;
 using Microsoft.SourceBrowser.SourceIndexServer.Models;

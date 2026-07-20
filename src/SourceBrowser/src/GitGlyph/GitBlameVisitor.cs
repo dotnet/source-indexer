@@ -1,10 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using LibGit2Sharp;
 using Microsoft.SourceBrowser.MEF;
-using System.Runtime.ExceptionServices;
 
 namespace GitGlyph
 {
@@ -78,7 +77,6 @@ namespace GitGlyph
         /// Cache used to memoize the GetBlame method.
         /// </summary>
         private readonly Dictionary<string, IEnumerable<BlameHunk>> getBlameResultCache = new Dictionary<string, IEnumerable<BlameHunk>>();
-        [HandleProcessCorruptedStateExceptions]
         private IEnumerable<BlameHunk> GetBlame(string path)
         {
             if (!getBlameResultCache.TryGetValue(path, out IEnumerable<BlameHunk> result))
