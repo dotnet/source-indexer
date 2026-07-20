@@ -1,3 +1,7 @@
+using Microsoft.Build.Locator;
+using Microsoft.CodeAnalysis;
+using Microsoft.SourceBrowser.BinLogParser;
+using Microsoft.SourceBrowser.Common;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -11,23 +15,27 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Build.Locator;
-using Microsoft.CodeAnalysis;
-using Microsoft.SourceBrowser.BinLogParser;
-using Microsoft.SourceBrowser.Common;
 
 namespace Microsoft.SourceBrowser.HtmlGenerator
 {
     public class Program
     {
+        private static readonly bool VerboseAssemblyDiagnostics =
+            Environment.GetEnvironmentVariable("SOURCEBROWSER_ASSEMBLY_DIAGNOSTICS") == "1";
+
         private static async Task<int> Main(string[] args)
         {
-            AppDomain.CurrentDomain.AssemblyLoad += (s, e) =>
+            if (VerboseAssemblyDiagnostics)
             {
-                Console.WriteLine($"Assembly Load: {e.LoadedAssembly.GetName().Name} from {e.LoadedAssembly.Location}");
-            };
-            // This loads the real MSBuild from the toolset so that all targets and SDKs can be found
-            // as if a real build is happening
+                AppDomain.CurrentDomain.AssemblyLoad += (s, e) =>
+                {
+                    Console.WriteLine($"Assembly Load: {e.LoadedAssembly.GetName().Name} from {e.LoadedAssembly.Location}");
+                };
+            }
+
+            // Load the real MSBuild from the toolset so that all targets and SDKs can be found as
+            // if a real build is happening. Register here, before the JIT compiles RealMain (which
+            // pulls in MSBuild types), so the assembly resolver is installed in time.
             MSBuildLocator.RegisterDefaults();
             return await RealMain(args);
         }
@@ -53,14 +61,17 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 return 1;
             }
 
-            var msbuildAssembly = typeof(Project).Assembly;
-            var version = FileVersionInfo.GetVersionInfo(msbuildAssembly.Location);
-            Console.WriteLine($"Using msbuild version {version.FileVersion} from {msbuildAssembly.Location}");
-            Console.WriteLine();
-            var msbuildDir = Path.GetDirectoryName(msbuildAssembly.Location);
-            foreach (var dll in Directory.EnumerateFiles(msbuildDir, "*.dll"))
+            if (VerboseAssemblyDiagnostics)
             {
-                Console.WriteLine($"MSBuild Assembly: {Path.GetFileName(dll)}");
+                var msbuildAssembly = typeof(Project).Assembly;
+                var version = FileVersionInfo.GetVersionInfo(msbuildAssembly.Location);
+                Console.WriteLine($"Using msbuild version {version.FileVersion} from {msbuildAssembly.Location}");
+                Console.WriteLine();
+                var msbuildDir = Path.GetDirectoryName(msbuildAssembly.Location);
+                foreach (var dll in Directory.EnumerateFiles(msbuildDir, "*.dll"))
+                {
+                    Console.WriteLine($"MSBuild Assembly: {Path.GetFileName(dll)}");
+                }
             }
 
             Paths.SolutionDestinationFolder = options.SolutionDestinationFolder;
@@ -301,6 +312,40 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             return await AssemblyNameExtractor.GetAssemblyNamesAsync(filePath, cancellationToken);
         }
 
+        private static void GetTypeForwards(string path, IReadOnlyDictionary<string, string> properties, Dictionary<(string, string), string> typeForwards)
+        {
+            if (path.EndsWith(".binlog", StringComparison.Ordinal) ||
+                path.EndsWith(".buildlog", StringComparison.Ordinal))
+            {
+                var invocations = BinLogCompilerInvocationsReader.ExtractInvocations(path);
+                var processed = new HashSet<string>();
+                foreach (var invocation in invocations)
+                {
+                    if (!string.IsNullOrEmpty(invocation.OutputAssemblyPath) &&
+                        File.Exists(invocation.OutputAssemblyPath) &&
+                        processed.Add(invocation.OutputAssemblyPath))
+                    {
+                        var forwards = TypeForwardReader.ReadTypeForwardsFromAssembly(invocation.OutputAssemblyPath);
+                        foreach (var forward in forwards)
+                        {
+                            typeForwards[ValueTuple.Create(forward.Item1, forward.Item2)] = forward.Item3;
+                        }
+                    }
+                }
+
+                return;
+            }
+
+            {
+                var obj = new TypeForwardReader();
+                var forwards = obj.GetTypeForwards(path, properties);
+                foreach (var forward in forwards)
+                {
+                    typeForwards[ValueTuple.Create(forward.Item1, forward.Item2)] = forward.Item3;
+                }
+            }
+        }
+
         private static async Task IndexSolutionsAsync(
             IEnumerable<string> solutionFilePaths,
             IReadOnlyDictionary<string, string> properties,
@@ -327,6 +372,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             }
 
             var processedAssemblyList = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
             var typeForwards = new Dictionary<ValueTuple<string, string>, string>();
 
             foreach (var path in solutionFilePaths)
@@ -470,40 +516,6 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
                 GC.Collect();
-            }
-        }
-
-        private static void GetTypeForwards(string path, IReadOnlyDictionary<string, string> properties, Dictionary<(string, string), string> typeForwards)
-        {
-            if (path.EndsWith(".binlog", StringComparison.Ordinal) ||
-                path.EndsWith(".buildlog", StringComparison.Ordinal))
-            {
-                var invocations = BinLogCompilerInvocationsReader.ExtractInvocations(path);
-                var processed = new HashSet<string>();
-                foreach (var invocation in invocations)
-                {
-                    if (!string.IsNullOrEmpty(invocation.OutputAssemblyPath) &&
-                        File.Exists(invocation.OutputAssemblyPath) &&
-                        processed.Add(invocation.OutputAssemblyPath))
-                    {
-                        var forwards = TypeForwardReader.ReadTypeForwardsFromAssembly(invocation.OutputAssemblyPath);
-                        foreach (var forward in forwards)
-                        {
-                            typeForwards[ValueTuple.Create(forward.Item1, forward.Item2)] = forward.Item3;
-                        }
-                    }
-                }
-
-                return;
-            }
-
-            {
-                var obj = new TypeForwardReader();
-                var forwards = obj.GetTypeForwards(path, properties);
-                foreach (var forward in forwards)
-                {
-                    typeForwards[ValueTuple.Create(forward.Item1, forward.Item2)] = forward.Item3;
-                }
             }
         }
 
