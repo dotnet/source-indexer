@@ -1,4 +1,4 @@
-﻿var currentSelection = null;
+var currentSelection = null;
 var currentResult = null;
 var useSolutionExplorer = /*USE_SOLUTION_EXPLORER*/true/*USE_SOLUTION_EXPLORER*/;
 // Off by default -- most sites generated with this tool aren't Microsoft's own code, so the

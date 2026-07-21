@@ -1,4 +1,4 @@
-﻿using Microsoft.CodeAnalysis.Classification;
+using Microsoft.CodeAnalysis.Classification;
 using Microsoft.CodeAnalysis.Text;
 
 namespace Microsoft.SourceBrowser.HtmlGenerator

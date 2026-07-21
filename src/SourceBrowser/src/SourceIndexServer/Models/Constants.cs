@@ -1,4 +1,4 @@
-﻿namespace Microsoft.SourceBrowser.SourceIndexServer
+namespace Microsoft.SourceBrowser.SourceIndexServer
 {
     public class Constants
     {

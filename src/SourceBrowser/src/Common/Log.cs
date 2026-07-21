@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.IO;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace Microsoft.SourceBrowser.Common
 {
@@ -16,7 +15,6 @@ namespace Microsoft.SourceBrowser.Common
         private static string errorLogFilePath = Path.GetFullPath(ErrorLogFile);
         private static string messageLogFilePath = Path.GetFullPath(MessageLogFile);
 
-        private static TaskCompletionSource<object> completedTask = new TaskCompletionSource<object>();
         private static readonly BlockingCollection<IMessage> Messages = new BlockingCollection<IMessage>();
 
         private static readonly Thread loggerThread;
@@ -56,18 +54,6 @@ namespace Microsoft.SourceBrowser.Common
             {
                 OnNext(message);
             }
-
-            OnCompleted();
-        }
-
-        public static Task WaitForCompletion()
-        {
-            return completedTask.Task;
-        }
-
-        private static void OnCompleted()
-        {
-            completedTask.SetResult(null);
         }
 
         private static void Enqueue(IMessage message)

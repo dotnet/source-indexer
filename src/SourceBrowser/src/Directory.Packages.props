@@ -31,39 +31,34 @@
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
     <PackageVersion Include="MSTest.TestAdapter" Version="4.3.2" />
     <PackageVersion Include="MSTest.TestFramework" Version="4.3.2" />
+    <PackageVersion Include="Shouldly" Version="4.3.0" />
+
+    <!-- TestCode fixture dependencies -->
     <PackageVersion Include="Selenium.WebDriver" Version="4.46.0" />
     <PackageVersion Include="coverlet.collector" Version="10.0.1" />
     <PackageVersion Include="nunit" Version="4.6.1" />
     <PackageVersion Include="NUnit3TestAdapter" Version="6.2.0" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
-    <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
-    <PackageVersion Include="Shouldly" Version="4.3.0" />
 
     <!-- other dependencies -->
     <PackageVersion Include="Basic.CompilerLog.Util" Version="0.9.47" />
     <PackageVersion Include="LibGit2Sharp" Version="0.31.0" />
     <PackageVersion Include="MSBuild.StructuredLogger" Version="2.3.213" />
-    <PackageVersion Include="ManagedEsent" Version="2.0.0" />
-    <PackageVersion Include="System.Composition" Version="10.0.10" />
-
-    <PackageVersion Include="System.ValueTuple" Version="4.6.2" />
 
     <PackageVersion Include="Microsoft.Build.Locator" Version="1.11.2" />
     <PackageVersion Include="Microsoft.NET.StringTools" Version="18.8.2" />
-    <PackageVersion Include="Microsoft.VisualStudio.Language.Intellisense" Version="17.14.249" />
     <PackageVersion Include="Microsoft.VisualStudio.SolutionPersistence" Version="1.0.52" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.301" />
 
     <PackageVersion Include="GuiLabs.Language.Xml" Version="1.2.119" />
 
-    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Logging.AzureAppServices" Version="10.0.10" />
-    <PackageVersion Include="System.Resources.Extensions" Version="10.0.10" />
     <PackageVersion Include="System.Collections.Immutable" Version="10.0.10" />
     <PackageVersion Include="System.Text.Json" Version="10.0.10" />
     <PackageVersion Include="System.Configuration.ConfigurationManager" Version="10.0.10" />
+    <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.10" />
   </ItemGroup>
   
   <!-- dependencies for dotnet/source-browser projects -->

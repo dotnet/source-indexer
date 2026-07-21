@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using Microsoft.CodeAnalysis;
 
 namespace Microsoft.SourceBrowser.HtmlGenerator

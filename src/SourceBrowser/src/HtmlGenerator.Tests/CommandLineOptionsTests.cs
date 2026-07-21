@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using Microsoft.SourceBrowser.HtmlGenerator;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Shouldly;
