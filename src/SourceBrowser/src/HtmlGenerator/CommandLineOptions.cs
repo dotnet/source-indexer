@@ -506,6 +506,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                    filePath.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase) ||
                    filePath.EndsWith(".binlog", StringComparison.OrdinalIgnoreCase) ||
                    filePath.EndsWith(".buildlog", StringComparison.OrdinalIgnoreCase) ||
+                   filePath.EndsWith(".complog", StringComparison.OrdinalIgnoreCase) ||
                    filePath.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase) ||
                    filePath.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase) ||
                    filePath.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) ||

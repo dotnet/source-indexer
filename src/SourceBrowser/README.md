@@ -33,7 +33,7 @@ Now also available on NuGet:
     TestCode\TestSolution.sln and TestCode\RepoB\RepoB.slnx as two separately-tagged repos with a
     single `windows` config (a faster single-pass inner loop than GenerateTestSite.cmd's full
     two-config demo; the config selector correctly stays hidden with only 1 config registered).
- 3. Pass a path to an .sln file or a .csproj file (or multiple paths separated by spaces) to create an index for them
+ 3. Pass a path to an .sln file, a .csproj file, an MSBuild .binlog, or a .complog (Basic.CompilerLog compiler log) -- or multiple paths separated by spaces -- to create an index for them
  4. Pass /out:<path> to HtmlGenerator.exe to configure where to generate the website to. This path will be used in step 6 as your "physicalPath".
  5. Pass /in:<path> to pass a file with a list of full paths to projects and solutions to include in the index
  6. Pass /root:<path> if you want to preserve relative .sln folders rather than merging all solutions. This folder must contain all specified .sln or .csproj paths.

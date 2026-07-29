@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
+using Basic.CompilerLog.Util;
 using Microsoft.Build.Construction;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.MSBuild;
@@ -78,6 +79,11 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
         private Solution solution;
         private Workspace workspace;
+
+        // Kept alive for the lifetime of this generator when the input is a .complog: the Roslyn
+        // documents produced by SolutionReader load their source text lazily through this reader,
+        // so it must not be disposed until Pass1 generation has finished reading every document.
+        private SolutionReader compilerLogReader;
 
         private SolutionGenerator(
             string solutionFilePath,
@@ -217,6 +223,23 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             w.LoadMetadataForReferencedProjects = true;
             w.AssociateFileExtensionWithLanguage("depproj", LanguageNames.CSharp);
             return w;
+        }
+
+        /// <summary>
+        /// Basic.CompilerLog's <c>SolutionReader</c> reports each project's AssemblyName with its file
+        /// extension (e.g. "Foo.dll"), whereas the binlog/MSBuild path -- and the rest of SourceBrowser,
+        /// which keys output folders, the global assembly list, and cross-assembly references off the
+        /// bare name -- uses the extension-less form. This rewrites every project's AssemblyName to the
+        /// extension-less form so a .complog input produces byte-for-byte the same output as the
+        /// equivalent .binlog input.
+        /// </summary>
+        public static Microsoft.CodeAnalysis.SolutionInfo NormalizeCompilerLogAssemblyNames(Microsoft.CodeAnalysis.SolutionInfo solutionInfo)
+        {
+            var projectInfos = solutionInfo.Projects
+                .Select(p => p.WithAssemblyName(Path.GetFileNameWithoutExtension(p.AssemblyName)))
+                .ToList();
+            return Microsoft.CodeAnalysis.SolutionInfo.Create(
+                solutionInfo.Id, solutionInfo.Version, solutionInfo.FilePath, projectInfos);
         }
 
         private static Solution CreateSolution(
@@ -592,6 +615,27 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                         workspace = solution.Workspace;
                     }
                 }
+                else if (solutionFilePath.EndsWith(".complog", StringComparison.OrdinalIgnoreCase))
+                {
+                    // A compiler log already carries the fully-resolved Roslyn compilation for each
+                    // project, so SolutionReader can materialize a SolutionInfo directly -- no MSBuild
+                    // evaluation required. The reader is stashed in a field (disposed in Dispose) because
+                    // the resulting documents pull their source text from it lazily during Pass1.
+                    //
+                    // BasicAnalyzerKind.None loads any files that generators originally produced directly
+                    // into the compilation, so we don't need to (re-)execute analyzers/source generators
+                    // during analysis -- avoiding loading third-party analyzers and their overhead.
+                    var reader = SolutionReader.Create(
+                        solutionFilePath,
+                        BasicAnalyzerKind.None);
+                    this.compilerLogReader = reader;
+                    var solutionInfo = NormalizeCompilerLogAssemblyNames(reader.ReadSolutionInfo());
+
+                    var adhocWorkspace = new AdhocWorkspace();
+                    adhocWorkspace.AddSolution(solutionInfo);
+                    solution = DeduplicateProjectReferences(adhocWorkspace.CurrentSolution);
+                    this.workspace = adhocWorkspace;
+                }
 
                 return solution;
             }
@@ -684,6 +728,12 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             {
                 workspace.Dispose();
                 workspace = null;
+            }
+
+            if (compilerLogReader != null)
+            {
+                compilerLogReader.Dispose();
+                compilerLogReader = null;
             }
         }
     }
