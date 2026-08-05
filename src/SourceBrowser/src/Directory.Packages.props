@@ -42,7 +42,7 @@
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
 
     <!-- other dependencies -->
-    <PackageVersion Include="Basic.CompilerLog.Util" Version="0.9.47" />
+    <PackageVersion Include="Basic.CompilerLog.Util" Version="0.9.49" />
     <PackageVersion Include="LibGit2Sharp" Version="0.31.0" />
     <PackageVersion Include="MSBuild.StructuredLogger" Version="2.3.213" />
 
