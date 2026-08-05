@@ -26,7 +26,7 @@ namespace HtmlGenerator.Tests
             return SolutionInfo.Create(SolutionId.CreateNewId(), VersionStamp.Default, projects: projects);
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("Foo.dll", "Foo")]
         [DataRow("Foo.exe", "Foo")]
         [DataRow("System.Text.Json.dll", "System.Text.Json")]
