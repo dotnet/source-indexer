@@ -370,6 +370,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     var thisAssemblyName = Path.GetFileNameWithoutExtension(data.EmitData.AssemblyFileName);
                     // EmitToMemory leaves the stream positioned at the end of the written bytes, and
                     // PEReader reads from the current position, so rewind before handing it over.
+                    // The reader is fixed to rewind in https://github.com/jaredpar/complog/pull/373;
+                    // this can be removed once we consume a package version that includes that fix.
                     emitResult.AssemblyStream.Position = 0;
                     foreach (var forward in TypeForwardReader.ReadTypeForwardsFromAssembly(emitResult.AssemblyStream, thisAssemblyName))
                     {
