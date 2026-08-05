@@ -351,10 +351,12 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 // A compiler log doesn't ship the emitted output binaries, so instead of reading
                 // type forwards off disk we re-emit each project's assembly (metadata only) from the
                 // persisted Roslyn compilation and read the forwards from those in-memory bytes.
+                // Read compilation data one project at a time to bound memory for large solutions.
                 // BasicAnalyzerKind.None keeps generated files inline without re-running generators.
                 using var reader = CompilerLogReader.Create(path, BasicAnalyzerKind.None);
-                foreach (var data in reader.ReadAllCompilationData(cc => cc.Kind == CompilerCallKind.Regular))
+                foreach (var compilerCall in reader.ReadAllCompilerCalls(cc => cc.Kind == CompilerCallKind.Regular))
                 {
+                    var data = reader.ReadCompilationData(compilerCall);
                     var emitResult = data.EmitToMemory(EmitFlags.MetadataOnly);
                     if (!emitResult.Success)
                     {
