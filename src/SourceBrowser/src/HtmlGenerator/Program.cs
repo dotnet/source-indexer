@@ -358,6 +358,10 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     var emitResult = data.EmitToMemory(EmitFlags.MetadataOnly);
                     if (!emitResult.Success)
                     {
+                        var errors = string.Join("; ", emitResult.Diagnostics
+                            .Where(d => d.Severity == DiagnosticSeverity.Error)
+                            .Select(d => d.ToString()));
+                        Log.Message($"Failed to emit assembly '{data.EmitData.AssemblyFileName}' from '{path}' while reading type forwards: {errors}");
                         continue;
                     }
 
