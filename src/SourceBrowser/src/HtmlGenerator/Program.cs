@@ -368,6 +368,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     }
 
                     var thisAssemblyName = Path.GetFileNameWithoutExtension(data.EmitData.AssemblyFileName);
+                    // EmitToMemory leaves the stream positioned at the end of the written bytes, and
+                    // PEReader reads from the current position, so rewind before handing it over.
                     emitResult.AssemblyStream.Position = 0;
                     foreach (var forward in TypeForwardReader.ReadTypeForwardsFromAssembly(emitResult.AssemblyStream, thisAssemblyName))
                     {
