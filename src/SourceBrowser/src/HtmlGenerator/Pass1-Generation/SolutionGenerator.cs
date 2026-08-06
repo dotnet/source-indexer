@@ -242,6 +242,47 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 solutionInfo.Id, solutionInfo.Version, solutionInfo.FilePath, projectInfos);
         }
 
+        /// <summary>
+        /// Logs any diagnostics the compiler log reader produces for a .complog input so problems
+        /// (for example a project whose generated sources were not persisted in the log) are visible
+        /// in the indexing output instead of being silently dropped. Compilation data is read one
+        /// project at a time so only a single compilation is materialized at once, keeping the memory
+        /// cost bounded for large solutions.
+        /// </summary>
+        private static void LogCompilerLogDiagnostics(string compilerLogFilePath)
+        {
+            try
+            {
+                using var reader = CompilerLogReader.Create(compilerLogFilePath, BasicAnalyzerKind.None);
+                foreach (var compilerCall in reader.ReadAllCompilerCalls(cc => cc.Kind == CompilerCallKind.Regular))
+                {
+                    // With BasicAnalyzerKind.None the generated sources must already be present in the
+                    // log; if they are not, the indexed output for this project will be missing those
+                    // files, so surface it rather than failing silently.
+                    if (!reader.HasAllGeneratedFileContent(compilerCall))
+                    {
+                        Log.Message($"Compiler log '{compilerLogFilePath}' is missing generated source content for '{compilerCall.GetDiagnosticName()}'; generated files will not be indexed for that project.");
+                    }
+
+                    var data = reader.ReadCompilationData(compilerCall);
+                    foreach (var diagnostic in data.CreationDiagnostics)
+                    {
+                        if (diagnostic.Severity == DiagnosticSeverity.Warning ||
+                            diagnostic.Severity == DiagnosticSeverity.Error)
+                        {
+                            Log.Message($"Compiler log '{compilerLogFilePath}' diagnostic for '{compilerCall.GetDiagnosticName()}': {diagnostic}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Diagnostics logging is best-effort and must never block indexing of an otherwise
+                // valid compiler log.
+                Log.Exception(ex, "Failed to read diagnostics from compiler log: " + compilerLogFilePath, isSevere: false);
+            }
+        }
+
         private static Solution CreateSolution(
             string commandLineArguments,
             string projectName,
@@ -625,6 +666,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     // BasicAnalyzerKind.None loads any files that generators originally produced directly
                     // into the compilation, so we don't need to (re-)execute analyzers/source generators
                     // during analysis -- avoiding loading third-party analyzers and their overhead.
+                    LogCompilerLogDiagnostics(solutionFilePath);
                     var reader = SolutionReader.Create(
                         solutionFilePath,
                         BasicAnalyzerKind.None);
