@@ -444,6 +444,48 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 }
             }
 
+            FilterRedundantBinaryLogs(projects);
+
+            // A .complog is typically produced by processing a .binlog, so a build can hand us both a
+            // "foo.binlog" and a "foo.complog" that describe the same compilations. Indexing both is
+            // redundant, so when a .complog is present we drop any .binlog with the same path (differing
+            // only in extension) in favor of the .complog.
+            void FilterRedundantBinaryLogs(List<string> projects)
+            {
+                var compilerLogStems = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var project in projects)
+                {
+                    if (project.EndsWith(".complog", StringComparison.OrdinalIgnoreCase))
+                    {
+                        compilerLogStems.Add(RemoveExtension(project));
+                    }
+                }
+
+                if (compilerLogStems.Count == 0)
+                {
+                    return;
+                }
+
+                projects.RemoveAll(project =>
+                {
+                    if (project.EndsWith(".binlog", StringComparison.OrdinalIgnoreCase) &&
+                        compilerLogStems.Contains(RemoveExtension(project)))
+                    {
+                        Log.Message($"Skipping '{project}' because a compiler log (.complog) with the same name was also specified.");
+                        return true;
+                    }
+
+                    return false;
+                });
+
+                string RemoveExtension(string path)
+                {
+                    var directory = Path.GetDirectoryName(path);
+                    var fileName = Path.GetFileNameWithoutExtension(path);
+                    return directory is null ? fileName : Path.Combine(directory, fileName);
+                }
+            }
+
             if (rootPath is object)
             {
                 foreach (var project in projects)
@@ -506,6 +548,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                    filePath.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase) ||
                    filePath.EndsWith(".binlog", StringComparison.OrdinalIgnoreCase) ||
                    filePath.EndsWith(".buildlog", StringComparison.OrdinalIgnoreCase) ||
+                   filePath.EndsWith(".complog", StringComparison.OrdinalIgnoreCase) ||
                    filePath.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase) ||
                    filePath.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase) ||
                    filePath.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) ||

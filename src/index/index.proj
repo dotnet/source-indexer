@@ -170,12 +170,14 @@
   <Target Name="FindBinlogs" DependsOnTargets="ResolveHashV1" Outputs="%(ClonedRepository.Identity)">
     <ItemGroup>
       <BinlogToIndex Include="%(ClonedRepository.LocalPath)\**\*.binlog"/>
+      <ComplogToIndex Include="%(ClonedRepository.LocalPath)\**\*.complog"/>
     </ItemGroup>
   </Target>
 
   <Target Name="FindSolutions" DependsOnTargets="ResolveHashV2" Outputs="%(ClonedRepositoryV2.Identity)">
     <ItemGroup>
       <SolutionToIndex Include="%(ClonedRepositoryV2.ExtractPath)\**\*.sln"/>
+      <ComplogToIndex Include="%(ClonedRepositoryV2.ExtractPath)\**\*.complog"/>
     </ItemGroup>
   </Target>
 
@@ -227,9 +229,13 @@
     <RemoveDuplicates Inputs="@(SolutionToIndex)">
       <Output TaskParameter="Filtered" ItemName="_FilteredSolution"/>
     </RemoveDuplicates>
+    <RemoveDuplicates Inputs="@(ComplogToIndex)">
+      <Output TaskParameter="Filtered" ItemName="_FilteredComplog"/>
+    </RemoveDuplicates>
     <RemoveDir Directories="$(OutDir)index/"/>
     <WriteLinesToFile Lines="@(_FilteredBinlog -> '%(FullPath)')" File="$(OutDir)index.list" Overwrite="true"/>
     <WriteLinesToFile Lines="@(_FilteredSolution -> '%(FullPath)')" File="$(OutDir)index.list" Overwrite="false"/>
+    <WriteLinesToFile Lines="@(_FilteredComplog -> '%(FullPath)')" File="$(OutDir)index.list" Overwrite="false"/>
     <PropertyGroup>
       <SourceIndexCmd>dotnet exec "$(HtmlGeneratorExePath)"</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd) /donotincludereferencedprojects</SourceIndexCmd>

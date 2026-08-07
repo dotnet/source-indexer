@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
+using Basic.CompilerLog.Util;
 using Microsoft.Build.Construction;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.MSBuild;
@@ -78,6 +79,11 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
         private Solution solution;
         private Workspace workspace;
+
+        // Kept alive for the lifetime of this generator when the input is a .complog: the Roslyn
+        // documents produced by SolutionReader load their source text lazily through this reader,
+        // so it must not be disposed until Pass1 generation has finished reading every document.
+        private SolutionReader compilerLogReader;
 
         private SolutionGenerator(
             string solutionFilePath,
@@ -217,6 +223,64 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             w.LoadMetadataForReferencedProjects = true;
             w.AssociateFileExtensionWithLanguage("depproj", LanguageNames.CSharp);
             return w;
+        }
+
+        /// <summary>
+        /// Basic.CompilerLog's <c>SolutionReader</c> reports each project's AssemblyName with its file
+        /// extension (e.g. "Foo.dll"), whereas the binlog/MSBuild path -- and the rest of SourceBrowser,
+        /// which keys output folders, the global assembly list, and cross-assembly references off the
+        /// bare name -- uses the extension-less form. This rewrites every project's AssemblyName to the
+        /// extension-less form so a .complog input produces byte-for-byte the same output as the
+        /// equivalent .binlog input.
+        /// </summary>
+        public static Microsoft.CodeAnalysis.SolutionInfo NormalizeCompilerLogAssemblyNames(Microsoft.CodeAnalysis.SolutionInfo solutionInfo)
+        {
+            var projectInfos = solutionInfo.Projects
+                .Select(p => p.WithAssemblyName(Path.GetFileNameWithoutExtension(p.AssemblyName)))
+                .ToList();
+            return Microsoft.CodeAnalysis.SolutionInfo.Create(
+                solutionInfo.Id, solutionInfo.Version, solutionInfo.FilePath, projectInfos);
+        }
+
+        /// <summary>
+        /// Logs any diagnostics the compiler log reader produces for a .complog input so problems
+        /// (for example a project whose generated sources were not persisted in the log) are visible
+        /// in the indexing output instead of being silently dropped. Compilation data is read one
+        /// project at a time so only a single compilation is materialized at once, keeping the memory
+        /// cost bounded for large solutions.
+        /// </summary>
+        private static void LogCompilerLogDiagnostics(string compilerLogFilePath)
+        {
+            try
+            {
+                using var reader = CompilerLogReader.Create(compilerLogFilePath, BasicAnalyzerKind.None);
+                foreach (var compilerCall in reader.ReadAllCompilerCalls(cc => cc.Kind == CompilerCallKind.Regular))
+                {
+                    // With BasicAnalyzerKind.None the generated sources must already be present in the
+                    // log; if they are not, the indexed output for this project will be missing those
+                    // files, so surface it rather than failing silently.
+                    if (!reader.HasAllGeneratedFileContent(compilerCall))
+                    {
+                        Log.Message($"Compiler log '{compilerLogFilePath}' is missing generated source content for '{compilerCall.GetDiagnosticName()}'; generated files will not be indexed for that project.");
+                    }
+
+                    var data = reader.ReadCompilationData(compilerCall);
+                    foreach (var diagnostic in data.CreationDiagnostics)
+                    {
+                        if (diagnostic.Severity == DiagnosticSeverity.Warning ||
+                            diagnostic.Severity == DiagnosticSeverity.Error)
+                        {
+                            Log.Message($"Compiler log '{compilerLogFilePath}' diagnostic for '{compilerCall.GetDiagnosticName()}': {diagnostic}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Diagnostics logging is best-effort and must never block indexing of an otherwise
+                // valid compiler log.
+                Log.Exception(ex, "Failed to read diagnostics from compiler log: " + compilerLogFilePath, isSevere: false);
+            }
         }
 
         private static Solution CreateSolution(
@@ -592,6 +656,28 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                         workspace = solution.Workspace;
                     }
                 }
+                else if (solutionFilePath.EndsWith(".complog", StringComparison.OrdinalIgnoreCase))
+                {
+                    // A compiler log already carries the fully-resolved Roslyn compilation for each
+                    // project, so SolutionReader can materialize a SolutionInfo directly -- no MSBuild
+                    // evaluation required. The reader is stashed in a field (disposed in Dispose) because
+                    // the resulting documents pull their source text from it lazily during Pass1.
+                    //
+                    // BasicAnalyzerKind.None loads any files that generators originally produced directly
+                    // into the compilation, so we don't need to (re-)execute analyzers/source generators
+                    // during analysis -- avoiding loading third-party analyzers and their overhead.
+                    LogCompilerLogDiagnostics(solutionFilePath);
+                    var reader = SolutionReader.Create(
+                        solutionFilePath,
+                        BasicAnalyzerKind.None);
+                    this.compilerLogReader = reader;
+                    var solutionInfo = NormalizeCompilerLogAssemblyNames(reader.ReadSolutionInfo());
+
+                    var adhocWorkspace = new AdhocWorkspace();
+                    adhocWorkspace.AddSolution(solutionInfo);
+                    solution = DeduplicateProjectReferences(adhocWorkspace.CurrentSolution);
+                    this.workspace = adhocWorkspace;
+                }
 
                 return solution;
             }
@@ -684,6 +770,12 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             {
                 workspace.Dispose();
                 workspace = null;
+            }
+
+            if (compilerLogReader != null)
+            {
+                compilerLogReader.Dispose();
+                compilerLogReader = null;
             }
         }
     }

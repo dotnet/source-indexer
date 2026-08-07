@@ -1,4 +1,5 @@
 using Microsoft.Build.Locator;
+using Basic.CompilerLog.Util;
 using Microsoft.CodeAnalysis;
 using Microsoft.SourceBrowser.BinLogParser;
 using Microsoft.SourceBrowser.Common;
@@ -283,7 +284,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 + "[/useplugins] "
                 + "[/noplugins] "
                 + "[/noplugin:Git] "
-                + "<pathtosolution1.csproj|vbproj|sln|slnx|binlog|buildlog|dll|exe> [more solutions/projects..] "
+                + "<pathtosolution1.csproj|vbproj|sln|slnx|binlog|buildlog|complog|dll|exe> [more solutions/projects..] "
                 + "[/root:<root folder to enable relative .sln/.slnx folders>] "
                 + "[/in:<filecontaingprojectlist>] "
                 + "[/nobuiltinfederations] "
@@ -309,6 +310,15 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 return invocations.Select(i => Path.GetFileNameWithoutExtension(i.Parsed.OutputFileName)).ToArray();
             }
 
+            if (filePath.EndsWith(".complog", System.StringComparison.OrdinalIgnoreCase))
+            {
+                using var reader = CompilerLogReader.Create(filePath);
+                return reader.ReadAllCompilerCalls(cc => cc.Kind == CompilerCallKind.Regular)
+                    .Select(cc => Path.GetFileNameWithoutExtension(reader.ReadCompilerCallData(cc).AssemblyFileName))
+                    .Where(name => !string.IsNullOrEmpty(name))
+                    .ToArray();
+            }
+
             return await AssemblyNameExtractor.GetAssemblyNamesAsync(filePath, cancellationToken);
         }
 
@@ -330,6 +340,37 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                         {
                             typeForwards[ValueTuple.Create(forward.Item1, forward.Item2)] = forward.Item3;
                         }
+                    }
+                }
+
+                return;
+            }
+
+            if (path.EndsWith(".complog", StringComparison.OrdinalIgnoreCase))
+            {
+                // A compiler log doesn't ship the emitted output binaries, so instead of reading
+                // type forwards off disk we re-emit each project's assembly (metadata only) from the
+                // persisted Roslyn compilation and read the forwards from those in-memory bytes.
+                // Read compilation data one project at a time to bound memory for large solutions.
+                // BasicAnalyzerKind.None keeps generated files inline without re-running generators.
+                using var reader = CompilerLogReader.Create(path, BasicAnalyzerKind.None);
+                foreach (var compilerCall in reader.ReadAllCompilerCalls(cc => cc.Kind == CompilerCallKind.Regular))
+                {
+                    var data = reader.ReadCompilationData(compilerCall);
+                    var emitResult = data.EmitToMemory(EmitFlags.MetadataOnly);
+                    if (!emitResult.Success)
+                    {
+                        var errors = string.Join("; ", emitResult.Diagnostics
+                            .Where(d => d.Severity == DiagnosticSeverity.Error)
+                            .Select(d => d.ToString()));
+                        Log.Message($"Failed to emit assembly '{data.EmitData.AssemblyFileName}' from '{path}' while reading type forwards: {errors}");
+                        continue;
+                    }
+
+                    var thisAssemblyName = Path.GetFileNameWithoutExtension(data.EmitData.AssemblyFileName);
+                    foreach (var forward in TypeForwardReader.ReadTypeForwardsFromAssembly(emitResult.AssemblyStream, thisAssemblyName))
+                    {
+                        typeForwards[ValueTuple.Create(forward.Item1, forward.Item2)] = forward.Item3;
                     }
                 }
 
@@ -584,7 +625,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         private static string GetSolutionName(string path)
         {
             if (path.EndsWith(".sln", StringComparison.OrdinalIgnoreCase) ||
-                path.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase))
+                path.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase) ||
+                path.EndsWith(".complog", StringComparison.OrdinalIgnoreCase))
             {
                 return Path.GetFileNameWithoutExtension(path);
             }

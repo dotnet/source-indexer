@@ -32,6 +32,7 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Basic.CompilerLog.Util" />
     <PackageReference Include="Microsoft.Build" ExcludeAssets="runtime" />
     <PackageReference Include="Microsoft.Build.Framework" ExcludeAssets="runtime" />
     <PackageReference Include="Microsoft.Build.Locator" />
