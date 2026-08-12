@@ -16,6 +16,9 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.CodeAnalysis.Emit;
+
+[assembly: InternalsVisibleTo("HtmlGenerator.Tests")]
 
 namespace Microsoft.SourceBrowser.HtmlGenerator
 {
@@ -357,12 +360,24 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 foreach (var compilerCall in reader.ReadAllCompilerCalls(cc => cc.Kind == CompilerCallKind.Regular))
                 {
                     var data = reader.ReadCompilationData(compilerCall);
-                    var emitResult = data.EmitToMemory(EmitFlags.MetadataOnly);
+                    var compilation = data.GetCompilationAfterGenerators(out var diagnostics);
+                    if (diagnostics.Any(static d => d.Severity == DiagnosticSeverity.Error))
+                    {
+                        var errors = string.Join("; ", diagnostics
+                            .Where(static d => d.Severity == DiagnosticSeverity.Error)
+                            .Select(static d => d.ToString()));
+                        Log.Message($"Failed to emit assembly '{data.EmitData.AssemblyFileName}' from '{path}' while reading type forwards: {errors}");
+                        continue;
+                    }
+
+                    // Source Link and embedded texts require a PDB, which metadata-only emits cannot
+                    // produce. They are not needed to read type forwards, so omit them here.
+                    var emitResult = EmitMetadataForTypeForwards(compilation, data.EmitData, data.EmitOptions);
                     if (!emitResult.Success)
                     {
-                        var errors = string.Join("; ", emitResult.Diagnostics
-                            .Where(d => d.Severity == DiagnosticSeverity.Error)
-                            .Select(d => d.ToString()));
+                        var errors = string.Join("; ", diagnostics.Concat(emitResult.Diagnostics)
+                            .Where(static d => d.Severity == DiagnosticSeverity.Error)
+                            .Select(static d => d.ToString()));
                         Log.Message($"Failed to emit assembly '{data.EmitData.AssemblyFileName}' from '{path}' while reading type forwards: {errors}");
                         continue;
                     }
@@ -385,6 +400,18 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     typeForwards[ValueTuple.Create(forward.Item1, forward.Item2)] = forward.Item3;
                 }
             }
+        }
+
+        internal static EmitMemoryResult EmitMetadataForTypeForwards(
+            Compilation compilation,
+            EmitData emitData,
+            EmitOptions emitOptions)
+        {
+            return compilation.EmitToMemory(
+                EmitFlags.MetadataOnly,
+                win32ResourceStream: emitData.Win32ResourceStream,
+                manifestResources: emitData.Resources,
+                emitOptions: emitOptions);
         }
 
         private static async Task IndexSolutionsAsync(
