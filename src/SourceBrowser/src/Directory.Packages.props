@@ -47,7 +47,7 @@
     <PackageVersion Include="MSBuild.StructuredLogger" Version="2.3.213" />
 
     <PackageVersion Include="Microsoft.Build.Locator" Version="1.11.2" />
-    <PackageVersion Include="Microsoft.NET.StringTools" Version="18.8.2" />
+    <PackageVersion Include="Microsoft.NET.StringTools" Version="18.9.6" />
     <PackageVersion Include="Microsoft.VisualStudio.SolutionPersistence" Version="1.0.52" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.301" />
 
