@@ -192,10 +192,30 @@ namespace Microsoft.SourceBrowser.HtmlGenerator.Tests
                 string.Empty,
                 folders: [@"D:\a\_work\1\s\src\Shared\Debugger"]);
 
-            var relativePath = Paths.GetRelativeFilePathInProject(document);
+            var relativePath = Paths.GetRelativeFilePathInProject(
+                document,
+                @"D:\a\_work\1\s\src\Shared\Shared.csproj");
 
             Assert.IsFalse(Path.IsPathRooted(relativePath));
-            Assert.AreEqual(@"D\a\_work\1\s\src\Shared\Debugger\DebuggerState.cs", relativePath);
+            Assert.AreEqual(@"Debugger\DebuggerState.cs", relativePath);
+        }
+
+        [TestMethod]
+        public void GetRelativeFilePathInProject_RootedFolderOutsideProjectCone_RemainsRelative()
+        {
+            using var workspace = new AdhocWorkspace();
+            var project = workspace.AddProject("Test", LanguageNames.CSharp);
+            var document = project.AddDocument(
+                "DebuggerState.cs",
+                string.Empty,
+                folders: [@"D:\a\_work\1\s\src\Shared\Debugger"]);
+
+            var relativePath = Paths.GetRelativeFilePathInProject(
+                document,
+                @"D:\a\_work\1\s\src\Libraries\Test\Test.csproj");
+
+            Assert.IsFalse(Path.IsPathRooted(relativePath));
+            Assert.AreEqual(@"parent\parent\Shared\Debugger\DebuggerState.cs", relativePath);
         }
 
         [TestMethod]
@@ -211,6 +231,20 @@ namespace Microsoft.SourceBrowser.HtmlGenerator.Tests
 
             Assert.IsFalse(Path.IsPathRooted(relativePath));
             Assert.AreEqual("DebuggerState.cs", relativePath);
+        }
+
+        [TestMethod]
+        public void GetRelativeFilePathInProject_RelativeDocumentName_PreservesFolders()
+        {
+            using var workspace = new AdhocWorkspace();
+            var project = workspace.AddProject("Test", LanguageNames.CSharp);
+            var document = project.AddDocument(
+                @"Generated\Sub\File.cs",
+                string.Empty);
+
+            var relativePath = Paths.GetRelativeFilePathInProject(document);
+
+            Assert.AreEqual(@"Generated\Sub\File.cs", relativePath);
         }
 
         [TestMethod]

@@ -254,10 +254,18 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 }
             }
 
-            var pathSegments = folders
-                .SelectMany(folder => folder.Split(
+            string folderPath = folders.Count == 0
+                ? string.Empty
+                : Path.Combine(folders.ToArray());
+            if (Path.IsPathRooted(folderPath) && Path.IsPathRooted(projectFilePath))
+            {
+                folderPath = MakeRelativeToFolder(folderPath, Path.GetDirectoryName(projectFilePath));
+            }
+
+            var pathSegments = folderPath
+                .Split(
                     [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-                    StringSplitOptions.RemoveEmptyEntries))
+                    StringSplitOptions.RemoveEmptyEntries)
                 .Select(SanitizeFolder)
                 .ToList();
 
@@ -277,7 +285,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             {
                 fileName = MakeRelativeToFolder(fileName, Path.GetDirectoryName(projectFilePath));
             }
-            else
+            else if (folders.Count > 0 || Path.IsPathRooted(fileName))
             {
                 fileName = Path.GetFileName(fileName);
             }
