@@ -60,7 +60,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 return relativePath;
             }
 
-            return Paths.GetRelativeFilePathInProject(document);
+            return Paths.GetRelativeFilePathInProject(document, ProjectFilePath);
         }
 
         public ProjectGenerator(SolutionGenerator solutionGenerator, Project project) : this()
@@ -207,7 +207,9 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 // documents that happen to resolve to the same folders+filename (e.g. two unrelated
                 // "IEnumerable.cs" files) don't silently collide once generation is partitioned and
                 // parallelized below -- see Paths.DisambiguateRelativePaths for the exact semantics.
-                var rawRelativePaths = documents.Select(Paths.GetRelativeFilePathInProject).ToArray();
+                var rawRelativePaths = documents
+                    .Select(document => Paths.GetRelativeFilePathInProject(document, ProjectFilePath))
+                    .ToArray();
                 var identityKeys = documents.Select(d => d.FilePath ?? d.Name).ToArray();
                 var disambiguatedRelativePaths = Paths.DisambiguateRelativePaths(rawRelativePaths, identityKeys);
 

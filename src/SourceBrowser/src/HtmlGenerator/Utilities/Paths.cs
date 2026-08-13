@@ -241,7 +241,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 : Path.Combine(directory, disambiguatedFileName);
         }
 
-        public static string GetRelativeFilePathInProject(Document document)
+        public static string GetRelativeFilePathInProject(Document document, string projectFilePath = null)
         {
             var folders = document.Folders;
 
@@ -254,9 +254,12 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 }
             }
 
-            string result = Path.Combine(folders
+            var pathSegments = folders
+                .SelectMany(folder => folder.Split(
+                    [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                    StringSplitOptions.RemoveEmptyEntries))
                 .Select(SanitizeFolder)
-                .ToArray());
+                .ToList();
 
             string fileName;
             if (document.FilePath != null && !document.GetLinkedDocumentIds().Any())
@@ -268,8 +271,24 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 fileName = document.Name;
             }
 
-            result = Path.Combine(result, fileName);
+            if (folders.Count == 0 &&
+                Path.IsPathRooted(fileName) &&
+                Path.IsPathRooted(projectFilePath))
+            {
+                fileName = MakeRelativeToFolder(fileName, Path.GetDirectoryName(projectFilePath));
+            }
+            else
+            {
+                fileName = Path.GetFileName(fileName);
+            }
 
+            pathSegments.AddRange(fileName
+                .Split(
+                    [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                    StringSplitOptions.RemoveEmptyEntries)
+                .Select(SanitizeFolder));
+
+            string result = Path.Combine(pathSegments.ToArray());
             return ShortenRelativePathIfNecessary(result);
         }
 
