@@ -1,5 +1,6 @@
 var currentSelection = null;
 var currentResult = null;
+var searchTimerID = -1;
 var useSolutionExplorer = /*USE_SOLUTION_EXPLORER*/true/*USE_SOLUTION_EXPLORER*/;
 // Off by default -- most sites generated with this tool aren't Microsoft's own code, so the
 // .NET/Microsoft logo marks in the header are opt-in via the HtmlGenerator /showBranding flag
@@ -283,7 +284,6 @@ function initPaneResizer() {
 
 function onHeaderLoad() {
     ensureSearchBox();
-    searchTimerID = -1;
     lastQuery = null;
     lastSearchString = searchBox.value;
 
@@ -1004,12 +1004,29 @@ function onSearchChange() {
         if (searchTimerID == -1) {
             searchTimerID = setTimeout(runSearch, 200);
         }
-    } else if (searchBox.value.length === 0 && useSolutionExplorer) {
+        return;
+    }
+
+    cancelPendingSearch();
+    if (searchBox.value.length === 0 && useSolutionExplorer) {
         // Nothing to search for -- go back to the primary Solution Explorer view (the same one
         // shown on first load) instead of leaving an empty/prompt-only results pane behind.
         returnToSolutionExplorer();
     } else {
         loadSearchResults("<div class='note'>Enter at least 3 characters.</div>");
+    }
+}
+
+function cancelPendingSearch() {
+    if (searchTimerID != -1) {
+        clearTimeout(searchTimerID);
+        searchTimerID = -1;
+    }
+
+    var activeSearch = top.lastQuery;
+    top.lastQuery = null;
+    if (typeof activeSearch === "object" && activeSearch !== null) {
+        activeSearch.abort();
     }
 }
 
@@ -1027,12 +1044,7 @@ function returnToSolutionExplorer() {
 
 function runSearch() {
     ensureSearchBox();
-    searchTimerID = -1;
-    if (typeof lastQuery === "object" && lastQuery !== null) {
-        lastQuery.abort();
-        lastQuery = null;
-    }
-
+    cancelPendingSearch();
     setPageTitle(searchBox.value);
 
     var query = searchBox.value;
@@ -1041,7 +1053,7 @@ function runSearch() {
         query = "repo:" + selectedRepo + " " + query;
     }
 
-    lastQuery = getUrl("api/symbols/?symbol=" + encodeURIComponent(query), loadSearchResults);
+    top.lastQuery = getUrl("api/symbols/?symbol=" + encodeURIComponent(query), loadSearchResults);
 }
 
 function getUrl(url, callback) {
@@ -1055,11 +1067,20 @@ function getUrl(url, callback) {
             return response.ok ? response.text() : "";
         })
         .then(function (data) {
+            if (top.lastQuery !== controller) {
+                return;
+            }
+
+            top.lastQuery = null;
             if (typeof data === "string" && data.length > 0) {
                 callback(data);
             }
         })
         .catch(function () {
+            if (top.lastQuery === controller) {
+                top.lastQuery = null;
+            }
+
             // Ignore aborted or failed requests; the next keystroke reissues the search.
         });
     return controller;
