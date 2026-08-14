@@ -158,11 +158,12 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
 
                 foreach (var dottedName in this.DotSeparatedNames)
                 {
-                    interpretation.FilterDotSeparatedNames.Add(dottedName.StripQuotes());
+                    AddDottedNameFilter(interpretation, dottedName.StripQuotes());
                 }
 
                 this.Interpretations.Add(interpretation);
                 AddPossibleInterpretationWithoutClrPrefix(interpretation);
+                AddPossibleTypeAliasInterpretation(interpretation);
             }
 
             foreach (var dottedName in this.DotSeparatedNames)
@@ -185,7 +186,14 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
                 var interpretation = new Interpretation();
                 interpretation.CoreSearchTerm = lastPart;
                 interpretation.IsVerbatim = isQuoted;
-                interpretation.Namespace = dottedNameText;
+                interpretation.Namespace = Interpretation.NormalizeTypeAliases(
+                    dottedNameText,
+                    out bool preserveOriginalNamespace);
+                if (preserveOriginalNamespace)
+                {
+                    interpretation.AlternateNamespace = dottedNameText;
+                }
+
                 foreach (var name in this.Names)
                 {
                     interpretation.FilterNames.Add(name.StripQuotes());
@@ -193,11 +201,37 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
 
                 foreach (var otherDottedName in this.DotSeparatedNames.Where(i => i != dottedNameText))
                 {
-                    interpretation.FilterDotSeparatedNames.Add(otherDottedName.StripQuotes());
+                    AddDottedNameFilter(interpretation, otherDottedName.StripQuotes());
                 }
 
                 this.Interpretations.Add(interpretation);
                 AddPossibleInterpretationWithoutClrPrefix(interpretation);
+                AddPossibleTypeAliasInterpretation(interpretation);
+            }
+        }
+
+        private void AddPossibleTypeAliasInterpretation(Interpretation interpretation)
+        {
+            var normalizedSearchTerm = Interpretation.NormalizeTypeAliases(interpretation.CoreSearchTerm);
+            if (ReferenceEquals(normalizedSearchTerm, interpretation.CoreSearchTerm))
+            {
+                return;
+            }
+
+            var clone = interpretation.Clone();
+            clone.CoreSearchTerm = normalizedSearchTerm;
+            this.Interpretations.Add(clone);
+        }
+
+        private static void AddDottedNameFilter(Interpretation interpretation, string dottedName)
+        {
+            string normalizedName = Interpretation.NormalizeTypeAliases(
+                dottedName,
+                out bool preserveOriginal);
+            interpretation.FilterDotSeparatedNames.Add(normalizedName);
+            if (preserveOriginal)
+            {
+                interpretation.FilterDotSeparatedNames.Add(dottedName);
             }
         }
 
@@ -232,16 +266,43 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
                 {
                     var clone = interpretation.Clone();
                     clone.CoreSearchTerm = clone.CoreSearchTerm.Substring(prefix.Length);
-                    if (clone.Namespace != null)
-                    {
-                        clone.Namespace = clone.Namespace.Replace(prefix, "");
-                    }
+                    ReplaceNamespaceSuffix(
+                        clone,
+                        interpretation.CoreSearchTerm,
+                        clone.CoreSearchTerm);
 
                     return clone;
                 }
             }
 
             return null;
+        }
+
+        private static void ReplaceNamespaceSuffix(
+            Interpretation interpretation,
+            string oldSuffix,
+            string newSuffix)
+        {
+            interpretation.Namespace = ReplaceSuffix(
+                interpretation.Namespace,
+                oldSuffix,
+                newSuffix);
+            interpretation.AlternateNamespace = ReplaceSuffix(
+                interpretation.AlternateNamespace,
+                oldSuffix,
+                newSuffix);
+        }
+
+        private static string ReplaceSuffix(string text, string oldSuffix, string newSuffix)
+        {
+            if (text is null)
+            {
+                return null;
+            }
+
+            return string.Concat(
+                text.AsSpan(0, text.Length - oldSuffix.Length),
+                newSuffix.AsSpan());
         }
 
         public static string StripQuotes(string text, out bool isQuoted)

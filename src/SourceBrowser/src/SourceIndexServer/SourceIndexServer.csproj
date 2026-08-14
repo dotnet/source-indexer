@@ -19,4 +19,8 @@
     <ProjectReference Include="..\Common\Common.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="SourceIndexServer.Tests" />
+  </ItemGroup>
+
 </Project>

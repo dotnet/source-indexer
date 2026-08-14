@@ -73,6 +73,187 @@ namespace Microsoft.SourceBrowser.HtmlGenerator.Tests
             "Console System.Core");
         }
 
+        [TestMethod]
+        public void TypeAliasesMatchIndexedNames()
+        {
+            Match(new DeclaredSymbolInfo
+            {
+                AssemblyName = "System.Private.CoreLib",
+                Name = "Size",
+                Description = "nint.Size",
+                Kind = SymbolKindText.Property
+            },
+            "IntPtr.Size",
+            "System.IntPtr.Size");
+
+            Match(new DeclaredSymbolInfo
+            {
+                AssemblyName = "System.Private.CoreLib",
+                Name = "nint",
+                Description = "nint",
+                Kind = SymbolKindText.Struct
+            },
+            "IntPtr",
+            "System.IntPtr");
+
+            Match(new DeclaredSymbolInfo
+            {
+                AssemblyName = "System.Private.CoreLib",
+                Name = "Size",
+                Description = "nuint.Size",
+                Kind = SymbolKindText.Property
+            },
+            "UIntPtr.Size",
+            "System.UIntPtr.Size");
+
+            Match(new DeclaredSymbolInfo
+            {
+                AssemblyName = "System.Private.CoreLib",
+                Name = "MaxValue",
+                Description = "System.Int32.MaxValue",
+                Kind = SymbolKindText.Field
+            },
+            "int.MaxValue");
+
+            NoMatch(new DeclaredSymbolInfo
+            {
+                AssemblyName = "System.Private.CoreLib",
+                Name = "MaxValue",
+                Description = "nint.MaxValue",
+                Kind = SymbolKindText.Property
+            },
+            "int.MaxValue");
+
+            Match(new DeclaredSymbolInfo
+            {
+                AssemblyName = "Example",
+                Name = "Size",
+                Description = "IntPtr.Size",
+                Kind = SymbolKindText.Property
+            },
+            "IntPtr.Size");
+
+            Match(new DeclaredSymbolInfo
+            {
+                AssemblyName = "Example",
+                Name = "Widget",
+                Description = "IntPtr.Nested.Widget",
+                Kind = SymbolKindText.Property
+            },
+            "Widget IntPtr.Nested");
+
+            Match(new DeclaredSymbolInfo
+            {
+                AssemblyName = "Example",
+                Name = "Member",
+                Description = "Long.Member",
+                Kind = SymbolKindText.Property
+            },
+            "Long.Member");
+
+            Match(new DeclaredSymbolInfo
+            {
+                AssemblyName = "Example",
+                Name = "Size",
+                Description = "IntPtr.Size",
+                Kind = SymbolKindText.Property
+            },
+            "IntPtr.get_Size");
+
+            Match(new DeclaredSymbolInfo
+            {
+                AssemblyName = "Example",
+                Name = "operator +",
+                Description = "IntPtr.operator +",
+                Kind = SymbolKindText.Method
+            },
+            "IntPtr.op_Addition");
+
+            Match(new DeclaredSymbolInfo
+            {
+                AssemblyName = "System.Private.CoreLib",
+                Name = "MaxValue",
+                Description = "System.Int64.MaxValue",
+                Kind = SymbolKindText.Field
+            },
+            "long.MaxValue");
+
+            Match(new DeclaredSymbolInfo
+            {
+                AssemblyName = "System.Private.CoreLib",
+                Name = "Int32",
+                Description = "System.Int32",
+                Kind = SymbolKindText.Struct
+            },
+            "int");
+        }
+
+        [TestMethod]
+        [DataRow("bool", "Boolean")]
+        [DataRow("byte", "Byte")]
+        [DataRow("sbyte", "SByte")]
+        [DataRow("short", "Int16")]
+        [DataRow("ushort", "UInt16")]
+        [DataRow("int", "Int32")]
+        [DataRow("uint", "UInt32")]
+        [DataRow("long", "Int64")]
+        [DataRow("ulong", "UInt64")]
+        [DataRow("char", "Char")]
+        [DataRow("float", "Single")]
+        [DataRow("double", "Double")]
+        [DataRow("decimal", "Decimal")]
+        [DataRow("string", "String")]
+        [DataRow("object", "Object")]
+        [DataRow("void", "Void")]
+        public void KeywordAndClrTypeNamesFindSpecialTypes(string keyword, string clrName)
+        {
+            Match(new DeclaredSymbolInfo
+            {
+                AssemblyName = "System.Private.CoreLib",
+                Name = clrName,
+                Description = "System." + clrName,
+                Kind = SymbolKindText.Struct
+            },
+            keyword,
+            clrName,
+            "System." + clrName);
+        }
+
+        [TestMethod]
+        [DataRow("nint", "IntPtr")]
+        [DataRow("nuint", "UIntPtr")]
+        public void KeywordAndClrTypeNamesFindNativeIntegerTypes(string keyword, string clrName)
+        {
+            Match(new DeclaredSymbolInfo
+            {
+                AssemblyName = "System.Private.CoreLib",
+                Name = keyword,
+                Description = keyword,
+                Kind = SymbolKindText.Struct
+            },
+            keyword,
+            clrName,
+            "System." + clrName);
+        }
+
+        [TestMethod]
+        [DataRow("int.MaxValue", "MaxValue", "Int32.MaxValue")]
+        [DataRow("IntPtr.Size", "Size", "nint.Size")]
+        [DataRow("System.IntPtr.Size", "Size", "nint.Size")]
+        public void DottedTypeAliasesUseSingleCoreInterpretation(
+            string queryText,
+            string coreSearchTerm,
+            string namespaceFilter)
+        {
+            var query = new Query(queryText);
+            var interpretations = query.Interpretations
+                .Where(i => i.CoreSearchTerm == coreSearchTerm)
+                .ToArray();
+
+            Assert.AreEqual(1, interpretations.Length);
+            Assert.AreEqual(namespaceFilter, interpretations[0].Namespace);
+        }
+
         private void Match(DeclaredSymbolInfo declaredSymbolInfo, params string[] queryStrings)
         {
             foreach (var queryString in queryStrings)
