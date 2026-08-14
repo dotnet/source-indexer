@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,6 +9,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
 {
     public class Query
     {
+        private static readonly FrozenDictionary<string, string[]> clrOperatorNames = CreateClrOperatorNames();
         private readonly StringBuilder diagnostics = new StringBuilder();
 
         public readonly List<string> Paths = new List<string>();
@@ -164,6 +166,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
                 this.Interpretations.Add(interpretation);
                 AddPossibleInterpretationWithoutClrPrefix(interpretation);
                 AddPossibleTypeAliasInterpretation(interpretation);
+                AddPossibleClrOperatorInterpretation(interpretation);
             }
 
             foreach (var dottedName in this.DotSeparatedNames)
@@ -207,6 +210,107 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
                 this.Interpretations.Add(interpretation);
                 AddPossibleInterpretationWithoutClrPrefix(interpretation);
                 AddPossibleTypeAliasInterpretation(interpretation);
+                AddPossibleClrOperatorInterpretation(interpretation);
+            }
+        }
+
+        private static FrozenDictionary<string, string[]> CreateClrOperatorNames()
+        {
+            var result = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+
+            AddClrOperatorName(result, "UnaryPlus", "operator +");
+            AddClrOperatorName(result, "UnaryNegation", "operator -");
+            AddClrOperatorName(result, "LogicalNot", "operator !", "operator Not");
+            AddClrOperatorName(result, "OnesComplement", "operator ~", "operator Not");
+            AddClrOperatorName(result, "Increment", "operator ++");
+            AddClrOperatorName(result, "Decrement", "operator --");
+            AddClrOperatorName(result, "True", "operator true", "operator IsTrue");
+            AddClrOperatorName(result, "False", "operator false", "operator IsFalse");
+            AddClrOperatorName(result, "Addition", "operator +");
+            AddClrOperatorName(result, "Subtraction", "operator -");
+            AddClrOperatorName(result, "Multiply", "operator *");
+            AddClrOperatorName(result, "Division", "operator /");
+            AddClrOperatorName(result, "Modulus", "operator %", "operator Mod");
+            AddClrOperatorName(result, "BitwiseAnd", "operator &", "operator And");
+            AddClrOperatorName(result, "BitwiseOr", "operator |", "operator Or");
+            AddClrOperatorName(result, "ExclusiveOr", "operator ^", "operator Xor");
+            AddClrOperatorName(result, "LeftShift", "operator <<");
+            AddClrOperatorName(result, "UnsignedLeftShift", "op_UnsignedLeftShift");
+            AddClrOperatorName(result, "RightShift", "operator >>");
+            AddClrOperatorName(result, "UnsignedRightShift", "operator >>>");
+            AddClrOperatorName(result, "LogicalAnd", "op_LogicalAnd");
+            AddClrOperatorName(result, "LogicalOr", "op_LogicalOr");
+            AddClrOperatorName(result, "Equality", "operator ==", "operator =");
+            AddClrOperatorName(result, "Inequality", "operator !=", "operator <>");
+            AddClrOperatorName(result, "LessThan", "operator <");
+            AddClrOperatorName(result, "GreaterThan", "operator >");
+            AddClrOperatorName(result, "LessThanOrEqual", "operator <=");
+            AddClrOperatorName(result, "GreaterThanOrEqual", "operator >=");
+            AddClrOperatorName(result, "Implicit", "implicit operator", "Widening operator CType");
+            AddClrOperatorName(result, "Explicit", "explicit operator", "Narrowing operator CType");
+            AddClrOperatorName(result, "CheckedUnaryNegation", "operator checked -");
+            AddClrOperatorName(result, "CheckedIncrement", "operator checked ++");
+            AddClrOperatorName(result, "CheckedDecrement", "operator checked --");
+            AddClrOperatorName(result, "CheckedAddition", "operator checked +");
+            AddClrOperatorName(result, "CheckedSubtraction", "operator checked -");
+            AddClrOperatorName(result, "CheckedMultiply", "operator checked *");
+            AddClrOperatorName(result, "CheckedDivision", "operator checked /");
+            AddClrOperatorName(result, "CheckedExplicit", "explicit operator checked");
+            AddClrOperatorName(result, "Concatenate", "operator &");
+            AddClrOperatorName(result, "Exponent", "operator ^");
+            AddClrOperatorName(result, "IntegerDivision", "operator \\");
+            AddClrOperatorName(result, "Like", "operator Like");
+            AddClrOperatorName(result, "AdditionAssignment", "operator +=");
+            AddClrOperatorName(result, "SubtractionAssignment", "operator -=");
+            AddClrOperatorName(result, "MultiplicationAssignment", "operator *=");
+            AddClrOperatorName(result, "DivisionAssignment", "operator /=");
+            AddClrOperatorName(result, "ModulusAssignment", "operator %=");
+            AddClrOperatorName(result, "BitwiseAndAssignment", "operator &=");
+            AddClrOperatorName(result, "BitwiseOrAssignment", "operator |=");
+            AddClrOperatorName(result, "ExclusiveOrAssignment", "operator ^=");
+            AddClrOperatorName(result, "LeftShiftAssignment", "operator <<=");
+            AddClrOperatorName(result, "RightShiftAssignment", "operator >>=");
+            AddClrOperatorName(result, "UnsignedRightShiftAssignment", "operator >>>=");
+            AddClrOperatorName(result, "IncrementAssignment", "operator ++");
+            AddClrOperatorName(result, "DecrementAssignment", "operator --");
+            AddClrOperatorName(result, "CheckedAdditionAssignment", "operator checked +=");
+            AddClrOperatorName(result, "CheckedSubtractionAssignment", "operator checked -=");
+            AddClrOperatorName(result, "CheckedMultiplicationAssignment", "operator checked *=");
+            AddClrOperatorName(result, "CheckedDivisionAssignment", "operator checked /=");
+            AddClrOperatorName(result, "CheckedIncrementAssignment", "operator checked ++");
+            AddClrOperatorName(result, "CheckedDecrementAssignment", "operator checked --");
+
+            return result.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static void AddClrOperatorName(
+            Dictionary<string, string[]> names,
+            string clrName,
+            params string[] sourceNames)
+        {
+            names.Add(clrName, sourceNames);
+            string metadataName = "op_" + clrName;
+            if (!sourceNames.Contains(metadataName, StringComparer.OrdinalIgnoreCase))
+            {
+                names.Add(metadataName, sourceNames);
+            }
+        }
+
+        private void AddPossibleClrOperatorInterpretation(Interpretation interpretation)
+        {
+            if (!clrOperatorNames.TryGetValue(
+                interpretation.CoreSearchTerm,
+                out string[] sourceNames))
+            {
+                return;
+            }
+
+            foreach (string sourceName in sourceNames)
+            {
+                var clone = interpretation.Clone();
+                clone.CoreSearchTerm = sourceName;
+                ReplaceNamespaceSuffix(clone, interpretation.CoreSearchTerm, sourceName);
+                this.Interpretations.Add(clone);
             }
         }
 

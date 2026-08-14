@@ -103,13 +103,21 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         private static bool IsMergeable(Range span)
         {
             return span.ClassificationType == Constants.RoslynClassificationKeyword &&
-                span.Text != "this" &&
-                span.Text != "base" &&
-                span.Text != "New" &&
-                span.Text != "new" &&
-                span.Text != "var" &&
-                span.Text != "partial" &&
-                span.Text != "Partial";
+                span.Text is not (
+                    "this" or
+                    "base" or
+                    "New" or
+                    "new" or
+                    "var" or
+                    "partial" or
+                    "Partial") &&
+                !IsOperatorKeyword(span.Text);
+        }
+
+        private static bool IsOperatorKeyword(string text)
+        {
+            return text.Length == "operator".Length &&
+                text.Equals("operator", StringComparison.OrdinalIgnoreCase);
         }
 
         private IEnumerable<Range> FillGaps(SourceText text, IEnumerable<Range> spans)
