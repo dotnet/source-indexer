@@ -133,6 +133,76 @@ namespace Microsoft.SourceBrowser.HtmlGenerator.Tests
         }
 
         [TestMethod]
+        public void TestConversionOperatorSearch()
+        {
+            var symbols = new EntryList
+            {
+                {
+                    "Addition",
+                    "System.Decimal32.Addition"
+                },
+                {
+                    "explicit operator Decimal32",
+                    "System.Decimal32.explicit operator System.Decimal32(System.Decimal)"
+                },
+                {
+                    "operator +",
+                    "System.Decimal32.operator +(System.Decimal32, System.Decimal32)"
+                }
+            };
+
+            Test(
+                symbols,
+                "explicit operator",
+                "System.Decimal32.explicit operator System.Decimal32(System.Decimal)");
+            Test(
+                symbols,
+                "operator Decimal32",
+                "System.Decimal32.explicit operator System.Decimal32(System.Decimal)");
+            Test(
+                symbols,
+                "op_Explicit Decimal32",
+                "System.Decimal32.explicit operator System.Decimal32(System.Decimal)");
+            Test(
+                symbols,
+                "Explicit Decimal32",
+                "System.Decimal32.explicit operator System.Decimal32(System.Decimal)");
+            Test(
+                symbols,
+                "op_Addition",
+                "System.Decimal32.operator +(System.Decimal32, System.Decimal32)");
+            Test(
+                symbols,
+                "Addition",
+                "System.Decimal32.Addition",
+                "System.Decimal32.operator +(System.Decimal32, System.Decimal32)");
+        }
+
+        [TestMethod]
+        public void TestVisualBasicOperatorSearch()
+        {
+            var symbols = new EntryList
+            {
+                {
+                    "Narrowing Operator CType",
+                    "S.Narrowing Operator CType(S)"
+                },
+                {
+                    "Operator <>",
+                    "S.Operator <>(S, S)"
+                },
+                {
+                    "Operator =",
+                    "S.Operator =(S, S)"
+                }
+            };
+
+            Test(symbols, "op_Equality", "S.Operator =(S, S)");
+            Test(symbols, "op_Inequality", "S.Operator <>(S, S)");
+            Test(symbols, "op_Explicit", "S.Narrowing Operator CType(S)");
+        }
+
+        [TestMethod]
         public void TestVerbatimQuery_DoesNotUseCamelOrSubstringFallback()
         {
             Test(

@@ -19,24 +19,39 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 return TryProcessGuid(range);
             }
 
+            bool isOperatorKeyword = false;
             if (range.ClassificationType != Constants.ClassificationIdentifier &&
-                range.ClassificationType != Constants.ClassificationTypeName &&
-                text != "this" &&
-                text != "base" &&
-                text != "string" &&
-                text != "var" &&
-                text != "New" &&
-                text != "new" &&
-                text != "[" &&
-                text != "partial" &&
-                text != "Partial" &&
-                text != "extension")
+                range.ClassificationType != Constants.ClassificationTypeName)
             {
-                return null;
+                isOperatorKeyword = text.Length == "operator".Length &&
+                    text.Equals("operator", StringComparison.OrdinalIgnoreCase);
+                if (!isOperatorKeyword &&
+                    text is not (
+                        "this" or
+                        "base" or
+                        "string" or
+                        "var" or
+                        "New" or
+                        "new" or
+                        "[" or
+                        "partial" or
+                        "Partial" or
+                        "extension"))
+                {
+                    return null;
+                }
             }
 
             var position = range.ClassifiedSpan.TextSpan.Start;
             var token = Root.FindToken(position, findInsideTrivia: true);
+            if (isOperatorKeyword &&
+                token.Parent is not OperatorDeclarationSyntax &&
+                token.Parent is not ConversionOperatorDeclarationSyntax &&
+                token.Parent is not Microsoft.CodeAnalysis.VisualBasic.Syntax.OperatorStatementSyntax)
+            {
+                return null;
+            }
+
             if (IsZeroLengthArrayAllocation(token))
             {
                 projectGenerator.AddReference(
