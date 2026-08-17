@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using Microsoft.CodeAnalysis;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Microsoft.SourceBrowser.HtmlGenerator.Tests
@@ -178,6 +180,104 @@ namespace Microsoft.SourceBrowser.HtmlGenerator.Tests
         {
             var actual = Paths.MakeRelativeToFolder(a, b);
             Assert.AreEqual(expected, actual);
+        }
+
+        [TestMethod]
+        public void GetRelativeFilePathInProject_RootedFolder_RemainsRelative()
+        {
+            using var workspace = new AdhocWorkspace();
+            var project = workspace.AddProject("Test", LanguageNames.CSharp);
+            var document = project.AddDocument(
+                "DebuggerState.cs",
+                string.Empty,
+                folders: [@"D:\a\_work\1\s\src\Shared\Debugger"]);
+
+            var relativePath = Paths.GetRelativeFilePathInProject(
+                document,
+                @"D:\a\_work\1\s\src\Shared\Shared.csproj");
+
+            Assert.IsFalse(Path.IsPathRooted(relativePath));
+            Assert.AreEqual(@"Debugger\DebuggerState.cs", relativePath);
+        }
+
+        [TestMethod]
+        public void GetRelativeFilePathInProject_RootedFolderOutsideProjectCone_RemainsRelative()
+        {
+            using var workspace = new AdhocWorkspace();
+            var project = workspace.AddProject("Test", LanguageNames.CSharp);
+            var document = project.AddDocument(
+                "DebuggerState.cs",
+                string.Empty,
+                folders: [@"D:\a\_work\1\s\src\Shared\Debugger"]);
+
+            var relativePath = Paths.GetRelativeFilePathInProject(
+                document,
+                @"D:\a\_work\1\s\src\Libraries\Test\Test.csproj");
+
+            Assert.IsFalse(Path.IsPathRooted(relativePath));
+            Assert.AreEqual(@"parent\parent\Shared\Debugger\DebuggerState.cs", relativePath);
+        }
+
+        [TestMethod]
+        public void GetRelativeFilePathInProject_RootedDocumentName_RemainsRelative()
+        {
+            using var workspace = new AdhocWorkspace();
+            var project = workspace.AddProject("Test", LanguageNames.CSharp);
+            var document = project.AddDocument(
+                @"D:\a\_work\1\s\src\Shared\Debugger\DebuggerState.cs",
+                string.Empty);
+
+            var relativePath = Paths.GetRelativeFilePathInProject(document);
+
+            Assert.IsFalse(Path.IsPathRooted(relativePath));
+            Assert.AreEqual("DebuggerState.cs", relativePath);
+        }
+
+        [TestMethod]
+        public void GetRelativeFilePathInProject_RelativeDocumentName_PreservesFolders()
+        {
+            using var workspace = new AdhocWorkspace();
+            var project = workspace.AddProject("Test", LanguageNames.CSharp);
+            var document = project.AddDocument(
+                @"Generated\Sub\File.cs",
+                string.Empty);
+
+            var relativePath = Paths.GetRelativeFilePathInProject(document);
+
+            Assert.AreEqual(@"Generated\Sub\File.cs", relativePath);
+        }
+
+        [TestMethod]
+        public void GetRelativeFilePathInProject_RootedDocumentName_PreservesProjectRelativeFolders()
+        {
+            using var workspace = new AdhocWorkspace();
+            var project = workspace.AddProject("Test", LanguageNames.CSharp);
+            var document = project.AddDocument(
+                @"D:\a\_work\1\s\src\Shared\Debugger\DebuggerState.cs",
+                string.Empty);
+
+            var relativePath = Paths.GetRelativeFilePathInProject(
+                document,
+                @"D:\a\_work\1\s\src\Shared\Shared.csproj");
+
+            Assert.AreEqual(@"Debugger\DebuggerState.cs", relativePath);
+        }
+
+        [TestMethod]
+        public void GetRelativeFilePathInProject_DocumentOutsideProjectCone_RemainsRelative()
+        {
+            using var workspace = new AdhocWorkspace();
+            var project = workspace.AddProject("Test", LanguageNames.CSharp);
+            var document = project.AddDocument(
+                @"D:\a\_work\1\s\src\Shared\Debugger\DebuggerState.cs",
+                string.Empty);
+
+            var relativePath = Paths.GetRelativeFilePathInProject(
+                document,
+                @"D:\a\_work\1\s\src\Libraries\Test\Test.csproj");
+
+            Assert.IsFalse(Path.IsPathRooted(relativePath));
+            Assert.AreEqual(@"parent\parent\Shared\Debugger\DebuggerState.cs", relativePath);
         }
 
         [TestMethod]
