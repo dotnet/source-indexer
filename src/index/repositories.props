@@ -22,6 +22,7 @@
     <RepositoryV2 Include="dotnet">
       <RepoName>dotnet-dotnet</RepoName>
       <Url>https://github.com/dotnet/dotnet</Url>
+      <LocalPath>$(RepositoryPath)dotnet/</LocalPath>
       <!-- Emit a per-subfolder repo filter tag for each entry in the VMR's source manifest,
            so search can be scoped to the originating repo (dotnet/runtime, ...). Source links
            are unaffected: files still point at dotnet/dotnet. -->
