@@ -23,8 +23,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             if (range.ClassificationType != Constants.ClassificationIdentifier &&
                 range.ClassificationType != Constants.ClassificationTypeName)
             {
-                isOperatorKeyword = text.Length == "operator".Length &&
-                    text.Equals("operator", StringComparison.OrdinalIgnoreCase);
+                isOperatorKeyword = text.Equals("operator", StringComparison.OrdinalIgnoreCase);
                 if (!isOperatorKeyword &&
                     text is not (
                         "this" or
@@ -45,9 +44,9 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             var position = range.ClassifiedSpan.TextSpan.Start;
             var token = Root.FindToken(position, findInsideTrivia: true);
             if (isOperatorKeyword &&
-                token.Parent is not OperatorDeclarationSyntax &&
-                token.Parent is not ConversionOperatorDeclarationSyntax &&
-                token.Parent is not Microsoft.CodeAnalysis.VisualBasic.Syntax.OperatorStatementSyntax)
+                token.Parent is not OperatorDeclarationSyntax and not
+                    ConversionOperatorDeclarationSyntax and not
+                    Microsoft.CodeAnalysis.VisualBasic.Syntax.OperatorStatementSyntax)
             {
                 return null;
             }

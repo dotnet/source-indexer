@@ -127,11 +127,29 @@ namespace Microsoft.SourceBrowser.HtmlGenerator.Tests
             Match(new DeclaredSymbolInfo
             {
                 AssemblyName = "Example",
+                Name = "MaxValue",
+                Description = "Example.Int32.MaxValue",
+                Kind = SymbolKindText.Field
+            },
+            "int.MaxValue");
+
+            Match(new DeclaredSymbolInfo
+            {
+                AssemblyName = "Example",
                 Name = "Size",
                 Description = "IntPtr.Size",
                 Kind = SymbolKindText.Property
             },
             "IntPtr.Size");
+
+            NoMatch(new DeclaredSymbolInfo
+            {
+                AssemblyName = "Example",
+                Name = "Size",
+                Description = "Example.IntPtr.Size",
+                Kind = SymbolKindText.Property
+            },
+            "System.IntPtr.Size");
 
             Match(new DeclaredSymbolInfo
             {
@@ -234,6 +252,17 @@ namespace Microsoft.SourceBrowser.HtmlGenerator.Tests
             keyword,
             clrName,
             "System." + clrName);
+
+            var customType = new DeclaredSymbolInfo
+            {
+                AssemblyName = "Example",
+                Name = clrName,
+                Description = "Example." + clrName,
+                Kind = SymbolKindText.Struct
+            };
+
+            Match(customType, clrName);
+            NoMatch(customType, "System." + clrName);
         }
 
         [TestMethod]

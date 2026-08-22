@@ -116,8 +116,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
         private static bool IsOperatorKeyword(string text)
         {
-            return text.Length == "operator".Length &&
-                text.Equals("operator", StringComparison.OrdinalIgnoreCase);
+            return text.Equals("operator", StringComparison.OrdinalIgnoreCase);
         }
 
         private IEnumerable<Range> FillGaps(SourceText text, IEnumerable<Range> spans)

@@ -143,8 +143,7 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Models
             {
                 aliasLength = text.Length;
             }
-            else if (aliasLength == "System".Length &&
-                text.AsSpan(0, aliasLength).Equals("System", StringComparison.OrdinalIgnoreCase))
+            else if (text.AsSpan(0, aliasLength).Equals("System", StringComparison.OrdinalIgnoreCase))
             {
                 int memberSeparator = text.IndexOf('.', aliasLength + 1);
                 aliasLength = memberSeparator < 0 ? text.Length : memberSeparator;
