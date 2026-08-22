@@ -609,6 +609,11 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             return Federation.GetExternalAssemblyIndex(assemblyName);
         }
 
+        public string GetExternalSymbolPath(int externalAssemblyIndex, string assemblyName, string symbolId)
+        {
+            return Federation.GetExternalSymbolPath(externalAssemblyIndex, assemblyName, symbolId);
+        }
+
         private async Task<Solution> CreateSolutionAsync(string solutionFilePath, CancellationToken cancellationToken, ImmutableDictionary<string, string> properties = null, bool doNotIncludeReferencedProjects = false)
         {
             try
