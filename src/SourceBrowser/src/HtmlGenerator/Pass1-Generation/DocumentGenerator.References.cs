@@ -674,12 +674,10 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 string href = "@" +
                     externalAssemblyIndex.ToString() +
                     "@" +
-                    assemblyName +
-                    "/" +
-                    Constants.IDResolvingFileName +
-                    ".html" +
-                    "#" +
-                    symbolId;
+                    projectGenerator.SolutionGenerator.GetExternalSymbolPath(
+                        externalAssemblyIndex,
+                        assemblyName,
+                        symbolId);
 
                 return new HtmlElementInfo
                 {

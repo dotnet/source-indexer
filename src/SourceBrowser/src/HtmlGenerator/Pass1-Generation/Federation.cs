@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Microsoft.SourceBrowser.HtmlGenerator
 {
@@ -24,7 +26,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
         private class Info
         {
-            public Info(string server, HashSet<string> assemblies)
+            public Info(string server, HashSet<string> assemblies, bool supportsSymbolRedirect)
             {
                 if (server == null)
                 {
@@ -38,10 +40,18 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
                 Server = server;
                 Assemblies = assemblies ?? throw new ArgumentNullException(nameof(assemblies));
+                SupportsSymbolRedirect = supportsSymbolRedirect;
             }
 
             public string Server { get; }
             public HashSet<string> Assemblies { get; }
+            public bool SupportsSymbolRedirect { get; }
+        }
+
+        private sealed class Capabilities
+        {
+            [JsonPropertyName("symbolRedirect")]
+            public bool SymbolRedirect { get; set; }
         }
 
         private readonly List<Info> federations = new List<Info>();
@@ -83,16 +93,47 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
             var assemblyList = httpClient.GetStringAsync(url).GetAwaiter().GetResult();
             var assemblyNames = GetAssemblyNames(assemblyList);
+            bool supportsSymbolRedirect = GetSupportsSymbolRedirect(server);
 
-            federations.Add(new Info(server, assemblyNames));
+            federations.Add(new Info(server, assemblyNames, supportsSymbolRedirect));
         }
 
         public void AddFederation(string server, string assemblyListFile)
         {
+            AddFederation(server, assemblyListFile, supportsSymbolRedirect: false);
+        }
+
+        internal void AddFederation(
+            string server,
+            string assemblyListFile,
+            bool supportsSymbolRedirect)
+        {
             var fileText = File.ReadAllText(assemblyListFile);
             var assemblyNames = GetAssemblyNames(fileText);
-            var info = new Info(server, assemblyNames);
+            var info = new Info(server, assemblyNames, supportsSymbolRedirect);
             federations.Add(info);
+        }
+
+        private static bool GetSupportsSymbolRedirect(string server)
+        {
+            try
+            {
+                string json = httpClient.GetStringAsync(
+                    GetServerUrl(server, "Federation.json")).GetAwaiter().GetResult();
+                return JsonSerializer.Deserialize<Capabilities>(json)?.SymbolRedirect == true;
+            }
+            catch (HttpRequestException)
+            {
+                return false;
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
+            catch (OperationCanceledException)
+            {
+                return false;
+            }
         }
 
         private HashSet<string> GetAssemblyNames(string assemblyList)
@@ -105,15 +146,18 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
         private string GetAssemblyUrl(string server)
         {
-            var url = server;
+            return GetServerUrl(server, "Assemblies.txt");
+        }
+
+        private static string GetServerUrl(string server, string relativePath)
+        {
+            string url = server;
             if (!url.EndsWith("/", StringComparison.Ordinal))
             {
                 url += "/";
             }
 
-            url += "Assemblies.txt";
-
-            return url;
+            return url + relativePath;
         }
 
         public int GetExternalAssemblyIndex(string assemblyName)
@@ -128,6 +172,16 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             }
 
             return -1;
+        }
+
+        public string GetExternalSymbolPath(int externalAssemblyIndex, string assemblyName, string symbolId)
+        {
+            if (federations[externalAssemblyIndex].SupportsSymbolRedirect)
+            {
+                return "api/symbolredirect?symbolId=" + symbolId;
+            }
+
+            return assemblyName + "/A.html#" + symbolId;
         }
 
         public IEnumerable<string> GetServers()

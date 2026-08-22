@@ -55,25 +55,10 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Controllers
         {
             try
             {
-                if (!TryGetSymbolId(symbolId, out ulong id))
+                if (!TryGetSymbolUrl(symbolId, out string url))
                 {
                     return NotFound();
                 }
-
-                var index = _provider.GetRequiredService<Index>();
-                if (!index.symbolsById.TryGetValue(id, out int position))
-                {
-                    return NotFound();
-                }
-
-                if (position < 0 || position >= index.symbols.Count)
-                {
-                    return NotFound();
-                }
-
-                var symbol = index.symbols[position];
-                var info = symbol.GetDeclaredSymbolInfo(index.huffman, index.assemblies, index.projects);
-                var url = info.GetUrl();
 
                 return Content(url, "text/plain", Encoding.UTF8);
             }
@@ -82,6 +67,47 @@ namespace Microsoft.SourceBrowser.SourceIndexServer.Controllers
                 var text = Markup.Note(ex.ToString());
                 return NotFound(text);
             }
+        }
+
+        [HttpGet("/api/symbolredirect")]
+        public IActionResult RedirectToSymbol(string symbolId)
+        {
+            try
+            {
+                if (!TryGetSymbolUrl(symbolId, out string url))
+                {
+                    return NotFound();
+                }
+
+                return LocalRedirect(url);
+            }
+            catch (Exception ex)
+            {
+                var text = Markup.Note(ex.ToString());
+                return NotFound(text);
+            }
+        }
+
+        private bool TryGetSymbolUrl(string symbolId, out string url)
+        {
+            url = null;
+            if (!TryGetSymbolId(symbolId, out ulong id))
+            {
+                return false;
+            }
+
+            var index = _provider.GetRequiredService<Index>();
+            if (!index.symbolsById.TryGetValue(id, out int position) ||
+                position < 0 ||
+                position >= index.symbols.Count)
+            {
+                return false;
+            }
+
+            var symbol = index.symbols[position];
+            var info = symbol.GetDeclaredSymbolInfo(index.huffman, index.assemblies, index.projects);
+            url = info.GetUrl();
+            return true;
         }
 
         private bool TryGetSymbolId(string text, out ulong id)
