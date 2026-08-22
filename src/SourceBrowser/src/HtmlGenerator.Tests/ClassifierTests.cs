@@ -89,5 +89,23 @@ namespace Microsoft.SourceBrowser.HtmlGenerator.Tests
 
             Assert.AreEqual("explicit operator Decimal32", SymbolIdService.GetName(symbol));
         }
+
+        [TestMethod]
+        public void IndexedSpecialTypeNamesMatchSearchAliases()
+        {
+            var compilation = CSharpCompilation.Create(
+                "Test",
+                new[] { CSharpSyntaxTree.ParseText("class C { int i; nint n; }") },
+                new[] { MetadataReference.CreateFromFile(typeof(object).Assembly.Location) });
+            var fields = compilation.GetTypeByMetadataName("C").GetMembers().OfType<IFieldSymbol>();
+
+            Assert.AreEqual(
+                "System.Int32",
+                SymbolIdService.GetDisplayString(fields.Single(f => f.Name == "i").Type));
+            Assert.AreEqual(
+                "nint",
+                SymbolIdService.GetDisplayString(fields.Single(f => f.Name == "n").Type));
+        }
+
     }
 }
