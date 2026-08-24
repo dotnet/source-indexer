@@ -247,6 +247,9 @@
       <SourceIndexCmd>$(SourceIndexCmd) /in:"$(OutDir)index.list"</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd)@(ClonedRepository -> ' /repo:"%(LocalPath)"="%(RepoDisplayName)"="%(ServerPath)"', '')</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd)@(ClonedRepositoryV2 -> ' /repo:"%(LocalPath)"="%(RepoDisplayName)"="%(ServerPath)"', '')</SourceIndexCmd>
+      <!-- A standalone bundle's source-link root is src/, but its .complog inputs live elsewhere
+           under ExtractPath. Tag the entire bundle independently so those projects stay grouped. -->
+      <SourceIndexCmd>$(SourceIndexCmd)@(ClonedRepositoryV2 -> ' /repoPath:"%(ExtractPath)"="%(RepoDisplayName)"', '')</SourceIndexCmd>
       <SourceIndexCmd>$(SourceIndexCmd)@(SubRepoTag -> ' /repoPath:"%(Identity)"="%(RepoDisplayName)"', '')</SourceIndexCmd>
     </PropertyGroup>
     <Exec Command="$(SourceIndexCmd)" LogStandardErrorAsError="false"/>
