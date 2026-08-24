@@ -28,7 +28,7 @@ public sealed class CompilerLogWebAccessTests
             mappings,
             @"D:\a\_work\1\s\src\Library\File.cs");
 
-        url.ShouldBe("https://github.com/dotnet/extensions/tree/abc/src/Library/File.cs");
+        url.ShouldBe("https://github.com/dotnet/extensions/blob/abc/src/Library/File.cs");
         CompilerLogWebAccessMapping.GetWebAccessUrl(
             mappings,
             @"D:\a\_work\1\s\.packages\Package.cs").ShouldBeNull();
@@ -121,6 +121,27 @@ public sealed class CompilerLogWebAccessTests
             });
 
         url.ShouldBe("https://example.test/nested/File.cs");
+    }
+
+    [TestMethod]
+    public void Explicit_server_path_mapping_overrides_source_link()
+    {
+        var sourceLinkMappings = SolutionGenerator.CreateCompilerLogWebAccessMappings(
+            new Dictionary<string, string> { [@"D:\repo"] = @"/_/" },
+            new Dictionary<string, string>
+            {
+                ["/_/*"] = "https://example.test/source-link/*",
+            });
+
+        var url = ProjectGenerator.GetWebAccessUrl(
+            @"D:\repo\File.cs",
+            sourceLinkMappings,
+            new Dictionary<string, string>
+            {
+                [@"D:\repo\"] = "https://example.test/configured/",
+            });
+
+        url.ShouldBe("https://example.test/configured/File.cs");
     }
 
     [TestMethod]

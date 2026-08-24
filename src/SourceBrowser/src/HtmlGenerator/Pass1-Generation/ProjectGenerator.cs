@@ -374,14 +374,6 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             if (!Regex.IsMatch(sourceFilePath, @"(?:[/\\]|\A)obj[/\\]"))
             {
                 var fullPath = Path.GetFullPath(sourceFilePath);
-                var sourceLinkUrl = CompilerLogWebAccessMapping.GetWebAccessUrl(
-                    sourceLinkMappings,
-                    fullPath);
-                if (sourceLinkUrl != null)
-                {
-                    return sourceLinkUrl;
-                }
-
                 var serverPathMapping = serverPathMappings
                     .Where(mapping => Paths.IsOrContains(mapping.Key, fullPath))
                     .OrderByDescending(mapping => mapping.Key.Length)
@@ -390,6 +382,10 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 {
                     return serverPathMapping.Value + fullPath.Substring(serverPathMapping.Key.Length).Replace('\\', '/');
                 }
+
+                return CompilerLogWebAccessMapping.GetWebAccessUrl(
+                    sourceLinkMappings,
+                    fullPath);
             }
 
             return null;

@@ -178,7 +178,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 return sourceLinkUri.AbsoluteUri;
             }
 
-            return $"https://github.com/{pathParts[0]}/{pathParts[1]}/tree/{pathParts[2]}{sourceLinkUri.Query}{sourceLinkUri.Fragment}";
+            return $"https://github.com/{pathParts[0]}/{pathParts[1]}/blob/{pathParts[2]}{sourceLinkUri.Query}{sourceLinkUri.Fragment}";
         }
 
         private static string EscapePath(string path)
