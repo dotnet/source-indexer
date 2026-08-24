@@ -144,6 +144,20 @@ namespace HtmlGenerator.Tests
         }
 
         [TestMethod]
+        public void Bundle_and_source_roots_can_map_to_the_same_repo()
+        {
+            var mappings = new Dictionary<string, string>
+            {
+                [@"C:\bundle"] = "dotnet/extensions",
+                [@"C:\bundle\src"] = "dotnet/extensions",
+            };
+
+            Program.GetRepoName(@"C:\bundle\logs\extensions.complog", mappings).ShouldBe("dotnet/extensions");
+            Program.ResolveRepoChain(@"C:\bundle\src\Foo\Foo.csproj", mappings, "")
+                .ShouldBe(new[] { "dotnet/extensions" });
+        }
+
+        [TestMethod]
         public void Nested_repo_chain_groups_a_sub_repo_under_its_parent_repo_folder()
         {
             var root = new Folder<ProjectSkeleton>();
