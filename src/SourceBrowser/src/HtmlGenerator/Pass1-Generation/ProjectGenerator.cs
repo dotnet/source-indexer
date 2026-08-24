@@ -359,11 +359,33 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
         public string GetWebAccessUrl(string sourceFilePath)
         {
+            return GetWebAccessUrl(
+                sourceFilePath,
+                SolutionGenerator.GetCompilerLogWebAccessMappings(ProjectFilePath),
+                SolutionGenerator.ServerPathMappings);
+        }
+
+        internal static string GetWebAccessUrl(
+            string sourceFilePath,
+            IReadOnlyList<CompilerLogWebAccessMapping> sourceLinkMappings,
+            IReadOnlyDictionary<string, string> serverPathMappings)
+        {
             // Align with most gitignores as an approximation for knowing whether the file will exist in the source control repository.
             if (!Regex.IsMatch(sourceFilePath, @"(?:[/\\]|\A)obj[/\\]"))
             {
                 var fullPath = Path.GetFullPath(sourceFilePath);
-                var serverPathMapping = SolutionGenerator.ServerPathMappings.FirstOrDefault(p => fullPath.StartsWith(p.Key, StringComparison.OrdinalIgnoreCase));
+                var sourceLinkUrl = CompilerLogWebAccessMapping.GetWebAccessUrl(
+                    sourceLinkMappings,
+                    fullPath);
+                if (sourceLinkUrl != null)
+                {
+                    return sourceLinkUrl;
+                }
+
+                var serverPathMapping = serverPathMappings
+                    .Where(mapping => Paths.IsOrContains(mapping.Key, fullPath))
+                    .OrderByDescending(mapping => mapping.Key.Length)
+                    .FirstOrDefault();
                 if (serverPathMapping.Key != null)
                 {
                     return serverPathMapping.Value + fullPath.Substring(serverPathMapping.Key.Length).Replace('\\', '/');

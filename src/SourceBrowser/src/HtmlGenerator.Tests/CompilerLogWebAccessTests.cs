@@ -11,45 +11,116 @@ namespace HtmlGenerator.Tests;
 public sealed class CompilerLogWebAccessTests
 {
     [TestMethod]
-    public void Source_link_and_path_map_add_original_checkout_as_server_path_alias()
+    public void Source_link_and_path_map_create_web_access_url()
     {
-        var serverPathMappings = new Dictionary<string, string>
-        {
-            [@"C:\index\extensions"] = "https://github.com/dotnet/extensions/tree/fallback/",
-        };
-        var compilerPathMappings = new Dictionary<string, string>
-        {
-            [@"D:\a\_work\1\s\.packages\"] = @"/_1/",
-            [@"D:\a\_work\1\s"] = @"/_/",
-        };
-        var sourceLinkMappings = new Dictionary<string, string>
-        {
-            ["/_/*"] = "https://raw.githubusercontent.com/dotnet/extensions/abc/*",
-        };
+        var mappings = SolutionGenerator.CreateCompilerLogWebAccessMappings(
+            new Dictionary<string, string>
+            {
+                [@"D:\a\_work\1\s\.packages\"] = @"/_1/",
+                [@"D:\a\_work\1\s"] = @"/_/",
+            },
+            new Dictionary<string, string>
+            {
+                ["/_/*"] = "https://raw.githubusercontent.com/dotnet/extensions/abc/*",
+            });
 
-        var result = SolutionGenerator.AddCompilerLogSourceLinkMappings(
-            serverPathMappings,
-            compilerPathMappings,
-            sourceLinkMappings);
+        var url = CompilerLogWebAccessMapping.GetWebAccessUrl(
+            mappings,
+            @"D:\a\_work\1\s\src\Library\File.cs");
 
-        result.Count.ShouldBe(2);
-        result[@"D:\a\_work\1\s\"].ShouldBe("https://github.com/dotnet/extensions/tree/abc/");
-        result.ShouldNotContainKey(@"D:\a\_work\1\s\.packages\");
+        url.ShouldBe("https://github.com/dotnet/extensions/tree/abc/src/Library/File.cs");
+        CompilerLogWebAccessMapping.GetWebAccessUrl(
+            mappings,
+            @"D:\a\_work\1\s\.packages\Package.cs").ShouldBeNull();
     }
 
     [TestMethod]
-    public void Source_link_mapping_does_not_require_repo_mapping()
+    public void Exact_source_link_mapping_creates_exact_web_access_url()
     {
-        var result = SolutionGenerator.AddCompilerLogSourceLinkMappings(
-            new Dictionary<string, string>(),
-            new Dictionary<string, string> { [@"D:\a\_work\1\s\"] = @"/_/" },
+        var mappings = SolutionGenerator.CreateCompilerLogWebAccessMappings(
+            new Dictionary<string, string> { [@"D:\repo"] = @"/_/" },
             new Dictionary<string, string>
             {
-                ["/_/*"] = "https://example.test/source/abc/*",
+                ["/_/src/File.cs"] = "https://example.test/source/File.cs?raw=true",
             });
 
-        result.ShouldHaveSingleItem();
-        result[@"D:\a\_work\1\s\"].ShouldBe("https://example.test/source/abc/");
+        CompilerLogWebAccessMapping.GetWebAccessUrl(mappings, @"D:\repo\src\File.cs")
+            .ShouldBe("https://example.test/source/File.cs?raw=true");
+        CompilerLogWebAccessMapping.GetWebAccessUrl(mappings, @"D:\repo\src\Other.cs")
+            .ShouldBeNull();
+    }
+
+    [TestMethod]
+    public void Source_link_url_template_preserves_content_after_wildcard()
+    {
+        var mappings = SolutionGenerator.CreateCompilerLogWebAccessMappings(
+            new Dictionary<string, string> { [@"D:\repo"] = @"/_/" },
+            new Dictionary<string, string>
+            {
+                ["/_/*"] = "https://example.test/source/*?raw=true",
+            });
+
+        CompilerLogWebAccessMapping.GetWebAccessUrl(mappings, @"D:\repo\src\File name.cs")
+            .ShouldBe("https://example.test/source/src/File%20name.cs?raw=true");
+    }
+
+    [TestMethod]
+    public void Unsafe_source_link_url_is_ignored()
+    {
+        var mappings = SolutionGenerator.CreateCompilerLogWebAccessMappings(
+            new Dictionary<string, string> { [@"D:\repo"] = @"/_/" },
+            new Dictionary<string, string>
+            {
+                ["/_/*"] = "javascript:alert(*)",
+            });
+
+        mappings.ShouldBeEmpty();
+    }
+
+    [TestMethod]
+    public void Source_link_url_is_canonically_escaped()
+    {
+        var mappings = SolutionGenerator.CreateCompilerLogWebAccessMappings(
+            new Dictionary<string, string> { [@"D:\repo"] = @"/_/" },
+            new Dictionary<string, string>
+            {
+                ["/_/*"] = "https://example.test/source/*?value=\"quoted\"",
+            });
+
+        var url = CompilerLogWebAccessMapping.GetWebAccessUrl(mappings, @"D:\repo\File.cs");
+
+        url.ShouldBe("https://example.test/source/File.cs?value=%22quoted%22");
+        url.ShouldNotContain("\"");
+    }
+
+    [TestMethod]
+    public void Longest_source_link_mapping_wins()
+    {
+        var mappings = SolutionGenerator.CreateCompilerLogWebAccessMappings(
+            new Dictionary<string, string> { [@"D:\repo"] = @"/_/" },
+            new Dictionary<string, string>
+            {
+                ["/_/*"] = "https://example.test/general/*",
+                ["/_/src/nested/*"] = "https://example.test/nested/*",
+            });
+
+        CompilerLogWebAccessMapping.GetWebAccessUrl(mappings, @"D:\repo\src\nested\File.cs")
+            .ShouldBe("https://example.test/nested/File.cs");
+    }
+
+    [TestMethod]
+    public void Longest_server_path_mapping_wins()
+    {
+        var url = ProjectGenerator.GetWebAccessUrl(
+            @"D:\repo\nested\File.cs",
+            [],
+            new Dictionary<string, string>
+            {
+                [@"D:\repo\"] = "https://example.test/general/",
+                [@"D:\repo\nested\"] = "https://example.test/nested/",
+            });
+
+        url.ShouldBe("https://example.test/nested/File.cs");
     }
 
     [TestMethod]
@@ -66,29 +137,36 @@ public sealed class CompilerLogWebAccessTests
     }
 
     [TestMethod]
-    public void Compilations_with_the_same_path_map_can_add_different_source_link_mappings()
+    public void Compilations_with_the_same_path_map_can_use_different_source_link_mappings()
     {
         var pathMappings = new Dictionary<string, string>
         {
             [@"D:\a\_work\1\s"] = @"/_/",
         };
-        var result = SolutionGenerator.AddCompilerLogSourceLinkMappings(
-            new Dictionary<string, string>(),
+        var first = SolutionGenerator.CreateCompilerLogWebAccessMappings(
             pathMappings,
             new Dictionary<string, string>
             {
                 ["/_/src/first/*"] = "https://example.test/first/*",
             });
-
-        result = SolutionGenerator.AddCompilerLogSourceLinkMappings(
-            result,
+        var second = SolutionGenerator.CreateCompilerLogWebAccessMappings(
             pathMappings,
             new Dictionary<string, string>
             {
                 ["/_/src/second/*"] = "https://example.test/second/*",
             });
 
-        result[@"D:\a\_work\1\s\src\first\"].ShouldBe("https://example.test/first/");
-        result[@"D:\a\_work\1\s\src\second\"].ShouldBe("https://example.test/second/");
+        CompilerLogWebAccessMapping.GetWebAccessUrl(first, @"D:\a\_work\1\s\src\first\File.cs")
+            .ShouldBe("https://example.test/first/File.cs");
+        CompilerLogWebAccessMapping.GetWebAccessUrl(second, @"D:\a\_work\1\s\src\second\File.cs")
+            .ShouldBe("https://example.test/second/File.cs");
+    }
+
+    [TestMethod]
+    public void Compiler_log_project_file_paths_are_normalized_for_lookup()
+    {
+        SolutionGenerator.NormalizeCompilerLogProjectFilePath(
+            @"D:\repo\src\Project\..\Project\Project.csproj")
+            .ShouldBe(@"D:\repo\src\Project\Project.csproj");
     }
 }
