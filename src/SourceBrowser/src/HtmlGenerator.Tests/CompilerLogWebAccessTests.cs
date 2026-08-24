@@ -2,6 +2,8 @@ using Microsoft.SourceBrowser.HtmlGenerator;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Shouldly;
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
 
 namespace HtmlGenerator.Tests;
 
@@ -48,5 +50,45 @@ public sealed class CompilerLogWebAccessTests
 
         result.ShouldHaveSingleItem();
         result[@"D:\a\_work\1\s\"].ShouldBe("https://example.test/source/abc/");
+    }
+
+    [TestMethod]
+    [DataRow("{")]
+    [DataRow("""{"documents":[]}""")]
+    public void Invalid_source_link_data_is_ignored(string sourceLinkJson)
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(sourceLinkJson));
+
+        var success = SolutionGenerator.TryReadSourceLinkMappings(stream, out var mappings);
+
+        success.ShouldBeFalse();
+        mappings.ShouldBeNull();
+    }
+
+    [TestMethod]
+    public void Compilations_with_the_same_path_map_can_add_different_source_link_mappings()
+    {
+        var pathMappings = new Dictionary<string, string>
+        {
+            [@"D:\a\_work\1\s"] = @"/_/",
+        };
+        var result = SolutionGenerator.AddCompilerLogSourceLinkMappings(
+            new Dictionary<string, string>(),
+            pathMappings,
+            new Dictionary<string, string>
+            {
+                ["/_/src/first/*"] = "https://example.test/first/*",
+            });
+
+        result = SolutionGenerator.AddCompilerLogSourceLinkMappings(
+            result,
+            pathMappings,
+            new Dictionary<string, string>
+            {
+                ["/_/src/second/*"] = "https://example.test/second/*",
+            });
+
+        result[@"D:\a\_work\1\s\src\first\"].ShouldBe("https://example.test/first/");
+        result[@"D:\a\_work\1\s\src\second\"].ShouldBe("https://example.test/second/");
     }
 }

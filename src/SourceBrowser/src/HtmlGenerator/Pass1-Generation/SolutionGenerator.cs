@@ -694,50 +694,83 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
         private void AddCompilerLogSourceLinkMappings(string compilerLogFilePath)
         {
-            using var reader = CompilerLogReader.Create(compilerLogFilePath, BasicAnalyzerKind.None);
             var serverPathMappings = ServerPathMappings?.ToDictionary(
                 mapping => mapping.Key,
                 mapping => mapping.Value,
                 StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            var processedPathMaps = new HashSet<string>(StringComparer.Ordinal);
 
-            foreach (var call in reader.ReadAllCompilerCalls().Where(call => call.Kind == CompilerCallKind.Regular))
+            try
             {
-                var pathMappings = call.IsCSharp
-                    ? CSharpCommandLineParser.Default.Parse(reader.ReadRawArguments(call), call.ProjectDirectory, sdkDirectory: null).PathMap
-                    : VisualBasicCommandLineParser.Default.Parse(reader.ReadRawArguments(call), call.ProjectDirectory, sdkDirectory: null).PathMap;
-                var pathMapKey = string.Join(
-                    "\n",
-                    pathMappings
-                        .OrderBy(mapping => mapping.Key, StringComparer.OrdinalIgnoreCase)
-                        .Select(mapping => mapping.Key + "=" + mapping.Value));
-                if (!processedPathMaps.Add(pathMapKey))
+                using var reader = CompilerLogReader.Create(compilerLogFilePath, BasicAnalyzerKind.None);
+                foreach (var call in reader.ReadAllCompilerCalls().Where(call => call.Kind == CompilerCallKind.Regular))
                 {
-                    continue;
-                }
+                    try
+                    {
+                        var pathMappings = call.IsCSharp
+                            ? CSharpCommandLineParser.Default.Parse(reader.ReadRawArguments(call), call.ProjectDirectory, sdkDirectory: null).PathMap
+                            : VisualBasicCommandLineParser.Default.Parse(reader.ReadRawArguments(call), call.ProjectDirectory, sdkDirectory: null).PathMap;
 
-                using var sourceLinkStream = reader.ReadCompilationData(call).EmitData.SourceLinkStream;
-                if (sourceLinkStream == null)
-                {
-                    continue;
-                }
+                        using var sourceLinkStream = reader.ReadCompilationData(call).EmitData.SourceLinkStream;
+                        if (sourceLinkStream == null)
+                        {
+                            continue;
+                        }
 
-                using var sourceLink = JsonDocument.Parse(sourceLinkStream);
-                if (!sourceLink.RootElement.TryGetProperty("documents", out var documents))
-                {
-                    continue;
-                }
+                        if (!TryReadSourceLinkMappings(sourceLinkStream, out var sourceLinkMappings))
+                        {
+                            Log.Message($"Ignoring invalid Source Link data for '{call.ProjectFilePath}' in '{compilerLogFilePath}'.");
+                            continue;
+                        }
 
-                var sourceLinkMappings = documents.EnumerateObject()
-                    .Where(document => document.Value.ValueKind == JsonValueKind.String)
-                    .ToDictionary(document => document.Name, document => document.Value.GetString());
-                serverPathMappings = AddCompilerLogSourceLinkMappings(
-                    serverPathMappings,
-                    pathMappings,
-                    sourceLinkMappings);
+                        serverPathMappings = AddCompilerLogSourceLinkMappings(
+                            serverPathMappings,
+                            pathMappings,
+                            sourceLinkMappings);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Exception(
+                            ex,
+                            $"Failed to read Source Link data for '{call.ProjectFilePath}' from '{compilerLogFilePath}'.",
+                            isSevere: false);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(
+                    ex,
+                    $"Failed to read Source Link data from '{compilerLogFilePath}'.",
+                    isSevere: false);
             }
 
             ServerPathMappings = serverPathMappings;
+        }
+
+        internal static bool TryReadSourceLinkMappings(
+            Stream sourceLinkStream,
+            out IReadOnlyDictionary<string, string> sourceLinkMappings)
+        {
+            sourceLinkMappings = null;
+            try
+            {
+                using var sourceLink = JsonDocument.Parse(sourceLinkStream);
+                if (sourceLink.RootElement.ValueKind != JsonValueKind.Object ||
+                    !sourceLink.RootElement.TryGetProperty("documents", out var documents) ||
+                    documents.ValueKind != JsonValueKind.Object)
+                {
+                    return false;
+                }
+
+                sourceLinkMappings = documents.EnumerateObject()
+                    .Where(document => document.Value.ValueKind == JsonValueKind.String)
+                    .ToDictionary(document => document.Name, document => document.Value.GetString());
+                return true;
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
         }
 
         internal static Dictionary<string, string> AddCompilerLogSourceLinkMappings(
