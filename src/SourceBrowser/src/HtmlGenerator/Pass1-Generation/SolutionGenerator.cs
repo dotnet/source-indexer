@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -12,7 +13,9 @@ using System.Xml.Linq;
 using Basic.CompilerLog.Util;
 using Microsoft.Build.Construction;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.MSBuild;
+using Microsoft.CodeAnalysis.VisualBasic;
 using Microsoft.SourceBrowser.Common;
 
 namespace Microsoft.SourceBrowser.HtmlGenerator
@@ -667,6 +670,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     // into the compilation, so we don't need to (re-)execute analyzers/source generators
                     // during analysis -- avoiding loading third-party analyzers and their overhead.
                     LogCompilerLogDiagnostics(solutionFilePath);
+                    AddCompilerLogSourceLinkMappings(solutionFilePath);
                     var reader = SolutionReader.Create(
                         solutionFilePath,
                         BasicAnalyzerKind.None);
@@ -686,6 +690,124 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 Log.Exception(ex, "Failed to open solution: " + solutionFilePath);
                 return null;
             }
+        }
+
+        private void AddCompilerLogSourceLinkMappings(string compilerLogFilePath)
+        {
+            using var reader = CompilerLogReader.Create(compilerLogFilePath, BasicAnalyzerKind.None);
+            var serverPathMappings = ServerPathMappings?.ToDictionary(
+                mapping => mapping.Key,
+                mapping => mapping.Value,
+                StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var processedPathMaps = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (var call in reader.ReadAllCompilerCalls().Where(call => call.Kind == CompilerCallKind.Regular))
+            {
+                var pathMappings = call.IsCSharp
+                    ? CSharpCommandLineParser.Default.Parse(reader.ReadRawArguments(call), call.ProjectDirectory, sdkDirectory: null).PathMap
+                    : VisualBasicCommandLineParser.Default.Parse(reader.ReadRawArguments(call), call.ProjectDirectory, sdkDirectory: null).PathMap;
+                var pathMapKey = string.Join(
+                    "\n",
+                    pathMappings
+                        .OrderBy(mapping => mapping.Key, StringComparer.OrdinalIgnoreCase)
+                        .Select(mapping => mapping.Key + "=" + mapping.Value));
+                if (!processedPathMaps.Add(pathMapKey))
+                {
+                    continue;
+                }
+
+                using var sourceLinkStream = reader.ReadCompilationData(call).EmitData.SourceLinkStream;
+                if (sourceLinkStream == null)
+                {
+                    continue;
+                }
+
+                using var sourceLink = JsonDocument.Parse(sourceLinkStream);
+                if (!sourceLink.RootElement.TryGetProperty("documents", out var documents))
+                {
+                    continue;
+                }
+
+                var sourceLinkMappings = documents.EnumerateObject()
+                    .Where(document => document.Value.ValueKind == JsonValueKind.String)
+                    .ToDictionary(document => document.Name, document => document.Value.GetString());
+                serverPathMappings = AddCompilerLogSourceLinkMappings(
+                    serverPathMappings,
+                    pathMappings,
+                    sourceLinkMappings);
+            }
+
+            ServerPathMappings = serverPathMappings;
+        }
+
+        internal static Dictionary<string, string> AddCompilerLogSourceLinkMappings(
+            IReadOnlyDictionary<string, string> serverPathMappings,
+            IEnumerable<KeyValuePair<string, string>> compilerPathMappings,
+            IReadOnlyDictionary<string, string> sourceLinkMappings)
+        {
+            var result = serverPathMappings.ToDictionary(
+                mapping => mapping.Key,
+                mapping => mapping.Value,
+                StringComparer.OrdinalIgnoreCase);
+            foreach (var pathMapping in compilerPathMappings)
+            {
+                if (!Path.IsPathRooted(pathMapping.Key))
+                {
+                    continue;
+                }
+
+                var mappedPrefix = EnsureSourceLinkTrailingSlash(pathMapping.Value);
+                foreach (var sourceLinkMapping in sourceLinkMappings)
+                {
+                    if (!sourceLinkMapping.Key.EndsWith("*", StringComparison.Ordinal) ||
+                        !sourceLinkMapping.Value.EndsWith("*", StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    var documentPrefix = EnsureSourceLinkTrailingSlash(sourceLinkMapping.Key.Substring(0, sourceLinkMapping.Key.Length - 1));
+                    var urlPrefix = sourceLinkMapping.Value.Substring(0, sourceLinkMapping.Value.Length - 1);
+                    string physicalPrefix;
+                    if (documentPrefix.StartsWith(mappedPrefix, StringComparison.Ordinal))
+                    {
+                        var relativePath = documentPrefix.Substring(mappedPrefix.Length).Replace('/', Path.DirectorySeparatorChar);
+                        physicalPrefix = Path.Combine(pathMapping.Key, relativePath);
+                    }
+                    else if (mappedPrefix.StartsWith(documentPrefix, StringComparison.Ordinal))
+                    {
+                        urlPrefix += mappedPrefix.Substring(documentPrefix.Length);
+                        physicalPrefix = pathMapping.Key;
+                    }
+                    else
+                    {
+                        continue;
+                    }
+
+                    result[Paths.EnsureTrailingSlash(Path.GetFullPath(physicalPrefix))] = GetWebAccessUrlPrefix(urlPrefix);
+                }
+            }
+
+            return result;
+        }
+
+        private static string EnsureSourceLinkTrailingSlash(string path)
+        {
+            path = path.Replace('\\', '/');
+            return path.EndsWith("/", StringComparison.Ordinal) ? path : path + "/";
+        }
+
+        private static string GetWebAccessUrlPrefix(string sourceLinkUrlPrefix)
+        {
+            const string GitHubRawPrefix = "https://raw.githubusercontent.com/";
+            if (!sourceLinkUrlPrefix.StartsWith(GitHubRawPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return sourceLinkUrlPrefix;
+            }
+
+            var parts = sourceLinkUrlPrefix.Substring(GitHubRawPrefix.Length).Split('/', 3);
+            return parts.Length == 3
+                ? $"https://github.com/{parts[0]}/{parts[1]}/tree/{parts[2]}"
+                : sourceLinkUrlPrefix;
         }
 
         private ImmutableDictionary<string, string> AddSolutionProperties(ImmutableDictionary<string, string> properties, string solutionFilePath)
