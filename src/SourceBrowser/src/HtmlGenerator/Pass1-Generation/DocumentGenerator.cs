@@ -142,7 +142,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
         private async Task GenerateHtmlAsync(StreamWriter writer)
         {
-            var title = Document.Name;
+            var title = Path.GetFileName(Document.Name);
             var lineCount = Text.Lines.Count;
 
             // if the document is very long, pregenerate line numbers statically
