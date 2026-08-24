@@ -317,8 +317,16 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             string compilerLogFilePath,
             IEnumerable<KeyValuePair<string, string>> compilerPathMappings)
         {
+            var compilerLogDirectory = Path.GetDirectoryName(Path.GetFullPath(compilerLogFilePath));
+            var standaloneStageOneSourceDirectory = Paths.EnsureTrailingSlash(
+                Path.Combine(compilerLogDirectory, "src"));
             var configuredMapping = serverPathMappings
-                .Where(mapping => Paths.IsOrContains(mapping.Key, compilerLogFilePath))
+                .Where(mapping =>
+                    Paths.IsOrContains(mapping.Key, compilerLogFilePath) ||
+                    string.Equals(
+                        Paths.EnsureTrailingSlash(Path.GetFullPath(mapping.Key)),
+                        standaloneStageOneSourceDirectory,
+                        StringComparison.OrdinalIgnoreCase))
                 .OrderByDescending(mapping => mapping.Key.Length)
                 .FirstOrDefault();
             if (configuredMapping.Key == null)

@@ -32,6 +32,26 @@ public sealed class CompilerLogWebAccessTests
     }
 
     [TestMethod]
+    public void Standalone_stage_one_compiler_log_uses_sibling_src_server_path()
+    {
+        var serverPathMappings = new Dictionary<string, string>
+        {
+            [@"C:\index\extensions\src\"] = "https://github.com/dotnet/extensions/tree/abc/",
+        };
+
+        var result = SolutionGenerator.AddCompilerLogServerPathMapping(
+            serverPathMappings,
+            @"C:\index\extensions\build.complog",
+            new Dictionary<string, string>
+            {
+                [@"D:\a\_work\1\s\"] = @"/_/",
+            });
+
+        result.Count.ShouldBe(2);
+        result[@"D:\a\_work\1\s\"].ShouldBe("https://github.com/dotnet/extensions/tree/abc/");
+    }
+
+    [TestMethod]
     public void Compiler_log_without_repository_path_map_adds_no_alias()
     {
         var serverPathMappings = new Dictionary<string, string>
