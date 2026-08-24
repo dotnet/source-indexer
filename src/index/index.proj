@@ -22,7 +22,8 @@
     </Repository>
 
     <RepositoryV2>
-      <LocalPath>$(RepositoryPath)%(Identity)/</LocalPath>
+      <!-- Standalone stage 1 bundles place repository-relative files under src/. -->
+      <LocalPath>$(RepositoryPath)%(Identity)/src/</LocalPath>
       <ExtractPath>$(RepositoryPath)%(Identity)/</ExtractPath>
     </RepositoryV2>
   </ItemDefinitionGroup>
