@@ -52,6 +52,28 @@ public sealed class CompilerLogWebAccessTests
     }
 
     [TestMethod]
+    public void Case_variant_server_paths_keep_last_value()
+    {
+        var serverPathMappings = new Dictionary<string, string>
+        {
+            [@"C:\INDEX\EXTENSIONS\"] = "https://example.test/first/",
+            [@"c:\index\extensions\"] = "https://example.test/last/",
+        };
+
+        var result = SolutionGenerator.AddCompilerLogServerPathMapping(
+            serverPathMappings,
+            @"C:\index\extensions\build.complog",
+            new Dictionary<string, string>
+            {
+                [@"D:\a\_work\1\s\"] = @"/_/",
+            });
+
+        result.Count.ShouldBe(2);
+        result[@"C:\index\extensions\"].ShouldBe("https://example.test/last/");
+        result[@"D:\a\_work\1\s\"].ShouldBe("https://example.test/last/");
+    }
+
+    [TestMethod]
     public void Compiler_log_without_repository_path_map_adds_no_alias()
     {
         var serverPathMappings = new Dictionary<string, string>

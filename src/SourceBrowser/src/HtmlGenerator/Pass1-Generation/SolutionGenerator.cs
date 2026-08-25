@@ -100,10 +100,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             this.SolutionSourceFolder = Path.GetDirectoryName(solutionFilePath);
             this.SolutionDestinationFolder = solutionDestinationFolder;
             this.ProjectFilePath = solutionFilePath;
-            ServerPathMappings = serverPathMappings?.ToDictionary(
-                mapping => mapping.Key,
-                mapping => mapping.Value,
-                StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            ServerPathMappings = CopyServerPathMappings(serverPathMappings);
             this.Federation = federation ?? new Federation();
             this.PluginBlacklist = pluginBlacklist ?? Enumerable.Empty<string>();
             this.Properties = properties;
@@ -317,10 +314,11 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             string compilerLogFilePath,
             IEnumerable<KeyValuePair<string, string>> compilerPathMappings)
         {
+            var normalizedServerPathMappings = CopyServerPathMappings(serverPathMappings);
             var compilerLogDirectory = Path.GetDirectoryName(Path.GetFullPath(compilerLogFilePath));
             var standaloneStageOneSourceDirectory = Paths.EnsureTrailingSlash(
                 Path.Combine(compilerLogDirectory, "src"));
-            var configuredMapping = serverPathMappings
+            var configuredMapping = normalizedServerPathMappings
                 .Where(mapping =>
                     Paths.IsOrContains(mapping.Key, compilerLogFilePath) ||
                     string.Equals(
@@ -346,11 +344,22 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 return serverPathMappings;
             }
 
-            var result = serverPathMappings.ToDictionary(
-                mapping => mapping.Key,
-                mapping => mapping.Value,
-                StringComparer.OrdinalIgnoreCase);
-            result[Paths.EnsureTrailingSlash(Path.GetFullPath(repositoryRoot.Key))] = configuredMapping.Value;
+            normalizedServerPathMappings[Paths.EnsureTrailingSlash(Path.GetFullPath(repositoryRoot.Key))] = configuredMapping.Value;
+            return normalizedServerPathMappings;
+        }
+
+        private static Dictionary<string, string> CopyServerPathMappings(
+            IEnumerable<KeyValuePair<string, string>> serverPathMappings)
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (serverPathMappings != null)
+            {
+                foreach (var mapping in serverPathMappings)
+                {
+                    result[mapping.Key] = mapping.Value;
+                }
+            }
+
             return result;
         }
 
