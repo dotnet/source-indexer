@@ -256,7 +256,6 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             try
             {
                 using var reader = CompilerLogReader.Create(compilerLogFilePath, BasicAnalyzerKind.None);
-                var serverPathAliasAdded = false;
                 foreach (var compilerCall in reader.ReadAllCompilerCalls(cc => cc.Kind == CompilerCallKind.Regular))
                 {
                     // With BasicAnalyzerKind.None the generated sources must already be present in the
@@ -277,27 +276,22 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                         }
                     }
 
-                    if (!serverPathAliasAdded)
+                    try
                     {
-                        try
-                        {
-                            var pathMappings = compilerCall.IsCSharp
-                                ? CSharpCommandLineParser.Default.Parse(reader.ReadRawArguments(compilerCall), compilerCall.ProjectDirectory, sdkDirectory: null).PathMap
-                                : VisualBasicCommandLineParser.Default.Parse(reader.ReadRawArguments(compilerCall), compilerCall.ProjectDirectory, sdkDirectory: null).PathMap;
-                            var updatedMappings = AddCompilerLogServerPathMapping(
-                                ServerPathMappings,
-                                compilerLogFilePath,
-                                pathMappings);
-                            serverPathAliasAdded = !ReferenceEquals(updatedMappings, ServerPathMappings);
-                            ServerPathMappings = updatedMappings;
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.Exception(
-                                ex,
-                                $"Failed to read path mappings for '{compilerCall.ProjectFilePath}' from '{compilerLogFilePath}'.",
-                                isSevere: false);
-                        }
+                        var pathMappings = compilerCall.IsCSharp
+                            ? CSharpCommandLineParser.Default.Parse(reader.ReadRawArguments(compilerCall), compilerCall.ProjectDirectory, sdkDirectory: null).PathMap
+                            : VisualBasicCommandLineParser.Default.Parse(reader.ReadRawArguments(compilerCall), compilerCall.ProjectDirectory, sdkDirectory: null).PathMap;
+                        ServerPathMappings = AddCompilerLogServerPathMapping(
+                            ServerPathMappings,
+                            compilerLogFilePath,
+                            pathMappings);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Exception(
+                            ex,
+                            $"Failed to read path mappings for '{compilerCall.ProjectFilePath}' from '{compilerLogFilePath}'.",
+                            isSevere: false);
                     }
                 }
             }

@@ -74,6 +74,33 @@ public sealed class CompilerLogWebAccessTests
     }
 
     [TestMethod]
+    public void Projects_with_distinct_repository_roots_each_add_an_alias()
+    {
+        IReadOnlyDictionary<string, string> result = new Dictionary<string, string>
+        {
+            [@"C:\index\extensions\src\"] = "https://github.com/dotnet/extensions/tree/abc/",
+        };
+
+        result = SolutionGenerator.AddCompilerLogServerPathMapping(
+            result,
+            @"C:\index\extensions\build.complog",
+            new Dictionary<string, string>
+            {
+                [@"D:\work\repo1\"] = @"/_/",
+            });
+        result = SolutionGenerator.AddCompilerLogServerPathMapping(
+            result,
+            @"C:\index\extensions\build.complog",
+            new Dictionary<string, string>
+            {
+                [@"E:\work\repo2\"] = @"/_/",
+            });
+
+        result[@"D:\work\repo1\"].ShouldBe("https://github.com/dotnet/extensions/tree/abc/");
+        result[@"E:\work\repo2\"].ShouldBe("https://github.com/dotnet/extensions/tree/abc/");
+    }
+
+    [TestMethod]
     public void Compiler_log_without_repository_path_map_adds_no_alias()
     {
         var serverPathMappings = new Dictionary<string, string>
