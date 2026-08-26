@@ -10,7 +10,7 @@
     <PackageVersion Include="Microsoft.Build.Framework" Version="18.9.6" />
     <PackageVersion Include="Microsoft.Build.Tasks.Core" Version="18.9.6" />
     <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="18.9.6" />
-    <PackageVersion Include="Microsoft.Build" Version="18.8.2" />
+    <PackageVersion Include="Microsoft.Build" Version="18.9.6" />
 
     <!-- roslyn -->
     <PackageVersion Include="Microsoft.CodeAnalysis" Version="5.6.0" />
