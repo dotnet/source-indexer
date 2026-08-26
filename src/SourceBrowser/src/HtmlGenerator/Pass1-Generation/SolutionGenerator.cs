@@ -12,7 +12,9 @@ using System.Xml.Linq;
 using Basic.CompilerLog.Util;
 using Microsoft.Build.Construction;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.MSBuild;
+using Microsoft.CodeAnalysis.VisualBasic;
 using Microsoft.SourceBrowser.Common;
 
 namespace Microsoft.SourceBrowser.HtmlGenerator
@@ -98,7 +100,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             this.SolutionSourceFolder = Path.GetDirectoryName(solutionFilePath);
             this.SolutionDestinationFolder = solutionDestinationFolder;
             this.ProjectFilePath = solutionFilePath;
-            ServerPathMappings = serverPathMappings;
+            ServerPathMappings = CopyServerPathMappings(serverPathMappings);
             this.Federation = federation ?? new Federation();
             this.PluginBlacklist = pluginBlacklist ?? Enumerable.Empty<string>();
             this.Properties = properties;
@@ -249,7 +251,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         /// project at a time so only a single compilation is materialized at once, keeping the memory
         /// cost bounded for large solutions.
         /// </summary>
-        private static void LogCompilerLogDiagnostics(string compilerLogFilePath)
+        private void ReadCompilerLogMetadata(string compilerLogFilePath)
         {
             try
             {
@@ -273,6 +275,24 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                             Log.Message($"Compiler log '{compilerLogFilePath}' diagnostic for '{compilerCall.GetDiagnosticName()}': {diagnostic}");
                         }
                     }
+
+                    try
+                    {
+                        var pathMappings = compilerCall.IsCSharp
+                            ? CSharpCommandLineParser.Default.Parse(reader.ReadRawArguments(compilerCall), compilerCall.ProjectDirectory, sdkDirectory: null).PathMap
+                            : VisualBasicCommandLineParser.Default.Parse(reader.ReadRawArguments(compilerCall), compilerCall.ProjectDirectory, sdkDirectory: null).PathMap;
+                        ServerPathMappings = AddCompilerLogServerPathMapping(
+                            ServerPathMappings,
+                            compilerLogFilePath,
+                            pathMappings);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Exception(
+                            ex,
+                            $"Failed to read path mappings for '{compilerCall.ProjectFilePath}' from '{compilerLogFilePath}'.",
+                            isSevere: false);
+                    }
                 }
             }
             catch (Exception ex)
@@ -281,6 +301,60 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 // valid compiler log.
                 Log.Exception(ex, "Failed to read diagnostics from compiler log: " + compilerLogFilePath, isSevere: false);
             }
+        }
+
+        internal static IReadOnlyDictionary<string, string> AddCompilerLogServerPathMapping(
+            IReadOnlyDictionary<string, string> serverPathMappings,
+            string compilerLogFilePath,
+            IEnumerable<KeyValuePair<string, string>> compilerPathMappings)
+        {
+            var normalizedServerPathMappings = CopyServerPathMappings(serverPathMappings);
+            var compilerLogDirectory = Path.GetDirectoryName(Path.GetFullPath(compilerLogFilePath));
+            var standaloneStageOneSourceDirectory = Paths.EnsureTrailingSlash(
+                Path.Combine(compilerLogDirectory, "src"));
+            var configuredMapping = normalizedServerPathMappings
+                .Where(mapping =>
+                    Paths.IsOrContains(mapping.Key, compilerLogFilePath) ||
+                    string.Equals(
+                        Paths.EnsureTrailingSlash(Path.GetFullPath(mapping.Key)),
+                        standaloneStageOneSourceDirectory,
+                        StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(mapping => mapping.Key.Length)
+                .FirstOrDefault();
+            if (configuredMapping.Key == null)
+            {
+                return serverPathMappings;
+            }
+
+            var repositoryRoot = compilerPathMappings
+                .Where(mapping => Path.IsPathRooted(mapping.Key))
+                .FirstOrDefault(mapping =>
+                    string.Equals(
+                        mapping.Value.Replace('\\', '/').TrimEnd('/'),
+                        "/_",
+                        StringComparison.OrdinalIgnoreCase));
+            if (repositoryRoot.Key == null)
+            {
+                return serverPathMappings;
+            }
+
+            normalizedServerPathMappings[Paths.EnsureTrailingSlash(Path.GetFullPath(repositoryRoot.Key))] = configuredMapping.Value;
+            return normalizedServerPathMappings;
+        }
+
+        private static Dictionary<string, string> CopyServerPathMappings(
+            IEnumerable<KeyValuePair<string, string>> serverPathMappings)
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (serverPathMappings != null)
+            {
+                foreach (var mapping in serverPathMappings)
+                {
+                    result[mapping.Key] = mapping.Value;
+                }
+            }
+
+            return result;
         }
 
         private static Solution CreateSolution(
@@ -671,7 +745,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     // BasicAnalyzerKind.None loads any files that generators originally produced directly
                     // into the compilation, so we don't need to (re-)execute analyzers/source generators
                     // during analysis -- avoiding loading third-party analyzers and their overhead.
-                    LogCompilerLogDiagnostics(solutionFilePath);
+                    ReadCompilerLogMetadata(solutionFilePath);
                     var reader = SolutionReader.Create(
                         solutionFilePath,
                         BasicAnalyzerKind.None);
