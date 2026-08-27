@@ -17,7 +17,9 @@ namespace HtmlGenerator.Tests;
 public sealed class CompilerLogTypeForwardTests
 {
     [TestMethod]
-    public void Metadata_emit_omits_pdb_only_compiler_log_data()
+    [DataRow(DebugInformationFormat.PortablePdb)]
+    [DataRow(DebugInformationFormat.Embedded)]
+    public void Metadata_emit_omits_pdb_only_compiler_log_data(DebugInformationFormat debugInformationFormat)
     {
         var sourceText = SourceText.From("public class C { }", Encoding.UTF8);
         var syntaxTree = CSharpSyntaxTree.ParseText(sourceText, path: "Embedded.cs");
@@ -39,7 +41,7 @@ public sealed class CompilerLogTypeForwardTests
         var result = Program.EmitMetadataForTypeForwards(
             compilation,
             emitData,
-            new EmitOptions(debugInformationFormat: DebugInformationFormat.PortablePdb));
+            new EmitOptions(debugInformationFormat: debugInformationFormat));
         using var assemblyStream = result.AssemblyStream;
         using var pdbStream = result.PdbStream;
 

@@ -411,7 +411,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 EmitFlags.MetadataOnly,
                 win32ResourceStream: emitData.Win32ResourceStream,
                 manifestResources: emitData.Resources,
-                emitOptions: emitOptions);
+                // PortablePdb needed due to https://github.com/dotnet/roslyn/issues/78721.
+                emitOptions: emitOptions.WithDebugInformationFormat(DebugInformationFormat.PortablePdb));
         }
 
         private static async Task IndexSolutionsAsync(
