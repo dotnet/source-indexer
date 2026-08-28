@@ -813,12 +813,18 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         private static readonly string[] LoadableProjectExtensions = { ".csproj", ".vbproj" };
 
         /// <summary>
-        /// Returns true if the solution declares at least one project that Roslyn's MSBuildWorkspace can
-        /// load (C# or VB). Only .sln files can be inspected here, so anything else (e.g. .slnx) is
-        /// assumed loadable to avoid silently swallowing a genuine failure.
+        /// Returns true if the input declares at least one project that Roslyn can load (C# or VB).
+        /// An empty compiler log has already proven it contains no regular compilations. Only .sln
+        /// files can otherwise be inspected here, so anything else (e.g. .slnx) is assumed loadable
+        /// to avoid silently swallowing a genuine failure.
         /// </summary>
         private static bool DeclaresLoadableProject(string solutionFilePath)
         {
+            if (CanBeLegitimatelyEmpty(solutionFilePath))
+            {
+                return false;
+            }
+
             if (!solutionFilePath.EndsWith(".sln", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
@@ -837,6 +843,9 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 return true;
             }
         }
+
+        internal static bool CanBeLegitimatelyEmpty(string solutionFilePath)
+            => solutionFilePath.EndsWith(".complog", StringComparison.OrdinalIgnoreCase);
 
         public void AddTypeScriptFile(string filePath)
         {
