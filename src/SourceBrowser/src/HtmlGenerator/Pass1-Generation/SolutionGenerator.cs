@@ -87,6 +87,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         // so it must not be disposed until Pass1 generation has finished reading every document.
         private SolutionReader compilerLogReader;
 
+        private readonly HashSet<string> compilerLogRepositoryRoots = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         private SolutionGenerator(
             string solutionFilePath,
             string solutionDestinationFolder,
@@ -246,10 +248,11 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         /// </summary>
         public static Microsoft.CodeAnalysis.SolutionInfo NormalizeCompilerLogAssemblyNames(
             Microsoft.CodeAnalysis.SolutionInfo solutionInfo,
-            IReadOnlyDictionary<string, string> repoPathMappings = null)
+            IReadOnlyDictionary<string, string> repoPathMappings = null,
+            IEnumerable<string> compilerLogRepositoryRoots = null)
         {
             var projectInfos = solutionInfo.Projects
-                .Select(p => NormalizeCompilerLogProject(p, repoPathMappings))
+                .Select(p => NormalizeCompilerLogProject(p, repoPathMappings, compilerLogRepositoryRoots))
                 .ToList();
 
             var projectsByAssembly = projectInfos
@@ -268,7 +271,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
         private static ProjectInfo NormalizeCompilerLogProject(
             ProjectInfo projectInfo,
-            IReadOnlyDictionary<string, string> repoPathMappings)
+            IReadOnlyDictionary<string, string> repoPathMappings,
+            IEnumerable<string> compilerLogRepositoryRoots)
         {
             var normalized = projectInfo.WithAssemblyName(Path.GetFileNameWithoutExtension(projectInfo.AssemblyName));
             var projectDirectory = Path.GetDirectoryName(projectInfo.FilePath);
@@ -277,7 +281,11 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 return normalized;
             }
 
-            var repositoryRoot = (repoPathMappings?.Keys ?? Enumerable.Empty<string>())
+            var repositoryRoot = (compilerLogRepositoryRoots ?? Enumerable.Empty<string>())
+                .Where(path => Paths.IsOrContains(path, projectInfo.FilePath))
+                .OrderBy(path => path.Length)
+                .FirstOrDefault();
+            repositoryRoot ??= (repoPathMappings?.Keys ?? Enumerable.Empty<string>())
                 .Where(path => Paths.IsOrContains(path, projectInfo.FilePath))
                 .OrderBy(path => path.Length)
                 .FirstOrDefault();
@@ -362,6 +370,12 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                         var pathMappings = compilerCall.IsCSharp
                             ? CSharpCommandLineParser.Default.Parse(reader.ReadRawArguments(compilerCall), compilerCall.ProjectDirectory, sdkDirectory: null).PathMap
                             : VisualBasicCommandLineParser.Default.Parse(reader.ReadRawArguments(compilerCall), compilerCall.ProjectDirectory, sdkDirectory: null).PathMap;
+                        var repositoryRoot = GetCompilerLogRepositoryRoot(pathMappings);
+                        if (repositoryRoot != null)
+                        {
+                            compilerLogRepositoryRoots.Add(repositoryRoot);
+                        }
+
                         ServerPathMappings = AddCompilerLogServerPathMapping(
                             ServerPathMappings,
                             compilerLogFilePath,
@@ -428,11 +442,15 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         {
             var normalizedRepoPathMappings = CopyServerPathMappings(repoPathMappings);
             var compilerLogFullPath = Path.GetFullPath(compilerLogFilePath);
-            var compilerLogDirectory = Path.GetDirectoryName(compilerLogFullPath);
-            if (!normalizedRepoPathMappings.Keys.Any(mapping => Paths.IsOrContains(mapping, compilerLogFullPath)))
+            var configuredRepositoryRoot = normalizedRepoPathMappings.Keys
+                .Where(mapping => Paths.IsOrContains(mapping, compilerLogFullPath))
+                .OrderBy(mapping => mapping.Length)
+                .FirstOrDefault();
+            if (configuredRepositoryRoot == null)
             {
                 return repoPathMappings;
             }
+            configuredRepositoryRoot = Path.GetFullPath(configuredRepositoryRoot);
 
             var repositoryRoot = GetCompilerLogRepositoryRoot(compilerPathMappings);
             if (repositoryRoot == null)
@@ -443,12 +461,12 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             foreach (var mapping in repoPathMappings ?? Enumerable.Empty<KeyValuePair<string, string>>())
             {
                 var mappingPath = Path.GetFullPath(mapping.Key);
-                if (!Paths.IsOrContains(compilerLogDirectory, mappingPath))
+                if (!Paths.IsOrContains(configuredRepositoryRoot, mappingPath))
                 {
                     continue;
                 }
 
-                var relativePath = Path.GetRelativePath(compilerLogDirectory, mappingPath);
+                var relativePath = Path.GetRelativePath(configuredRepositoryRoot, mappingPath);
                 var originalPath = relativePath == "."
                     ? repositoryRoot
                     : Path.Combine(repositoryRoot, relativePath);
@@ -880,7 +898,10 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                         solutionFilePath,
                         BasicAnalyzerKind.None);
                     this.compilerLogReader = reader;
-                    var solutionInfo = NormalizeCompilerLogAssemblyNames(reader.ReadSolutionInfo(), RepoPathMappings);
+                    var solutionInfo = NormalizeCompilerLogAssemblyNames(
+                        reader.ReadSolutionInfo(),
+                        RepoPathMappings,
+                        compilerLogRepositoryRoots);
 
                     var adhocWorkspace = new AdhocWorkspace();
                     adhocWorkspace.AddSolution(solutionInfo);

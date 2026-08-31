@@ -97,13 +97,9 @@ namespace HtmlGenerator.Tests
                 SolutionId.CreateNewId(),
                 VersionStamp.Default,
                 projects: new[] { project });
-            var repoPathMappings = new System.Collections.Generic.Dictionary<string, string>
-            {
-                [repositoryRoot] = "dotnet/dotnet",
-                [repositoryRoot + @"\src\runtime"] = "dotnet/runtime",
-            };
-
-            var normalized = SolutionGenerator.NormalizeCompilerLogAssemblyNames(solution, repoPathMappings);
+            var normalized = SolutionGenerator.NormalizeCompilerLogAssemblyNames(
+                solution,
+                compilerLogRepositoryRoots: new[] { repositoryRoot });
             var documents = normalized.Projects.Single().Documents.ToDictionary(d => d.Name);
 
             documents["Local.cs"].Folders.ShouldBe(new[] { "Internal" });

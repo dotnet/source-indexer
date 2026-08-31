@@ -150,7 +150,7 @@ public sealed class CompilerLogWebAccessTests
 
         var result = SolutionGenerator.AddCompilerLogRepoPathMappings(
             repoPathMappings,
-            @"C:\index\dotnet\runtime.complog",
+            @"C:\index\dotnet\logs\runtime.complog",
             new Dictionary<string, string>
             {
                 [@"D:\a\_work\1\s"] = @"/_/",
