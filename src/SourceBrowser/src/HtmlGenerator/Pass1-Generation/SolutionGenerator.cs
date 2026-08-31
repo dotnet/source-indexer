@@ -237,14 +237,19 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         /// which keys output folders, the global assembly list, and cross-assembly references off the
         /// bare name -- uses the extension-less form. This rewrites every project's AssemblyName to the
         /// extension-less form so a .complog input produces byte-for-byte the same output as the
-        /// equivalent .binlog input. When multiple compilations produce the same assembly, the one
-        /// with the most source documents is ordered first so downstream first-wins deduplication
-        /// prefers an implementation build over a reference assembly.
+        /// equivalent .binlog input. Compiler logs also retain source file paths but not Roslyn
+        /// document folders, so reconstruct project-relative folders for ordinary files and
+        /// repository-relative folders for linked files, matching BinLogToSln's Link behavior.
+        /// When multiple compilations produce the same assembly, the one with the most source
+        /// documents is ordered first so downstream first-wins deduplication prefers an implementation
+        /// build over a reference assembly.
         /// </summary>
-        public static Microsoft.CodeAnalysis.SolutionInfo NormalizeCompilerLogAssemblyNames(Microsoft.CodeAnalysis.SolutionInfo solutionInfo)
+        public static Microsoft.CodeAnalysis.SolutionInfo NormalizeCompilerLogAssemblyNames(
+            Microsoft.CodeAnalysis.SolutionInfo solutionInfo,
+            IReadOnlyDictionary<string, string> repoPathMappings = null)
         {
             var projectInfos = solutionInfo.Projects
-                .Select(p => p.WithAssemblyName(Path.GetFileNameWithoutExtension(p.AssemblyName)))
+                .Select(p => NormalizeCompilerLogProject(p, repoPathMappings))
                 .ToList();
 
             var projectsByAssembly = projectInfos
@@ -259,6 +264,65 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
             return Microsoft.CodeAnalysis.SolutionInfo.Create(
                 solutionInfo.Id, solutionInfo.Version, solutionInfo.FilePath, projectInfos);
+        }
+
+        private static ProjectInfo NormalizeCompilerLogProject(
+            ProjectInfo projectInfo,
+            IReadOnlyDictionary<string, string> repoPathMappings)
+        {
+            var normalized = projectInfo.WithAssemblyName(Path.GetFileNameWithoutExtension(projectInfo.AssemblyName));
+            var projectDirectory = Path.GetDirectoryName(projectInfo.FilePath);
+            if (string.IsNullOrEmpty(projectDirectory))
+            {
+                return normalized;
+            }
+
+            var repositoryRoot = (repoPathMappings?.Keys ?? Enumerable.Empty<string>())
+                .Where(path => Paths.IsOrContains(path, projectInfo.FilePath))
+                .OrderBy(path => path.Length)
+                .FirstOrDefault();
+
+            return normalized.WithDocuments(projectInfo.Documents.Select(document =>
+                AddCompilerLogDocumentFolders(document, projectDirectory, repositoryRoot)));
+        }
+
+        internal static DocumentInfo AddCompilerLogDocumentFolders(
+            DocumentInfo document,
+            string projectDirectory,
+            string repositoryRoot)
+        {
+            if (document.Folders.Count > 0 ||
+                string.IsNullOrEmpty(document.FilePath) ||
+                !Path.IsPathRooted(document.FilePath) ||
+                !Path.IsPathRooted(projectDirectory))
+            {
+                return document;
+            }
+
+            string relativePath;
+            if (Paths.IsOrContains(projectDirectory, document.FilePath))
+            {
+                relativePath = Path.GetRelativePath(projectDirectory, document.FilePath);
+            }
+            else if (!string.IsNullOrEmpty(repositoryRoot) &&
+                     Paths.IsOrContains(repositoryRoot, document.FilePath))
+            {
+                relativePath = Path.GetRelativePath(repositoryRoot, document.FilePath);
+            }
+            else
+            {
+                return document;
+            }
+
+            var directory = Path.GetDirectoryName(relativePath);
+            if (string.IsNullOrEmpty(directory))
+            {
+                return document;
+            }
+
+            return document.WithFolders(directory.Split(
+                new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
+                StringSplitOptions.RemoveEmptyEntries));
         }
 
         /// <summary>
@@ -816,7 +880,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                         solutionFilePath,
                         BasicAnalyzerKind.None);
                     this.compilerLogReader = reader;
-                    var solutionInfo = NormalizeCompilerLogAssemblyNames(reader.ReadSolutionInfo());
+                    var solutionInfo = NormalizeCompilerLogAssemblyNames(reader.ReadSolutionInfo(), RepoPathMappings);
 
                     var adhocWorkspace = new AdhocWorkspace();
                     adhocWorkspace.AddSolution(solutionInfo);
