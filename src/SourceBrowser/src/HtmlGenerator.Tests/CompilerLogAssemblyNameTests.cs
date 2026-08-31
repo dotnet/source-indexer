@@ -52,5 +52,36 @@ namespace HtmlGenerator.Tests
             normalized.Projects.Select(p => p.AssemblyName)
                 .ShouldBe(new[] { "A", "B" }, ignoreOrder: true);
         }
+
+        [TestMethod]
+        public void Implementation_compilation_precedes_reference_assembly_with_the_same_name()
+        {
+            var referenceAssembly = CreateProjectInfo("A.dll", documentCount: 1);
+            var unrelated = CreateProjectInfo("B.dll", documentCount: 1);
+            var implementation = CreateProjectInfo("A.dll", documentCount: 10);
+            var original = SolutionInfo.Create(
+                SolutionId.CreateNewId(),
+                VersionStamp.Default,
+                projects: new[] { referenceAssembly, unrelated, implementation });
+
+            var normalized = SolutionGenerator.NormalizeCompilerLogAssemblyNames(original);
+
+            normalized.Projects.Select(p => p.Id)
+                .ShouldBe(new[] { implementation.Id, unrelated.Id, referenceAssembly.Id });
+        }
+
+        private static ProjectInfo CreateProjectInfo(string assemblyName, int documentCount)
+        {
+            var projectId = ProjectId.CreateNewId();
+            var documents = Enumerable.Range(0, documentCount)
+                .Select(i => DocumentInfo.Create(DocumentId.CreateNewId(projectId), $"{i}.cs"));
+            return ProjectInfo.Create(
+                projectId,
+                VersionStamp.Default,
+                name: assemblyName,
+                assemblyName: assemblyName,
+                language: LanguageNames.CSharp,
+                documents: documents);
+        }
     }
 }

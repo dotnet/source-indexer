@@ -93,6 +93,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             ImmutableDictionary<string, string> properties,
             Federation federation,
             IReadOnlyDictionary<string, string> serverPathMappings,
+            IReadOnlyDictionary<string, string> repoPathMappings,
             IEnumerable<string> pluginBlacklist,
             IReadOnlyDictionary<ValueTuple<string, string>, string> typeForwards,
             bool includeSourceGeneratedDocuments)
@@ -101,6 +102,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             this.SolutionDestinationFolder = solutionDestinationFolder;
             this.ProjectFilePath = solutionFilePath;
             ServerPathMappings = CopyServerPathMappings(serverPathMappings);
+            RepoPathMappings = CopyServerPathMappings(repoPathMappings);
             this.Federation = federation ?? new Federation();
             this.PluginBlacklist = pluginBlacklist ?? Enumerable.Empty<string>();
             this.Properties = properties;
@@ -115,6 +117,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             ImmutableDictionary<string, string> properties = null,
             Federation federation = null,
             IReadOnlyDictionary<string, string> serverPathMappings = null,
+            IReadOnlyDictionary<string, string> repoPathMappings = null,
             IEnumerable<string> pluginBlacklist = null,
             IReadOnlyDictionary<ValueTuple<string, string>, string> typeForwards = null,
             bool doNotIncludeReferencedProjects = false,
@@ -126,6 +129,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 properties,
                 federation,
                 serverPathMappings,
+                repoPathMappings,
                 pluginBlacklist,
                 typeForwards,
                 includeSourceGeneratedDocuments
@@ -233,13 +237,26 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         /// which keys output folders, the global assembly list, and cross-assembly references off the
         /// bare name -- uses the extension-less form. This rewrites every project's AssemblyName to the
         /// extension-less form so a .complog input produces byte-for-byte the same output as the
-        /// equivalent .binlog input.
+        /// equivalent .binlog input. When multiple compilations produce the same assembly, the one
+        /// with the most source documents is ordered first so downstream first-wins deduplication
+        /// prefers an implementation build over a reference assembly.
         /// </summary>
         public static Microsoft.CodeAnalysis.SolutionInfo NormalizeCompilerLogAssemblyNames(Microsoft.CodeAnalysis.SolutionInfo solutionInfo)
         {
             var projectInfos = solutionInfo.Projects
                 .Select(p => p.WithAssemblyName(Path.GetFileNameWithoutExtension(p.AssemblyName)))
                 .ToList();
+
+            var projectsByAssembly = projectInfos
+                .GroupBy(p => p.AssemblyName, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g => new Queue<ProjectInfo>(g.OrderByDescending(p => p.Documents.Count)),
+                    StringComparer.OrdinalIgnoreCase);
+            projectInfos = projectInfos
+                .Select(p => projectsByAssembly[p.AssemblyName].Dequeue())
+                .ToList();
+
             return Microsoft.CodeAnalysis.SolutionInfo.Create(
                 solutionInfo.Id, solutionInfo.Version, solutionInfo.FilePath, projectInfos);
         }
@@ -285,6 +302,10 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                             ServerPathMappings,
                             compilerLogFilePath,
                             pathMappings);
+                        RepoPathMappings = AddCompilerLogRepoPathMappings(
+                            RepoPathMappings,
+                            compilerLogFilePath,
+                            pathMappings);
                     }
                     catch (Exception ex)
                     {
@@ -326,6 +347,55 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 return serverPathMappings;
             }
 
+            var repositoryRoot = GetCompilerLogRepositoryRoot(compilerPathMappings);
+            if (repositoryRoot == null)
+            {
+                return serverPathMappings;
+            }
+
+            normalizedServerPathMappings[repositoryRoot] = configuredMapping.Value;
+            return normalizedServerPathMappings;
+        }
+
+        internal static IReadOnlyDictionary<string, string> AddCompilerLogRepoPathMappings(
+            IReadOnlyDictionary<string, string> repoPathMappings,
+            string compilerLogFilePath,
+            IEnumerable<KeyValuePair<string, string>> compilerPathMappings)
+        {
+            var normalizedRepoPathMappings = CopyServerPathMappings(repoPathMappings);
+            var compilerLogFullPath = Path.GetFullPath(compilerLogFilePath);
+            var compilerLogDirectory = Path.GetDirectoryName(compilerLogFullPath);
+            if (!normalizedRepoPathMappings.Keys.Any(mapping => Paths.IsOrContains(mapping, compilerLogFullPath)))
+            {
+                return repoPathMappings;
+            }
+
+            var repositoryRoot = GetCompilerLogRepositoryRoot(compilerPathMappings);
+            if (repositoryRoot == null)
+            {
+                return repoPathMappings;
+            }
+
+            foreach (var mapping in repoPathMappings ?? Enumerable.Empty<KeyValuePair<string, string>>())
+            {
+                var mappingPath = Path.GetFullPath(mapping.Key);
+                if (!Paths.IsOrContains(compilerLogDirectory, mappingPath))
+                {
+                    continue;
+                }
+
+                var relativePath = Path.GetRelativePath(compilerLogDirectory, mappingPath);
+                var originalPath = relativePath == "."
+                    ? repositoryRoot
+                    : Path.Combine(repositoryRoot, relativePath);
+                normalizedRepoPathMappings[Paths.EnsureTrailingSlash(Path.GetFullPath(originalPath))] = mapping.Value;
+            }
+
+            return normalizedRepoPathMappings;
+        }
+
+        private static string GetCompilerLogRepositoryRoot(IEnumerable<KeyValuePair<string, string>> compilerPathMappings)
+        {
             var repositoryRoot = compilerPathMappings
                 .Where(mapping => Path.IsPathRooted(mapping.Key))
                 .FirstOrDefault(mapping =>
@@ -333,13 +403,9 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                         mapping.Value.Replace('\\', '/').TrimEnd('/'),
                         "/_",
                         StringComparison.OrdinalIgnoreCase));
-            if (repositoryRoot.Key == null)
-            {
-                return serverPathMappings;
-            }
-
-            normalizedServerPathMappings[Paths.EnsureTrailingSlash(Path.GetFullPath(repositoryRoot.Key))] = configuredMapping.Value;
-            return normalizedServerPathMappings;
+            return repositoryRoot.Key == null
+                ? null
+                : Paths.EnsureTrailingSlash(Path.GetFullPath(repositoryRoot.Key));
         }
 
         private static Dictionary<string, string> CopyServerPathMappings(
