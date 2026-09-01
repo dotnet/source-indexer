@@ -561,6 +561,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                             properties: properties.ToImmutableDictionary(),
                             federation: federation,
                             serverPathMappings: serverPathMappings,
+                            repoPathMappings: repoPathMappings,
                             pluginBlacklist: pluginBlacklist,
                             doNotIncludeReferencedProjects: doNotIncludeReferencedProjects,
                             includeSourceGeneratedDocuments: includeSourceGeneratedDocuments,
@@ -572,7 +573,6 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                         solutionGenerator.GlobalAssemblyList = assemblyNames;
                         solutionGenerator.RepoName = repoName;
                         solutionGenerator.SolutionName = solutionName;
-                        solutionGenerator.RepoPathMappings = repoPathMappings;
                         solutionGenerator.DistinctRepoCount = distinctRepoCount;
                         solutionGenerator.SolutionCountsByRepo = solutionCountsByRepo;
                         using (Disposable.Timing("Pass1 writing for " + path))

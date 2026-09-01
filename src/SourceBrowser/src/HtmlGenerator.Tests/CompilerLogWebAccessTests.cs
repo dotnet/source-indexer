@@ -137,4 +137,34 @@ public sealed class CompilerLogWebAccessTests
 
         result.ShouldBeSameAs(serverPathMappings);
     }
+
+    [TestMethod]
+    public void Vmr_subrepo_paths_are_aliased_under_the_original_compiler_root()
+    {
+        var repoPathMappings = new Dictionary<string, string>
+        {
+            [@"C:\index\dotnet\"] = "dotnet/dotnet",
+            [@"C:\index\dotnet\src\runtime"] = "dotnet/runtime",
+            [@"C:\index\dotnet\src\sdk"] = "dotnet/sdk",
+        };
+
+        var result = SolutionGenerator.AddCompilerLogRepoPathMappings(
+            repoPathMappings,
+            @"C:\index\dotnet\logs\runtime.complog",
+            new Dictionary<string, string>
+            {
+                [@"D:\a\_work\1\s"] = @"/_/",
+            });
+
+        Program.ResolveRepoChain(
+                @"D:\a\_work\1\s\src\runtime\src\libraries\System.Private.CoreLib\System.Private.CoreLib.csproj",
+                result,
+                "dotnet/dotnet")
+            .ShouldBe(new[] { "dotnet/dotnet", "dotnet/runtime" });
+        Program.ResolveRepoName(
+                @"D:\a\_work\1\s\src\sdk\src\Cli\dotnet.csproj",
+                result,
+                "dotnet/dotnet")
+            .ShouldBe("dotnet/sdk");
+    }
 }
