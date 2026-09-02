@@ -45,7 +45,7 @@ variables:
     value: 'staging'
   - name: storageAccountName
     value: 'netsourceindexprod'
-  - name: stagingHost
+  - name: deploymentHost
     value: 'staging.source.dot.net'
 - ${{ else }}:
   - name: poolName
@@ -58,6 +58,8 @@ variables:
     value: 'validation'
   - name: storageAccountName
     value: 'netsourceindexvalidprod'
+  - name: deploymentHost
+    value: 'validation.source.dot.net'
 
 extends:
   template: v1/1ES.Official.PipelineTemplate.yml@1ESPipelineTemplates
@@ -221,26 +223,26 @@ extends:
               inlineScript: |
                 az webapp restart --name $(webAppName) --slot $(temporaryDeploymentSlot) --resource-group $(resourceGroupName)
 
-          # FIXME: Health endpoints disabled till they can be audited: "https://$(stagingHost)/health", "https://$(stagingHost)/health/alive"
+          # FIXME: Health endpoints disabled till they can be audited: "https://$(deploymentHost)/health", "https://$(deploymentHost)/health/alive"
           - pwsh: |
               Start-Sleep 60
               $urls = @(
-                "https://$(stagingHost)"
-                "https://$(stagingHost)/System.Private.CoreLib/src/runtime/src/libraries/System.Private.CoreLib/src/System/String.cs.html"
+                "https://$(deploymentHost)"
+                "https://$(deploymentHost)/System.Private.CoreLib/src/runtime/src/libraries/System.Private.CoreLib/src/System/String.cs.html"
               )
               foreach ($url in $urls) {
                 Write-Host "Testing URL: $url"
                 try {
                   $statusCode = Invoke-WebRequest $url -UseBasicParsing -SkipHttpErrorCheck | select -ExpandProperty StatusCode
                   if ($statusCode -ne 200) {
-                    Write-Error "##vso[task.logissue type=warning;]Deployed staging website returned unexpected status code $statusCode from url $url"
+                    Write-Error "##vso[task.logissue type=warning;]Deployed website returned unexpected status code $statusCode from url $url"
                   }
                 } catch {
                   Write-Error "##vso[task.logissue type=warning;]Failed to test URL $url : $_"
                 }
               }
             displayName: 🟣Test Deployed WebApp
-            condition: and(succeeded(), eq(variables['isOfficialBuild'], 'True'))
+            condition: succeeded()
 
           - task: AzureCLI@2
             displayName: 🟣Swap Staging Slot into Production
