@@ -72,6 +72,58 @@ namespace HtmlGenerator.Tests
         }
 
         [TestMethod]
+        public void Compiler_source_count_takes_priority_over_injected_generated_documents()
+        {
+            var generatedHeavyProject = CreateProjectInfo("A.dll", documentCount: 10);
+            var implementation = CreateProjectInfo("A.dll", documentCount: 1);
+            var original = SolutionInfo.Create(
+                SolutionId.CreateNewId(),
+                VersionStamp.Default,
+                projects: new[] { generatedHeavyProject, implementation });
+
+            var normalized = SolutionGenerator.NormalizeCompilerLogAssemblyNames(
+                original,
+                projectScores: new[] { 1, 10 });
+
+            normalized.Projects.Select(p => p.Id)
+                .ShouldBe(new[] { implementation.Id, generatedHeavyProject.Id });
+
+            using var workspace = new AdhocWorkspace();
+            workspace.AddSolution(normalized);
+            workspace.CurrentSolution.Projects.Select(p => p.Id)
+                .ShouldBe(new[] { implementation.Id, generatedHeavyProject.Id });
+        }
+
+        [TestMethod]
+        public void Compiler_log_project_score_excludes_reference_assemblies()
+        {
+            SolutionGenerator.CalculateCompilerLogProjectScore(
+                    @"D:\repo\src\libraries\Foo\ref\Foo.csproj",
+                    "net11.0",
+                    sourceFileCount: 10_000)
+                .ShouldBe(int.MinValue);
+            SolutionGenerator.CalculateCompilerLogProjectScore(
+                    @"D:\repo\src\libraries\Foo\src\Foo.csproj",
+                    "net11.0",
+                    sourceFileCount: 100)
+                .ShouldBeGreaterThan(int.MinValue);
+        }
+
+        [TestMethod]
+        public void Compiler_log_project_score_prefers_newer_and_platform_specific_frameworks()
+        {
+            var older = SolutionGenerator.CalculateCompilerLogProjectScore(
+                @"D:\repo\Foo.csproj", "net10.0", sourceFileCount: 100);
+            var current = SolutionGenerator.CalculateCompilerLogProjectScore(
+                @"D:\repo\Foo.csproj", "net11.0", sourceFileCount: 100);
+            var linux = SolutionGenerator.CalculateCompilerLogProjectScore(
+                @"D:\repo\Foo.csproj", "net11.0-linux", sourceFileCount: 100);
+
+            current.ShouldBeGreaterThan(older);
+            linux.ShouldBeGreaterThan(current);
+        }
+
+        [TestMethod]
         public void Compiler_log_document_folders_match_BinLogToSln_link_behavior()
         {
             const string repositoryRoot = @"D:\a\_work\1\s";
@@ -99,7 +151,7 @@ namespace HtmlGenerator.Tests
                 projects: new[] { project });
             var normalized = SolutionGenerator.NormalizeCompilerLogAssemblyNames(
                 solution,
-                compilerLogRepositoryRoots: new[] { repositoryRoot });
+                compilerLogDocumentRoots: new[] { repositoryRoot });
             var documents = normalized.Projects.Single().Documents.ToDictionary(d => d.Name);
 
             documents["Local.cs"].Folders.ShouldBe(new[] { "Internal" });

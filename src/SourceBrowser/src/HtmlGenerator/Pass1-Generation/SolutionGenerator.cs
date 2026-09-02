@@ -86,8 +86,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         // documents produced by SolutionReader load their source text lazily through this reader,
         // so it must not be disposed until Pass1 generation has finished reading every document.
         private SolutionReader compilerLogReader;
-
-        private readonly HashSet<string> compilerLogRepositoryRoots = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> compilerLogDocumentRoots = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly List<int> compilerLogProjectScores = new List<int>();
 
         private SolutionGenerator(
             string solutionFilePath,
@@ -249,30 +249,42 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         public static Microsoft.CodeAnalysis.SolutionInfo NormalizeCompilerLogAssemblyNames(
             Microsoft.CodeAnalysis.SolutionInfo solutionInfo,
             IReadOnlyDictionary<string, string> repoPathMappings = null,
-            IEnumerable<string> compilerLogRepositoryRoots = null)
+            IEnumerable<string> compilerLogDocumentRoots = null,
+            IReadOnlyList<int> projectScores = null)
         {
             var projectInfos = solutionInfo.Projects
-                .Select(p => NormalizeCompilerLogProject(p, repoPathMappings, compilerLogRepositoryRoots))
+                .Select((project, index) => (
+                    Project: NormalizeCompilerLogProject(project, repoPathMappings, compilerLogDocumentRoots),
+                    Score: projectScores != null && index < projectScores.Count
+                        ? projectScores[index]
+                        : project.Documents.Count))
                 .ToList();
 
-            var projectsByAssembly = projectInfos
-                .GroupBy(p => p.AssemblyName, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(
-                    g => g.Key,
-                    g => new Queue<ProjectInfo>(g.OrderByDescending(p => p.Documents.Count)),
-                    StringComparer.OrdinalIgnoreCase);
+            var projectsByAssembly = new Dictionary<string, Queue<ProjectInfo>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var group in projectInfos.GroupBy(p => p.Project.AssemblyName, StringComparer.OrdinalIgnoreCase))
+            {
+                var ordered = group.OrderByDescending(p => p.Score).ToArray();
+                if (ordered.Length > 1)
+                {
+                    Log.Message(
+                        $"Selecting compiler log project '{ordered[0].Project.FilePath}' for assembly " +
+                        $"'{group.Key}' from {ordered.Length} candidates (score {ordered[0].Score}).");
+                }
+
+                projectsByAssembly[group.Key] = new Queue<ProjectInfo>(ordered.Select(p => p.Project));
+            }
             projectInfos = projectInfos
-                .Select(p => projectsByAssembly[p.AssemblyName].Dequeue())
+                .Select(p => (Project: projectsByAssembly[p.Project.AssemblyName].Dequeue(), p.Score))
                 .ToList();
 
             return Microsoft.CodeAnalysis.SolutionInfo.Create(
-                solutionInfo.Id, solutionInfo.Version, solutionInfo.FilePath, projectInfos);
+                solutionInfo.Id, solutionInfo.Version, solutionInfo.FilePath, projectInfos.Select(p => p.Project));
         }
 
         private static ProjectInfo NormalizeCompilerLogProject(
             ProjectInfo projectInfo,
             IReadOnlyDictionary<string, string> repoPathMappings,
-            IEnumerable<string> compilerLogRepositoryRoots)
+            IEnumerable<string> compilerLogDocumentRoots)
         {
             var normalized = projectInfo.WithAssemblyName(Path.GetFileNameWithoutExtension(projectInfo.AssemblyName));
             var projectDirectory = Path.GetDirectoryName(projectInfo.FilePath);
@@ -281,7 +293,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 return normalized;
             }
 
-            var repositoryRoot = (compilerLogRepositoryRoots ?? Enumerable.Empty<string>())
+            var repositoryRoot = (compilerLogDocumentRoots ?? Enumerable.Empty<string>())
                 .Where(path => Paths.IsOrContains(path, projectInfo.FilePath))
                 .OrderBy(path => path.Length)
                 .FirstOrDefault();
@@ -345,7 +357,54 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             try
             {
                 using var reader = CompilerLogReader.Create(compilerLogFilePath, BasicAnalyzerKind.None);
-                foreach (var compilerCall in reader.ReadAllCompilerCalls(cc => cc.Kind == CompilerCallKind.Regular))
+                var compilerCalls = reader.ReadAllCompilerCalls(cc => cc.Kind == CompilerCallKind.Regular);
+                foreach (var compilerCall in compilerCalls)
+                {
+                    var projectScore = CalculateCompilerLogProjectScore(
+                        compilerCall.ProjectFilePath,
+                        compilerCall.TargetFramework,
+                        sourceFileCount: 0);
+                    try
+                    {
+                        var rawArguments = reader.ReadRawArguments(compilerCall);
+                        var parsedArguments = compilerCall.IsCSharp
+                            ? (CommandLineArguments)CSharpCommandLineParser.Default.Parse(rawArguments, compilerCall.ProjectDirectory, sdkDirectory: null)
+                            : VisualBasicCommandLineParser.Default.Parse(rawArguments, compilerCall.ProjectDirectory, sdkDirectory: null);
+                        var pathMappings = parsedArguments.PathMap;
+                        var repositoryRoot = GetCompilerLogRepositoryRoot(pathMappings);
+                        if (repositoryRoot != null)
+                        {
+                            compilerLogDocumentRoots.Add(GetCompilerLogDocumentRoot(
+                                RepoPathMappings,
+                                compilerLogFilePath,
+                                repositoryRoot));
+                        }
+                        projectScore = CalculateCompilerLogProjectScore(
+                            compilerCall.ProjectFilePath,
+                            compilerCall.TargetFramework,
+                            parsedArguments.SourceFiles.Length);
+
+                        ServerPathMappings = AddCompilerLogServerPathMapping(
+                            ServerPathMappings,
+                            compilerLogFilePath,
+                            pathMappings,
+                            RepoPathMappings);
+                        RepoPathMappings = AddCompilerLogRepoPathMappings(
+                            RepoPathMappings,
+                            compilerLogFilePath,
+                            pathMappings);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Exception(
+                            ex,
+                            $"Failed to read path mappings and selection metadata for '{compilerCall.ProjectFilePath}' from '{compilerLogFilePath}'.",
+                            isSevere: false);
+                    }
+                    compilerLogProjectScores.Add(projectScore);
+                }
+
+                foreach (var compilerCall in compilerCalls)
                 {
                     // With BasicAnalyzerKind.None the generated sources must already be present in the
                     // log; if they are not, the indexed output for this project will be missing those
@@ -364,34 +423,6 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                             Log.Message($"Compiler log '{compilerLogFilePath}' diagnostic for '{compilerCall.GetDiagnosticName()}': {diagnostic}");
                         }
                     }
-
-                    try
-                    {
-                        var pathMappings = compilerCall.IsCSharp
-                            ? CSharpCommandLineParser.Default.Parse(reader.ReadRawArguments(compilerCall), compilerCall.ProjectDirectory, sdkDirectory: null).PathMap
-                            : VisualBasicCommandLineParser.Default.Parse(reader.ReadRawArguments(compilerCall), compilerCall.ProjectDirectory, sdkDirectory: null).PathMap;
-                        var repositoryRoot = GetCompilerLogRepositoryRoot(pathMappings);
-                        if (repositoryRoot != null)
-                        {
-                            compilerLogRepositoryRoots.Add(repositoryRoot);
-                        }
-
-                        ServerPathMappings = AddCompilerLogServerPathMapping(
-                            ServerPathMappings,
-                            compilerLogFilePath,
-                            pathMappings);
-                        RepoPathMappings = AddCompilerLogRepoPathMappings(
-                            RepoPathMappings,
-                            compilerLogFilePath,
-                            pathMappings);
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Exception(
-                            ex,
-                            $"Failed to read path mappings for '{compilerCall.ProjectFilePath}' from '{compilerLogFilePath}'.",
-                            isSevere: false);
-                    }
                 }
             }
             catch (Exception ex)
@@ -405,7 +436,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         internal static IReadOnlyDictionary<string, string> AddCompilerLogServerPathMapping(
             IReadOnlyDictionary<string, string> serverPathMappings,
             string compilerLogFilePath,
-            IEnumerable<KeyValuePair<string, string>> compilerPathMappings)
+            IEnumerable<KeyValuePair<string, string>> compilerPathMappings,
+            IReadOnlyDictionary<string, string> repoPathMappings = null)
         {
             var normalizedServerPathMappings = CopyServerPathMappings(serverPathMappings);
             var compilerLogDirectory = Path.GetDirectoryName(Path.GetFullPath(compilerLogFilePath));
@@ -431,7 +463,11 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 return serverPathMappings;
             }
 
-            normalizedServerPathMappings[repositoryRoot] = configuredMapping.Value;
+            var originalRepositoryRoot = GetCompilerLogDocumentRoot(
+                repoPathMappings,
+                compilerLogFilePath,
+                repositoryRoot);
+            normalizedServerPathMappings[originalRepositoryRoot] = configuredMapping.Value;
             return normalizedServerPathMappings;
         }
 
@@ -457,6 +493,10 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             {
                 return repoPathMappings;
             }
+            var originalRepositoryRoot = GetCompilerLogDocumentRoot(
+                repoPathMappings,
+                compilerLogFilePath,
+                repositoryRoot);
 
             foreach (var mapping in repoPathMappings ?? Enumerable.Empty<KeyValuePair<string, string>>())
             {
@@ -468,12 +508,177 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
 
                 var relativePath = Path.GetRelativePath(configuredRepositoryRoot, mappingPath);
                 var originalPath = relativePath == "."
-                    ? repositoryRoot
-                    : Path.Combine(repositoryRoot, relativePath);
+                    ? originalRepositoryRoot
+                    : Path.Combine(originalRepositoryRoot, relativePath);
                 normalizedRepoPathMappings[Paths.EnsureTrailingSlash(Path.GetFullPath(originalPath))] = mapping.Value;
             }
 
             return normalizedRepoPathMappings;
+        }
+
+        internal static string GetCompilerLogDocumentRoot(
+            IReadOnlyDictionary<string, string> repoPathMappings,
+            string compilerLogFilePath,
+            string compilerRepositoryRoot)
+        {
+            var compilerLogFullPath = Path.GetFullPath(compilerLogFilePath);
+            var configuredMapping = (repoPathMappings ?? Enumerable.Empty<KeyValuePair<string, string>>())
+                .Where(mapping => Paths.IsOrContains(mapping.Key, compilerLogFullPath))
+                .OrderBy(mapping => mapping.Key.Length)
+                .FirstOrDefault();
+            if (configuredMapping.Key == null)
+            {
+                return compilerRepositoryRoot;
+            }
+
+            var configuredRepositoryRoot = Path.GetFullPath(configuredMapping.Key);
+            var outerRepoName = configuredMapping.Value;
+            string bestRoot = compilerRepositoryRoot;
+            var bestSegmentCount = 0;
+
+            foreach (var mapping in repoPathMappings)
+            {
+                var mappingPath = Path.GetFullPath(mapping.Key);
+                if (!Paths.IsOrContains(configuredRepositoryRoot, mappingPath) ||
+                    string.Equals(mapping.Value, outerRepoName, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var relativePath = Path.GetRelativePath(configuredRepositoryRoot, mappingPath);
+                if (TryRemovePathSuffix(compilerRepositoryRoot, relativePath, out var originalRoot, out var segmentCount) &&
+                    segmentCount > bestSegmentCount)
+                {
+                    bestRoot = originalRoot;
+                    bestSegmentCount = segmentCount;
+                }
+            }
+
+            return bestRoot;
+        }
+
+        private static bool TryRemovePathSuffix(
+            string path,
+            string suffix,
+            out string pathWithoutSuffix,
+            out int segmentCount)
+        {
+            var suffixSegments = suffix.Split(
+                new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
+                StringSplitOptions.RemoveEmptyEntries);
+            var candidate = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            for (var i = suffixSegments.Length - 1; i >= 0; i--)
+            {
+                if (!string.Equals(Path.GetFileName(candidate), suffixSegments[i], StringComparison.OrdinalIgnoreCase))
+                {
+                    pathWithoutSuffix = null;
+                    segmentCount = 0;
+                    return false;
+                }
+
+                candidate = Path.GetDirectoryName(candidate);
+            }
+
+            pathWithoutSuffix = Paths.EnsureTrailingSlash(candidate);
+            segmentCount = suffixSegments.Length;
+            return true;
+        }
+
+        internal static int CalculateCompilerLogProjectScore(
+            string projectFilePath,
+            string targetFramework,
+            int sourceFileCount)
+        {
+            var projectDirectory = Path.GetDirectoryName(projectFilePath);
+            var projectFolder = Path.GetFileName(projectDirectory);
+            if (string.Equals(projectFolder, "ref", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(projectFolder, "stubs", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(Path.GetFileName(Path.GetDirectoryName(projectDirectory)), "cycle-breakers", StringComparison.OrdinalIgnoreCase))
+            {
+                return int.MinValue;
+            }
+
+            var score = sourceFileCount;
+            if (TryGetTargetFrameworkVersion(targetFramework, out var major, out var minor, out var platform))
+            {
+                score += major * 1000 + minor * 100;
+
+                if (!string.IsNullOrEmpty(platform))
+                {
+                    score += 500;
+                    if (platform.Equals("linux", StringComparison.OrdinalIgnoreCase))
+                    {
+                        score += 100;
+                    }
+                    else if (platform.Equals("unix", StringComparison.OrdinalIgnoreCase))
+                    {
+                        score += 50;
+                    }
+                }
+            }
+
+            return score;
+        }
+
+        private static bool TryGetTargetFrameworkVersion(
+            string targetFramework,
+            out int major,
+            out int minor,
+            out string platform)
+        {
+            major = 0;
+            minor = 0;
+            platform = string.Empty;
+            if (string.IsNullOrEmpty(targetFramework))
+            {
+                return false;
+            }
+
+            var dash = targetFramework.IndexOf('-');
+            var framework = dash >= 0 ? targetFramework.Substring(0, dash) : targetFramework;
+            if (dash >= 0)
+            {
+                var platformPart = targetFramework.Substring(dash + 1);
+                var platformLength = platformPart.TakeWhile(char.IsLetter).Count();
+                platform = platformPart.Substring(0, platformLength);
+            }
+
+            string version;
+            if (framework.StartsWith("netstandard", StringComparison.OrdinalIgnoreCase))
+            {
+                version = framework.Substring("netstandard".Length);
+            }
+            else if (framework.StartsWith("netcoreapp", StringComparison.OrdinalIgnoreCase))
+            {
+                version = framework.Substring("netcoreapp".Length);
+            }
+            else if (framework.StartsWith("net", StringComparison.OrdinalIgnoreCase))
+            {
+                version = framework.Substring("net".Length);
+            }
+            else
+            {
+                return false;
+            }
+
+            var parts = version.Split('.');
+            if (parts.Length > 1)
+            {
+                return int.TryParse(parts[0], out major) &&
+                    int.TryParse(parts[1], out minor);
+            }
+
+            if (version.Length >= 2 &&
+                version[0] is >= '1' and <= '4' &&
+                char.IsDigit(version[1]))
+            {
+                major = version[0] - '0';
+                minor = version[1] - '0';
+                return true;
+            }
+
+            return int.TryParse(version, out major);
         }
 
         private static string GetCompilerLogRepositoryRoot(IEnumerable<KeyValuePair<string, string>> compilerPathMappings)
@@ -901,7 +1106,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     var solutionInfo = NormalizeCompilerLogAssemblyNames(
                         reader.ReadSolutionInfo(),
                         RepoPathMappings,
-                        compilerLogRepositoryRoots);
+                        compilerLogDocumentRoots,
+                        compilerLogProjectScores);
 
                     var adhocWorkspace = new AdhocWorkspace();
                     adhocWorkspace.AddSolution(solutionInfo);

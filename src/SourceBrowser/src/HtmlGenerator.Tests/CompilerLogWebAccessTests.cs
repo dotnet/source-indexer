@@ -153,9 +153,11 @@ public sealed class CompilerLogWebAccessTests
             @"C:\index\dotnet\logs\runtime.complog",
             new Dictionary<string, string>
             {
-                [@"D:\a\_work\1\s"] = @"/_/",
+                [@"D:\a\_work\1\s\src\runtime"] = @"/_/",
             });
 
+        result[@"D:\a\_work\1\s\"].ShouldBe("dotnet/dotnet");
+        result[@"D:\a\_work\1\s\src\runtime\"].ShouldBe("dotnet/runtime");
         Program.ResolveRepoChain(
                 @"D:\a\_work\1\s\src\runtime\src\libraries\System.Private.CoreLib\System.Private.CoreLib.csproj",
                 result,
@@ -166,5 +168,31 @@ public sealed class CompilerLogWebAccessTests
                 result,
                 "dotnet/dotnet")
             .ShouldBe("dotnet/sdk");
+    }
+
+    [TestMethod]
+    public void Vmr_server_path_is_aliased_from_the_original_outer_root()
+    {
+        var repoPathMappings = new Dictionary<string, string>
+        {
+            [@"C:\index\dotnet\"] = "dotnet/dotnet",
+            [@"C:\index\dotnet\src\runtime"] = "dotnet/runtime",
+        };
+        var serverPathMappings = new Dictionary<string, string>
+        {
+            [@"C:\index\dotnet\"] = "https://github.com/dotnet/dotnet/tree/abc/",
+        };
+
+        var result = SolutionGenerator.AddCompilerLogServerPathMapping(
+            serverPathMappings,
+            @"C:\index\dotnet\runtime.complog",
+            new Dictionary<string, string>
+            {
+                [@"D:\a\_work\1\s\src\runtime"] = @"/_/",
+            },
+            repoPathMappings);
+
+        result[@"D:\a\_work\1\s\"].ShouldBe("https://github.com/dotnet/dotnet/tree/abc/");
+        result.ShouldNotContainKey(@"D:\a\_work\1\s\src\runtime\");
     }
 }
