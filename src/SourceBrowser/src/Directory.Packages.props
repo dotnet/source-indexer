@@ -51,7 +51,7 @@
     <PackageVersion Include="Microsoft.VisualStudio.SolutionPersistence" Version="1.0.52" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.400" />
 
-    <PackageVersion Include="GuiLabs.Language.Xml" Version="1.2.119" />
+    <PackageVersion Include="GuiLabs.Language.Xml" Version="1.2.120" />
 
     <PackageVersion Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Logging.AzureAppServices" Version="10.0.11" />
