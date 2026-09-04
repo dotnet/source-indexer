@@ -54,7 +54,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             // Repo/Solution grouping is per project: a single input can span several repos (e.g. a VMR
             // whose sub-repos are tagged via nested /repoPath), so descend this project's full repo
             // ancestry (parent repo -> sub-repo) before laying down the .sln folder chain underneath it.
-            var repoChain = ResolveRepoChain(project.FilePath);
+            var repoChain = ResolveRepoChain(project);
             var repoName = repoChain.Count > 0 ? repoChain[repoChain.Count - 1] : string.Empty;
             folder = Program.GetSolutionExplorerGroupingFolder(folder, repoChain, SolutionName, DistinctRepoCount, SolutionCountsByRepo);
 

@@ -182,6 +182,47 @@ namespace HtmlGenerator.Tests
             normalized.ShouldBeSameAs(document);
         }
 
+        [TestMethod]
+        public void Compiler_log_parent_traversal_is_normalized_to_repository_relative_path()
+        {
+            const string repositoryRoot = @"D:\a\_work\1\s";
+            const string projectFilePath =
+                repositoryRoot + @"\src\runtime\src\coreclr\System.Private.CoreLib\System.Private.CoreLib.csproj";
+            var projectId = ProjectId.CreateNewId();
+            var document = DocumentInfo.Create(
+                DocumentId.CreateNewId(projectId),
+                "String.cs",
+                folders: new[] { "..", "..", "..", "..", "libraries", "System.Private.CoreLib", "src", "System" },
+                filePath: repositoryRoot + @"\src\runtime\src\libraries\System.Private.CoreLib\src\System\String.cs");
+            var project = ProjectInfo.Create(
+                projectId,
+                VersionStamp.Default,
+                name: "System.Private.CoreLib",
+                assemblyName: "System.Private.CoreLib.dll",
+                language: LanguageNames.CSharp,
+                filePath: "System.Private.CoreLib.csproj",
+                documents: new[] { document });
+            var solution = SolutionInfo.Create(
+                SolutionId.CreateNewId(),
+                VersionStamp.Default,
+                projects: new[] { project });
+
+            var normalized = SolutionGenerator.NormalizeCompilerLogAssemblyNames(
+                solution,
+                compilerLogDocumentRoots: new[] { repositoryRoot },
+                projectFilePaths: new[] { projectFilePath });
+            var normalizedDocument = normalized.Projects.Single().Documents.Single();
+
+            normalizedDocument.Folders.ShouldBe(
+                new[] { "src", "runtime", "src", "libraries", "System.Private.CoreLib", "src", "System" });
+
+            using var workspace = new AdhocWorkspace();
+            workspace.AddSolution(normalized);
+            var roslynDocument = workspace.CurrentSolution.Projects.Single().Documents.Single();
+            Paths.GetRelativeFilePathInProject(roslynDocument, project.FilePath).ShouldBe(
+                @"src\runtime\src\libraries\System.Private.CoreLib\src\System\String.cs");
+        }
+
         private static ProjectInfo CreateProjectInfo(string assemblyName, int documentCount)
         {
             var projectId = ProjectId.CreateNewId();

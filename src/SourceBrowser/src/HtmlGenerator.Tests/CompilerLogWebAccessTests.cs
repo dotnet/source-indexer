@@ -1,3 +1,4 @@
+using Microsoft.CodeAnalysis;
 using Microsoft.SourceBrowser.HtmlGenerator;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Shouldly;
@@ -194,5 +195,70 @@ public sealed class CompilerLogWebAccessTests
 
         result[@"D:\a\_work\1\s\"].ShouldBe("https://github.com/dotnet/dotnet/tree/abc/");
         result.ShouldNotContainKey(@"D:\a\_work\1\s\src\runtime\");
+    }
+
+    [TestMethod]
+    public void Compiler_log_original_project_paths_are_mapped_by_project_identity()
+    {
+        var runtimeId = ProjectId.CreateNewId();
+        var sdkId = ProjectId.CreateNewId();
+        var solutionInfo = Microsoft.CodeAnalysis.SolutionInfo.Create(
+            SolutionId.CreateNewId(),
+            VersionStamp.Default,
+            projects: new[]
+            {
+                ProjectInfo.Create(
+                    runtimeId,
+                    VersionStamp.Default,
+                    "Runtime",
+                    "Runtime",
+                    LanguageNames.CSharp,
+                    filePath: "Runtime.csproj"),
+                ProjectInfo.Create(
+                    sdkId,
+                    VersionStamp.Default,
+                    "Sdk",
+                    "Sdk",
+                    LanguageNames.CSharp,
+                    filePath: "Sdk.csproj"),
+            });
+
+        var result = SolutionGenerator.CreateCompilerLogProjectPathMap(
+            solutionInfo,
+            new[]
+            {
+                @"D:\a\_work\1\s\src\runtime\Runtime.csproj",
+                @"D:\a\_work\1\s\src\sdk\Sdk.csproj",
+            });
+
+        result[runtimeId].ShouldBe(@"D:\a\_work\1\s\src\runtime\Runtime.csproj");
+        result[sdkId].ShouldBe(@"D:\a\_work\1\s\src\sdk\Sdk.csproj");
+
+        var normalized = SolutionGenerator.NormalizeCompilerLogAssemblyNames(solutionInfo);
+        normalized.Projects.ShouldContain(project => project.Id == runtimeId);
+        normalized.Projects.ShouldContain(project => project.Id == sdkId);
+
+        var resolutionPath = SolutionGenerator.GetRepoResolutionPath(
+            runtimeId,
+            "Runtime.csproj",
+            result);
+        Program.ResolveRepoName(
+                resolutionPath,
+                new Dictionary<string, string>
+                {
+                    [@"D:\a\_work\1\s"] = "dotnet/dotnet",
+                    [@"D:\a\_work\1\s\src\runtime"] = "dotnet/runtime",
+                },
+                "dotnet/dotnet")
+            .ShouldBe("dotnet/runtime");
+
+        SolutionGenerator.CreateCompilerLogProjectPathMap(
+                solutionInfo,
+                new[]
+                {
+                    @"D:\a\_work\1\s\src\sdk\Sdk.csproj",
+                    @"D:\a\_work\1\s\src\runtime\Runtime.csproj",
+                })
+            .ShouldBeEmpty();
     }
 }

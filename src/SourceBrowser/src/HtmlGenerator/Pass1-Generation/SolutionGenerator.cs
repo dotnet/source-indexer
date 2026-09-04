@@ -54,11 +54,17 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         public string ResolveRepoName(string projectFilePath)
             => Program.ResolveRepoName(projectFilePath, RepoPathMappings, RepoName);
 
+        public string ResolveRepoName(Project project)
+            => ResolveRepoName(GetRepoResolutionPath(project));
+
         /// <summary>Resolves a single project's full repo ancestry (outermost first, own repo last)
         /// from the /repoPath mappings, so a parent repo can group its nested sub-repos. See
         /// <see cref="Program.ResolveRepoChain"/>.</summary>
         public IReadOnlyList<string> ResolveRepoChain(string projectFilePath)
             => Program.ResolveRepoChain(projectFilePath, RepoPathMappings, RepoName);
+
+        public IReadOnlyList<string> ResolveRepoChain(Project project)
+            => ResolveRepoChain(GetRepoResolutionPath(project));
 
         /// <summary>
         /// Optional solution display name tag applied to every assembly generated from this
@@ -87,6 +93,9 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         // so it must not be disposed until Pass1 generation has finished reading every document.
         private SolutionReader compilerLogReader;
         private readonly HashSet<string> compilerLogDocumentRoots = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly List<string> compilerLogProjectPaths = new List<string>();
+        private IReadOnlyDictionary<ProjectId, string> compilerLogProjectPathsById =
+            ImmutableDictionary<ProjectId, string>.Empty;
         private readonly List<int> compilerLogProjectScores = new List<int>();
 
         private SolutionGenerator(
@@ -242,6 +251,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         /// equivalent .binlog input. Compiler logs also retain source file paths but not Roslyn
         /// document folders, so reconstruct project-relative folders for ordinary files and
         /// repository-relative folders for linked files, matching BinLogToSln's Link behavior.
+        /// SolutionReader can report linked-file folders containing ".." segments; normalize those
+        /// from the original compiler project path so complog URLs match their binlog equivalents.
         /// When multiple compilations produce the same assembly, the one with the most source
         /// documents is ordered first so downstream first-wins deduplication prefers an implementation
         /// build over a reference assembly.
@@ -250,11 +261,22 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             Microsoft.CodeAnalysis.SolutionInfo solutionInfo,
             IReadOnlyDictionary<string, string> repoPathMappings = null,
             IEnumerable<string> compilerLogDocumentRoots = null,
-            IReadOnlyList<int> projectScores = null)
+            IReadOnlyList<int> projectScores = null,
+            IReadOnlyList<string> projectFilePaths = null)
         {
+            var alignedProjectFilePaths = projectFilePaths != null &&
+                projectFilePaths.Count == solutionInfo.Projects.Count()
+                    ? projectFilePaths
+                    : null;
             var projectInfos = solutionInfo.Projects
                 .Select((project, index) => (
-                    Project: NormalizeCompilerLogProject(project, repoPathMappings, compilerLogDocumentRoots),
+                    Project: NormalizeCompilerLogProject(
+                        project,
+                        repoPathMappings,
+                        compilerLogDocumentRoots,
+                        alignedProjectFilePaths != null
+                            ? alignedProjectFilePaths[index]
+                            : null),
                     Score: projectScores != null && index < projectScores.Count
                         ? projectScores[index]
                         : project.Documents.Count))
@@ -281,24 +303,92 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 solutionInfo.Id, solutionInfo.Version, solutionInfo.FilePath, projectInfos.Select(p => p.Project));
         }
 
+        internal static IReadOnlyDictionary<ProjectId, string> CreateCompilerLogProjectPathMap(
+            Microsoft.CodeAnalysis.SolutionInfo solutionInfo,
+            IReadOnlyList<string> projectFilePaths)
+        {
+            var result = new Dictionary<ProjectId, string>();
+            var projects = solutionInfo.Projects.ToArray();
+            if (projects.Length != (projectFilePaths?.Count ?? 0))
+            {
+                Log.Message(
+                    $"Compiler log project metadata count mismatch: SolutionReader returned {projects.Length} project(s), " +
+                    $"but the compiler log contained {projectFilePaths?.Count ?? 0} regular compiler call(s).");
+                return result;
+            }
+
+            // SolutionReader and CompilerLogReader both enumerate regular calls by the compiler-log
+            // call index. Keep the original paths keyed by ProjectId so later project reordering is safe.
+            for (var i = 0; i < projects.Length; i++)
+            {
+                var solutionProjectFileName = Path.GetFileName(projects[i].FilePath);
+                var compilerProjectFileName = Path.GetFileName(projectFilePaths[i]);
+                if (!string.IsNullOrEmpty(solutionProjectFileName) &&
+                    !string.IsNullOrEmpty(compilerProjectFileName) &&
+                    !string.Equals(solutionProjectFileName, compilerProjectFileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    Log.Message(
+                        $"Compiler log project metadata order mismatch at index {i}: SolutionReader returned " +
+                        $"'{solutionProjectFileName}', but CompilerLogReader returned '{compilerProjectFileName}'.");
+                    return new Dictionary<ProjectId, string>();
+                }
+            }
+
+            for (var i = 0; i < projects.Length; i++)
+            {
+                if (!string.IsNullOrEmpty(projectFilePaths[i]))
+                {
+                    result[projects[i].Id] = projectFilePaths[i];
+                }
+            }
+
+            return result;
+        }
+
+        private string GetRepoResolutionPath(Project project)
+            => GetRepoResolutionPath(
+                project?.Id,
+                project?.FilePath ?? ProjectFilePath,
+                compilerLogProjectPathsById);
+
+        internal static string GetRepoResolutionPath(
+            ProjectId projectId,
+            string projectFilePath,
+            IReadOnlyDictionary<ProjectId, string> compilerLogProjectPaths)
+        {
+            if (projectId != null &&
+                compilerLogProjectPaths != null &&
+                compilerLogProjectPaths.TryGetValue(projectId, out var originalProjectPath) &&
+                !string.IsNullOrEmpty(originalProjectPath))
+            {
+                return originalProjectPath;
+            }
+
+            return projectFilePath ?? string.Empty;
+        }
+
         private static ProjectInfo NormalizeCompilerLogProject(
             ProjectInfo projectInfo,
             IReadOnlyDictionary<string, string> repoPathMappings,
-            IEnumerable<string> compilerLogDocumentRoots)
+            IEnumerable<string> compilerLogDocumentRoots,
+            string originalProjectFilePath)
         {
             var normalized = projectInfo.WithAssemblyName(Path.GetFileNameWithoutExtension(projectInfo.AssemblyName));
-            var projectDirectory = Path.GetDirectoryName(projectInfo.FilePath);
+            var projectFilePath = !string.IsNullOrEmpty(originalProjectFilePath)
+                ? originalProjectFilePath
+                : projectInfo.FilePath;
+            var projectDirectory = Path.GetDirectoryName(projectFilePath);
             if (string.IsNullOrEmpty(projectDirectory))
             {
                 return normalized;
             }
 
             var repositoryRoot = (compilerLogDocumentRoots ?? Enumerable.Empty<string>())
-                .Where(path => Paths.IsOrContains(path, projectInfo.FilePath))
+                .Where(path => Paths.IsOrContains(path, projectFilePath))
                 .OrderBy(path => path.Length)
                 .FirstOrDefault();
             repositoryRoot ??= (repoPathMappings?.Keys ?? Enumerable.Empty<string>())
-                .Where(path => Paths.IsOrContains(path, projectInfo.FilePath))
+                .Where(path => Paths.IsOrContains(path, projectFilePath))
                 .OrderBy(path => path.Length)
                 .FirstOrDefault();
 
@@ -311,7 +401,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             string projectDirectory,
             string repositoryRoot)
         {
-            if (document.Folders.Count > 0 ||
+            var hasParentTraversal = document.Folders.Any(folder => folder == "..");
+            if ((document.Folders.Count > 0 && !hasParentTraversal) ||
                 string.IsNullOrEmpty(document.FilePath) ||
                 !Path.IsPathRooted(document.FilePath) ||
                 !Path.IsPathRooted(projectDirectory))
@@ -360,6 +451,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 var compilerCalls = reader.ReadAllCompilerCalls(cc => cc.Kind == CompilerCallKind.Regular);
                 foreach (var compilerCall in compilerCalls)
                 {
+                    compilerLogProjectPaths.Add(compilerCall.ProjectFilePath);
                     var projectScore = CalculateCompilerLogProjectScore(
                         compilerCall.ProjectFilePath,
                         compilerCall.TargetFramework,
@@ -1103,11 +1195,20 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                         solutionFilePath,
                         BasicAnalyzerKind.None);
                     this.compilerLogReader = reader;
+                    var rawSolutionInfo = reader.ReadSolutionInfo();
+                    compilerLogProjectPathsById = CreateCompilerLogProjectPathMap(
+                        rawSolutionInfo,
+                        compilerLogProjectPaths);
+                    var projectFilePathsForNormalization =
+                        compilerLogProjectPathsById.Count == rawSolutionInfo.Projects.Count()
+                            ? compilerLogProjectPaths
+                            : null;
                     var solutionInfo = NormalizeCompilerLogAssemblyNames(
-                        reader.ReadSolutionInfo(),
+                        rawSolutionInfo,
                         RepoPathMappings,
                         compilerLogDocumentRoots,
-                        compilerLogProjectScores);
+                        compilerLogProjectScores,
+                        projectFilePathsForNormalization);
 
                     var adhocWorkspace = new AdhocWorkspace();
                     adhocWorkspace.AddSolution(solutionInfo);
