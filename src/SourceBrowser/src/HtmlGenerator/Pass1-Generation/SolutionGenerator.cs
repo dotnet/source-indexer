@@ -346,10 +346,17 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         }
 
         private string GetRepoResolutionPath(Project project)
-            => GetRepoResolutionPath(
+        {
+            if (Path.IsPathRooted(project?.FilePath))
+            {
+                return project.FilePath;
+            }
+
+            return GetRepoResolutionPath(
                 project?.Id,
                 project?.FilePath ?? ProjectFilePath,
                 compilerLogProjectPathsById);
+        }
 
         internal static string GetRepoResolutionPath(
             ProjectId projectId,
@@ -374,20 +381,20 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             string originalProjectFilePath)
         {
             var normalized = projectInfo.WithAssemblyName(Path.GetFileNameWithoutExtension(projectInfo.AssemblyName));
-            var projectFilePath = !string.IsNullOrEmpty(originalProjectFilePath)
-                ? originalProjectFilePath
-                : projectInfo.FilePath;
+            var projectFilePath = Path.IsPathRooted(projectInfo.FilePath)
+                ? projectInfo.FilePath
+                : (!string.IsNullOrEmpty(originalProjectFilePath) ? originalProjectFilePath : projectInfo.FilePath);
             var projectDirectory = Path.GetDirectoryName(projectFilePath);
             if (string.IsNullOrEmpty(projectDirectory))
             {
                 return normalized;
             }
 
-            var repositoryRoot = (compilerLogDocumentRoots ?? Enumerable.Empty<string>())
+            var repositoryRoot = (repoPathMappings?.Keys ?? Enumerable.Empty<string>())
                 .Where(path => Paths.IsOrContains(path, projectFilePath))
                 .OrderBy(path => path.Length)
                 .FirstOrDefault();
-            repositoryRoot ??= (repoPathMappings?.Keys ?? Enumerable.Empty<string>())
+            repositoryRoot ??= (compilerLogDocumentRoots ?? Enumerable.Empty<string>())
                 .Where(path => Paths.IsOrContains(path, projectFilePath))
                 .OrderBy(path => path.Length)
                 .FirstOrDefault();
@@ -452,6 +459,25 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 foreach (var compilerCall in compilerCalls)
                 {
                     compilerLogProjectPaths.Add(compilerCall.ProjectFilePath);
+                    if (TryGetCompilerLogOriginalRoot(
+                        RepoPathMappings,
+                        compilerLogFilePath,
+                        compilerCall.ProjectFilePath,
+                        out var originalRoot) &&
+                        compilerLogDocumentRoots.Add(originalRoot))
+                    {
+                        Log.Message(
+                            $"Mapped compiler log '{compilerLogFilePath}' to original repository root '{originalRoot}'.");
+                        ServerPathMappings = AddCompilerLogServerPathMapping(
+                            ServerPathMappings,
+                            compilerLogFilePath,
+                            originalRoot);
+                        RepoPathMappings = AddCompilerLogRepoPathMappings(
+                            RepoPathMappings,
+                            compilerLogFilePath,
+                            originalRoot);
+                    }
+
                     var projectScore = CalculateCompilerLogProjectScore(
                         compilerCall.ProjectFilePath,
                         compilerCall.TargetFramework,
@@ -563,6 +589,24 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             return normalizedServerPathMappings;
         }
 
+        private static IReadOnlyDictionary<string, string> AddCompilerLogServerPathMapping(
+            IReadOnlyDictionary<string, string> serverPathMappings,
+            string compilerLogFilePath,
+            string originalRepositoryRoot)
+        {
+            var normalizedServerPathMappings = CopyServerPathMappings(serverPathMappings);
+            var configuredMapping = normalizedServerPathMappings
+                .Where(mapping => Paths.IsOrContains(mapping.Key, compilerLogFilePath))
+                .OrderByDescending(mapping => mapping.Key.Length)
+                .FirstOrDefault();
+            if (configuredMapping.Key != null)
+            {
+                normalizedServerPathMappings[originalRepositoryRoot] = configuredMapping.Value;
+            }
+
+            return normalizedServerPathMappings;
+        }
+
         internal static IReadOnlyDictionary<string, string> AddCompilerLogRepoPathMappings(
             IReadOnlyDictionary<string, string> repoPathMappings,
             string compilerLogFilePath,
@@ -606,6 +650,90 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             }
 
             return normalizedRepoPathMappings;
+        }
+
+        internal static IReadOnlyDictionary<string, string> AddCompilerLogRepoPathMappings(
+            IReadOnlyDictionary<string, string> repoPathMappings,
+            string compilerLogFilePath,
+            string originalRepositoryRoot)
+        {
+            var normalizedRepoPathMappings = CopyServerPathMappings(repoPathMappings);
+            var configuredRepositoryRoot = normalizedRepoPathMappings.Keys
+                .Where(mapping => Paths.IsOrContains(mapping, compilerLogFilePath))
+                .OrderBy(mapping => mapping.Length)
+                .FirstOrDefault();
+            if (configuredRepositoryRoot == null)
+            {
+                return repoPathMappings;
+            }
+
+            configuredRepositoryRoot = Path.GetFullPath(configuredRepositoryRoot);
+            foreach (var mapping in repoPathMappings ?? Enumerable.Empty<KeyValuePair<string, string>>())
+            {
+                var mappingPath = Path.GetFullPath(mapping.Key);
+                if (!Paths.IsOrContains(configuredRepositoryRoot, mappingPath))
+                {
+                    continue;
+                }
+
+                var relativePath = Path.GetRelativePath(configuredRepositoryRoot, mappingPath);
+                var originalPath = relativePath == "."
+                    ? originalRepositoryRoot
+                    : Path.Combine(originalRepositoryRoot, relativePath);
+                normalizedRepoPathMappings[Paths.EnsureTrailingSlash(Path.GetFullPath(originalPath))] = mapping.Value;
+            }
+
+            return normalizedRepoPathMappings;
+        }
+
+        internal static bool TryGetCompilerLogOriginalRoot(
+            IReadOnlyDictionary<string, string> repoPathMappings,
+            string compilerLogFilePath,
+            string compilerProjectFilePath,
+            out string originalRoot)
+        {
+            originalRoot = null;
+            if (string.IsNullOrEmpty(compilerProjectFilePath) || !Path.IsPathRooted(compilerProjectFilePath))
+            {
+                return false;
+            }
+
+            var configuredRepositoryRoot = (repoPathMappings?.Keys ?? Enumerable.Empty<string>())
+                .Where(mapping => Paths.IsOrContains(mapping, compilerLogFilePath))
+                .OrderBy(mapping => mapping.Length)
+                .FirstOrDefault();
+            if (configuredRepositoryRoot == null)
+            {
+                return false;
+            }
+
+            configuredRepositoryRoot = Path.GetFullPath(configuredRepositoryRoot);
+            var projectDirectory = Paths.EnsureTrailingSlash(Path.GetFullPath(Path.GetDirectoryName(compilerProjectFilePath)));
+            var bestRelativePathLength = -1;
+
+            foreach (var mapping in repoPathMappings)
+            {
+                var mappingPath = Path.GetFullPath(mapping.Key);
+                if (!Paths.IsOrContains(configuredRepositoryRoot, mappingPath) ||
+                    string.Equals(mappingPath, configuredRepositoryRoot, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var relativePath = Path.GetRelativePath(configuredRepositoryRoot, mappingPath)
+                    .Trim(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                var needle = Path.DirectorySeparatorChar + relativePath + Path.DirectorySeparatorChar;
+                var matchIndex = projectDirectory.LastIndexOf(needle, StringComparison.OrdinalIgnoreCase);
+                if (matchIndex < 0 || relativePath.Length <= bestRelativePathLength)
+                {
+                    continue;
+                }
+
+                originalRoot = Paths.EnsureTrailingSlash(projectDirectory.Substring(0, matchIndex));
+                bestRelativePathLength = relativePath.Length;
+            }
+
+            return originalRoot != null;
         }
 
         internal static string GetCompilerLogDocumentRoot(

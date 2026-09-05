@@ -261,4 +261,34 @@ public sealed class CompilerLogWebAccessTests
                 })
             .ShouldBeEmpty();
     }
+
+    [TestMethod]
+    public void Vmr_original_root_is_derived_from_project_path_and_configured_subrepo()
+    {
+        var mappings = new Dictionary<string, string>
+        {
+            [@"D:\index\dotnet"] = "dotnet/dotnet",
+            [@"D:\index\dotnet\src\runtime"] = "dotnet/runtime",
+            [@"D:\index\dotnet\src\sdk"] = "dotnet/sdk",
+        };
+
+        SolutionGenerator.TryGetCompilerLogOriginalRoot(
+                mappings,
+                @"D:\index\dotnet\runtime.complog",
+                @"C:\code\__w\1\s\src\runtime\src\coreclr\nativeaot\System.Private.CoreLib\src\System.Private.CoreLib.csproj",
+                out var originalRoot)
+            .ShouldBeTrue();
+
+        originalRoot.ShouldBe(@"C:\code\__w\1\s\");
+
+        var aliases = SolutionGenerator.AddCompilerLogRepoPathMappings(
+            mappings,
+            @"D:\index\dotnet\runtime.complog",
+            originalRoot);
+        Program.ResolveRepoChain(
+                @"C:\code\__w\1\s\src\runtime\src\libraries\System.Private.CoreLib\System.Private.CoreLib.csproj",
+                aliases,
+                "dotnet/dotnet")
+            .ShouldBe(new[] { "dotnet/dotnet", "dotnet/runtime" });
+    }
 }
