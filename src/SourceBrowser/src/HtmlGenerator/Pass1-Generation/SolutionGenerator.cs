@@ -730,7 +730,7 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 var relativePath = Path.GetRelativePath(configuredRepositoryRoot, mappingPath)
                     .Trim(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 var needle = Path.DirectorySeparatorChar + relativePath + Path.DirectorySeparatorChar;
-                var matchIndex = projectDirectory.LastIndexOf(needle, StringComparison.OrdinalIgnoreCase);
+                var matchIndex = projectDirectory.IndexOf(needle, StringComparison.OrdinalIgnoreCase);
                 if (matchIndex < 0 || relativePath.Length <= bestRelativePathLength)
                 {
                     continue;

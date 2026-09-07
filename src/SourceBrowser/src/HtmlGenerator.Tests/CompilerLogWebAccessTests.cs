@@ -3,6 +3,7 @@ using Microsoft.SourceBrowser.HtmlGenerator;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Shouldly;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace HtmlGenerator.Tests;
 
@@ -260,6 +261,54 @@ public sealed class CompilerLogWebAccessTests
                     @"D:\a\_work\1\s\src\runtime\Runtime.csproj",
                 })
             .ShouldBeEmpty();
+    }
+
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public void Vmr_repeated_subrepo_path_keeps_projects_in_the_same_repo(bool executableFirst)
+    {
+        const string compilerLog = @"D:\index\dotnet\msbuild.complog";
+        const string originalRoot = @"C:\code\__w\1\s\";
+        IReadOnlyDictionary<string, string> mappings = new Dictionary<string, string>
+        {
+            [@"D:\index\dotnet"] = "dotnet/dotnet",
+            [@"D:\index\dotnet\src\msbuild"] = "dotnet/msbuild",
+        };
+        IReadOnlyDictionary<string, string> serverMappings = new Dictionary<string, string>
+        {
+            [@"D:\index\dotnet"] = "https://github.com/dotnet/dotnet/tree/abc/",
+        };
+        var projectPaths = new[]
+        {
+            originalRoot + @"src\msbuild\src\Build\Microsoft.Build.csproj",
+            originalRoot + @"src\msbuild\src\MSBuild\MSBuild.csproj",
+        };
+
+        foreach (var projectPath in executableFirst ? projectPaths.Reverse() : projectPaths)
+        {
+            SolutionGenerator.TryGetCompilerLogOriginalRoot(mappings, compilerLog, projectPath, out var root)
+                .ShouldBeTrue();
+            root.ShouldBe(originalRoot);
+            mappings = SolutionGenerator.AddCompilerLogRepoPathMappings(mappings, compilerLog, root);
+            serverMappings = SolutionGenerator.AddCompilerLogServerPathMapping(
+                serverMappings, compilerLog, new Dictionary<string, string> { [root] = "/_/" }, mappings);
+        }
+
+        mappings[originalRoot + @"src\msbuild\"].ShouldBe("dotnet/msbuild");
+        serverMappings[originalRoot].ShouldBe("https://github.com/dotnet/dotnet/tree/abc/");
+        serverMappings.ShouldNotContainKey(originalRoot + @"src\msbuild\");
+
+        var explorer = new Folder<ProjectSkeleton>();
+        var solutionCounts = new Dictionary<string, int> { ["dotnet/dotnet"] = 2 };
+        foreach (var projectPath in projectPaths)
+        {
+            var chain = Program.ResolveRepoChain(projectPath, mappings, "dotnet/dotnet");
+            chain.ShouldBe(new[] { "dotnet/dotnet", "dotnet/msbuild" });
+            Program.GetSolutionExplorerGroupingFolder(explorer, chain, "msbuild", 2, solutionCounts);
+        }
+
+        explorer.Folders["dotnet/dotnet"].Folders.Keys.ShouldBe(new[] { "dotnet/msbuild" });
     }
 
     [TestMethod]
