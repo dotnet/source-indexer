@@ -15,6 +15,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.MSBuild;
 using Microsoft.CodeAnalysis.VisualBasic;
+using Microsoft.SourceBrowser.BinLogParser;
 using Microsoft.SourceBrowser.Common;
 
 namespace Microsoft.SourceBrowser.HtmlGenerator
@@ -253,31 +254,36 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
         /// repository-relative folders for linked files, matching BinLogToSln's Link behavior.
         /// SolutionReader can report linked-file folders containing ".." segments; normalize those
         /// from the original compiler project path so complog URLs match their binlog equivalents.
-        /// When multiple compilations produce the same assembly, the one with the most source
-        /// documents is ordered first so downstream first-wins deduplication prefers an implementation
-        /// build over a reference assembly.
+        /// Duplicate assemblies are ordered by project scores derived from project path, target
+        /// framework/platform, and compiler source count. Scores must follow the original project
+        /// order and have a complete, validated project-path map; otherwise all projects fall back
+        /// to document counts. Downstream first-wins deduplication selects the highest-ranked project.
         /// </summary>
         public static Microsoft.CodeAnalysis.SolutionInfo NormalizeCompilerLogAssemblyNames(
             Microsoft.CodeAnalysis.SolutionInfo solutionInfo,
             IReadOnlyDictionary<string, string> repoPathMappings = null,
             IEnumerable<string> compilerLogDocumentRoots = null,
             IReadOnlyList<int> projectScores = null,
-            IReadOnlyList<string> projectFilePaths = null)
+            IReadOnlyDictionary<ProjectId, string> projectFilePaths = null)
         {
-            var alignedProjectFilePaths = projectFilePaths != null &&
-                projectFilePaths.Count == solutionInfo.Projects.Count()
-                    ? projectFilePaths
-                    : null;
+            var useProjectScores = projectScores?.Count == solutionInfo.Projects.Count &&
+                projectFilePaths?.Count == solutionInfo.Projects.Count &&
+                solutionInfo.Projects.All(project => projectFilePaths.ContainsKey(project.Id));
+            if (projectScores != null && !useProjectScores)
+            {
+                Log.Message("Compiler log selection metadata is incomplete or unaligned; using document counts for all projects.");
+            }
+
             var projectInfos = solutionInfo.Projects
                 .Select((project, index) => (
                     Project: NormalizeCompilerLogProject(
                         project,
                         repoPathMappings,
                         compilerLogDocumentRoots,
-                        alignedProjectFilePaths != null
-                            ? alignedProjectFilePaths[index]
+                        projectFilePaths != null && projectFilePaths.TryGetValue(project.Id, out var projectFilePath)
+                            ? projectFilePath
                             : null),
-                    Score: projectScores != null && index < projectScores.Count
+                    Score: useProjectScores
                         ? projectScores[index]
                         : project.Documents.Count))
                 .ToList();
@@ -478,12 +484,13 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                             originalRoot);
                     }
 
-                    var projectScore = CalculateCompilerLogProjectScore(
-                        compilerCall.ProjectFilePath,
-                        compilerCall.TargetFramework,
-                        sourceFileCount: 0);
+                    var projectScore = 0;
                     try
                     {
+                        projectScore = CalculateCompilerLogProjectScore(
+                            compilerCall.ProjectFilePath,
+                            compilerCall.TargetFramework,
+                            sourceFileCount: 0);
                         var rawArguments = reader.ReadRawArguments(compilerCall);
                         var parsedArguments = compilerCall.IsCSharp
                             ? (CommandLineArguments)CSharpCommandLineParser.Default.Parse(rawArguments, compilerCall.ProjectDirectory, sdkDirectory: null)
@@ -810,95 +817,10 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             string targetFramework,
             int sourceFileCount)
         {
-            var projectDirectory = Path.GetDirectoryName(projectFilePath);
-            var projectFolder = Path.GetFileName(projectDirectory);
-            if (string.Equals(projectFolder, "ref", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(projectFolder, "stubs", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(Path.GetFileName(Path.GetDirectoryName(projectDirectory)), "cycle-breakers", StringComparison.OrdinalIgnoreCase))
-            {
-                return int.MinValue;
-            }
-
-            var score = sourceFileCount;
-            if (TryGetTargetFrameworkVersion(targetFramework, out var major, out var minor, out var platform))
-            {
-                score += major * 1000 + minor * 100;
-
-                if (!string.IsNullOrEmpty(platform))
-                {
-                    score += 500;
-                    if (platform.Equals("linux", StringComparison.OrdinalIgnoreCase))
-                    {
-                        score += 100;
-                    }
-                    else if (platform.Equals("unix", StringComparison.OrdinalIgnoreCase))
-                    {
-                        score += 50;
-                    }
-                }
-            }
-
-            return score;
-        }
-
-        private static bool TryGetTargetFrameworkVersion(
-            string targetFramework,
-            out int major,
-            out int minor,
-            out string platform)
-        {
-            major = 0;
-            minor = 0;
-            platform = string.Empty;
-            if (string.IsNullOrEmpty(targetFramework))
-            {
-                return false;
-            }
-
-            var dash = targetFramework.IndexOf('-');
-            var framework = dash >= 0 ? targetFramework.Substring(0, dash) : targetFramework;
-            if (dash >= 0)
-            {
-                var platformPart = targetFramework.Substring(dash + 1);
-                var platformLength = platformPart.TakeWhile(char.IsLetter).Count();
-                platform = platformPart.Substring(0, platformLength);
-            }
-
-            string version;
-            if (framework.StartsWith("netstandard", StringComparison.OrdinalIgnoreCase))
-            {
-                version = framework.Substring("netstandard".Length);
-            }
-            else if (framework.StartsWith("netcoreapp", StringComparison.OrdinalIgnoreCase))
-            {
-                version = framework.Substring("netcoreapp".Length);
-            }
-            else if (framework.StartsWith("net", StringComparison.OrdinalIgnoreCase))
-            {
-                version = framework.Substring("net".Length);
-            }
-            else
-            {
-                return false;
-            }
-
-            var parts = version.Split('.');
-            if (parts.Length > 1)
-            {
-                return int.TryParse(parts[0], out major) &&
-                    int.TryParse(parts[1], out minor);
-            }
-
-            if (version.Length >= 2 &&
-                version[0] is >= '1' and <= '4' &&
-                char.IsDigit(version[1]))
-            {
-                major = version[0] - '0';
-                minor = version[1] - '0';
-                return true;
-            }
-
-            return int.TryParse(version, out major);
+            return CompilerInvocationScoring.IsReferenceAssembly(
+                Path.GetDirectoryName(projectFilePath), StringComparison.OrdinalIgnoreCase)
+                    ? int.MinValue
+                    : CompilerInvocationScoring.CalculateScore(targetFramework, sourceFileCount);
         }
 
         private static string GetCompilerLogRepositoryRoot(IEnumerable<KeyValuePair<string, string>> compilerPathMappings)
@@ -1327,16 +1249,12 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                     compilerLogProjectPathsById = CreateCompilerLogProjectPathMap(
                         rawSolutionInfo,
                         compilerLogProjectPaths);
-                    var projectFilePathsForNormalization =
-                        compilerLogProjectPathsById.Count == rawSolutionInfo.Projects.Count()
-                            ? compilerLogProjectPaths
-                            : null;
                     var solutionInfo = NormalizeCompilerLogAssemblyNames(
                         rawSolutionInfo,
                         RepoPathMappings,
                         compilerLogDocumentRoots,
                         compilerLogProjectScores,
-                        projectFilePathsForNormalization);
+                        compilerLogProjectPathsById);
 
                     var adhocWorkspace = new AdhocWorkspace();
                     adhocWorkspace.AddSolution(solutionInfo);

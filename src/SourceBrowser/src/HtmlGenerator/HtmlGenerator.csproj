@@ -47,6 +47,7 @@
     <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic.Workspaces" />
     <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" />
     <PackageReference Include="MSBuild.StructuredLogger" />
+    <PackageReference Include="NuGet.Frameworks" ExcludeAssets="runtime" />
     <PackageReference Include="GuiLabs.Language.Xml" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
     <PackageReference Include="System.Configuration.ConfigurationManager" />

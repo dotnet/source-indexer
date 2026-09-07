@@ -4,7 +4,6 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
 using Microsoft.SourceBrowser.BinLogParser;
 using Mono.Options;
-using NuGet.Frameworks;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -69,49 +68,17 @@ namespace BinLogToSln
                     score -= 10000; // Heavy penalty for platform not supported assemblies
                 }
 
-                // 3. Newest TargetFramework version (third priority)
-                if (invocation.ProjectProperties?.TryGetValue("TargetFramework", out var targetFramework) == true &&
-                    !string.IsNullOrEmpty(targetFramework))
+                var sourceFileCount = invocation.Parsed?.SourceFiles.Length ?? 0;
+                string targetFramework = null;
+                invocation.ProjectProperties?.TryGetValue("TargetFramework", out targetFramework);
+                try
                 {
-                    try
-                    {
-                        var framework = NuGetFramework.Parse(targetFramework);
-                        
-                        // Prefer newer frameworks (high weight)
-                        if (framework.Version != null)
-                        {
-                            score += (int)(framework.Version.Major * 1000 + framework.Version.Minor * 100);
-                        }
-
-                        // 4. Has a platform (fourth priority)
-                        // Prefer platform-specific frameworks
-                        if (framework.HasPlatform)
-                        {
-                            score += 500;
-
-                            if (framework.Platform.Equals("linux", StringComparison.OrdinalIgnoreCase))
-                            {
-                                score += 100; // Linux is preferred over other platforms
-                            }
-                            else if (framework.Platform.Equals("unix", StringComparison.OrdinalIgnoreCase))
-                            {
-                                score += 50; // Unix is also preferred, but less than Linux
-                            }
-                        }
-
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Warning: Could not parse TargetFramework '{targetFramework}': {ex.Message}");
-                    }
+                    score += CompilerInvocationScoring.CalculateScore(targetFramework, sourceFileCount);
                 }
-
-                // 5. More source files (lowest priority)
-                var sourceFiles = invocation.Parsed?.SourceFiles;
-                if (sourceFiles.HasValue)
+                catch (Exception ex) when (ex is ArgumentException || ex is NuGet.Frameworks.FrameworkException)
                 {
-                    int totalSourceFiles = sourceFiles.Value.Length;
-                    score += totalSourceFiles; // Lower weight than other factors
+                    Console.WriteLine($"Warning: Could not parse TargetFramework '{targetFramework}': {ex.Message}");
+                    score += sourceFileCount;
                 }
             }
             catch (Exception ex)
@@ -131,16 +98,9 @@ namespace BinLogToSln
                 return true;
             }
 
-            string projectFolder = Path.GetFileName(invocation.ProjectDirectory);
-            if (projectFolder == "ref" || projectFolder == "stubs")
+            if (CompilerInvocationScoring.IsReferenceAssembly(invocation.ProjectDirectory))
             {
-                Console.WriteLine($"Skipping Ref Assembly project {invocation.ProjectFilePath}");
-                return true;
-            }
-            
-            if (Path.GetFileName(Path.GetDirectoryName(invocation.ProjectDirectory)) == "cycle-breakers")
-            {
-                Console.WriteLine($"Skipping Wpf Cycle-Breaker project {invocation.ProjectFilePath}");
+                Console.WriteLine($"Skipping reference assembly or cycle-breaker project {invocation.ProjectFilePath}");
                 return true;
             }
             
