@@ -34,7 +34,9 @@ public sealed class CompilerLogWebAccessTests
     }
 
     [TestMethod]
-    public void Standalone_stage_one_compiler_log_uses_sibling_src_server_path()
+    [DataRow(false)]
+    [DataRow(true)]
+    public void Standalone_stage_one_compiler_log_uses_sibling_src_server_path(bool includeRepoMappings)
     {
         var serverPathMappings = new Dictionary<string, string>
         {
@@ -47,7 +49,12 @@ public sealed class CompilerLogWebAccessTests
             new Dictionary<string, string>
             {
                 [@"D:\a\_work\1\s\"] = @"/_/",
-            });
+            },
+            includeRepoMappings ? new Dictionary<string, string>
+            {
+                [@"C:\index\extensions\"] = "dotnet/extensions",
+                [@"C:\index\extensions\src\"] = "dotnet/extensions",
+            } : null);
 
         result.Count.ShouldBe(2);
         result[@"D:\a\_work\1\s\"].ShouldBe("https://github.com/dotnet/extensions/tree/abc/");
@@ -173,7 +180,9 @@ public sealed class CompilerLogWebAccessTests
     }
 
     [TestMethod]
-    public void Vmr_server_path_is_aliased_from_the_original_outer_root()
+    [DataRow(false)]
+    [DataRow(true)]
+    public void Vmr_server_path_is_aliased_from_the_original_outer_root(bool useOriginalRoot)
     {
         var repoPathMappings = new Dictionary<string, string>
         {
@@ -185,17 +194,56 @@ public sealed class CompilerLogWebAccessTests
             [@"C:\index\dotnet\"] = "https://github.com/dotnet/dotnet/tree/abc/",
         };
 
-        var result = SolutionGenerator.AddCompilerLogServerPathMapping(
-            serverPathMappings,
-            @"C:\index\dotnet\runtime.complog",
-            new Dictionary<string, string>
-            {
-                [@"D:\a\_work\1\s\src\runtime"] = @"/_/",
-            },
-            repoPathMappings);
+        var result = useOriginalRoot
+            ? SolutionGenerator.AddCompilerLogServerPathMapping(
+                serverPathMappings, @"C:\index\dotnet\runtime.complog", @"D:\a\_work\1\s\", repoPathMappings)
+            : SolutionGenerator.AddCompilerLogServerPathMapping(
+                serverPathMappings,
+                @"C:\index\dotnet\runtime.complog",
+                new Dictionary<string, string>
+                {
+                    [@"D:\a\_work\1\s\src\runtime"] = @"/_/",
+                },
+                repoPathMappings);
 
         result[@"D:\a\_work\1\s\"].ShouldBe("https://github.com/dotnet/dotnet/tree/abc/");
         result.ShouldNotContainKey(@"D:\a\_work\1\s\src\runtime\");
+    }
+
+    [TestMethod]
+    [DataRow(false, @"D:\build\src\runtime\", false)]
+    [DataRow(false, @"D:\build\", false)]
+    [DataRow(true, @"D:\build\", false)]
+    [DataRow(false, @"D:\build\src\runtime\", true)]
+    [DataRow(true, @"D:\build\", true)]
+    public void Nested_repository_server_path_preserves_its_relative_root(
+        bool useOriginalRoot, string compilerRoot, bool siblingSourceDirectory)
+    {
+        const string compilerLog = @"C:\index\dotnet\src\runtime\runtime.complog";
+        const string outerUrl = "https://github.com/dotnet/dotnet/tree/outer/";
+        const string runtimeUrl = "https://github.com/dotnet/runtime/tree/runtime/";
+        var repoMappings = new Dictionary<string, string>
+        {
+            [@"C:\index\dotnet\"] = "dotnet/dotnet",
+            [@"C:\index\dotnet\src\runtime\"] = "dotnet/runtime",
+        };
+        var serverMappings = new Dictionary<string, string>
+        {
+            [@"C:\index\dotnet\"] = outerUrl,
+            [siblingSourceDirectory ? @"C:\index\dotnet\src\runtime\src\" : @"C:\index\dotnet\src\runtime\"] = runtimeUrl,
+        };
+
+        var result = useOriginalRoot
+            ? SolutionGenerator.AddCompilerLogServerPathMapping(
+                serverMappings, compilerLog, compilerRoot, repoMappings)
+            : SolutionGenerator.AddCompilerLogServerPathMapping(
+                serverMappings, compilerLog,
+                new Dictionary<string, string> { [compilerRoot] = "/_/" }, repoMappings);
+
+        result[@"D:\build\src\runtime\"].ShouldBe(runtimeUrl);
+        result.ShouldNotContainKey(@"D:\build\");
+        result[@"C:\index\dotnet\"].ShouldBe(outerUrl);
+        serverMappings.Count.ShouldBe(2);
     }
 
     [TestMethod]

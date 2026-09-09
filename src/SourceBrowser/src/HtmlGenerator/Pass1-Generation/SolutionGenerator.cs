@@ -477,7 +477,8 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                         ServerPathMappings = AddCompilerLogServerPathMapping(
                             ServerPathMappings,
                             compilerLogFilePath,
-                            originalRoot);
+                            originalRoot,
+                            RepoPathMappings);
                         RepoPathMappings = AddCompilerLogRepoPathMappings(
                             RepoPathMappings,
                             compilerLogFilePath,
@@ -564,6 +565,26 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
             IEnumerable<KeyValuePair<string, string>> compilerPathMappings,
             IReadOnlyDictionary<string, string> repoPathMappings = null)
         {
+            var repositoryRoot = GetCompilerLogRepositoryRoot(compilerPathMappings);
+            if (repositoryRoot == null)
+            {
+                return serverPathMappings;
+            }
+
+            var originalRepositoryRoot = GetCompilerLogDocumentRoot(
+                repoPathMappings,
+                compilerLogFilePath,
+                repositoryRoot);
+            return AddCompilerLogServerPathMapping(
+                serverPathMappings, compilerLogFilePath, originalRepositoryRoot, repoPathMappings);
+        }
+
+        internal static IReadOnlyDictionary<string, string> AddCompilerLogServerPathMapping(
+            IReadOnlyDictionary<string, string> serverPathMappings,
+            string compilerLogFilePath,
+            string originalRepositoryRoot,
+            IReadOnlyDictionary<string, string> repoPathMappings = null)
+        {
             var normalizedServerPathMappings = CopyServerPathMappings(serverPathMappings);
             var compilerLogDirectory = Path.GetDirectoryName(Path.GetFullPath(compilerLogFilePath));
             var standaloneStageOneSourceDirectory = Paths.EnsureTrailingSlash(
@@ -582,35 +603,23 @@ namespace Microsoft.SourceBrowser.HtmlGenerator
                 return serverPathMappings;
             }
 
-            var repositoryRoot = GetCompilerLogRepositoryRoot(compilerPathMappings);
-            if (repositoryRoot == null)
-            {
-                return serverPathMappings;
-            }
-
-            var originalRepositoryRoot = GetCompilerLogDocumentRoot(
-                repoPathMappings,
-                compilerLogFilePath,
-                repositoryRoot);
-            normalizedServerPathMappings[originalRepositoryRoot] = configuredMapping.Value;
-            return normalizedServerPathMappings;
-        }
-
-        private static IReadOnlyDictionary<string, string> AddCompilerLogServerPathMapping(
-            IReadOnlyDictionary<string, string> serverPathMappings,
-            string compilerLogFilePath,
-            string originalRepositoryRoot)
-        {
-            var normalizedServerPathMappings = CopyServerPathMappings(serverPathMappings);
-            var configuredMapping = normalizedServerPathMappings
-                .Where(mapping => Paths.IsOrContains(mapping.Key, compilerLogFilePath))
-                .OrderByDescending(mapping => mapping.Key.Length)
+            var configuredRepositoryRoot = (repoPathMappings?.Keys ?? Enumerable.Empty<string>())
+                .Where(mapping => Paths.IsOrContains(mapping, compilerLogFilePath))
+                .OrderBy(mapping => mapping.Length)
                 .FirstOrDefault();
-            if (configuredMapping.Key != null)
+            var originalServerRoot = originalRepositoryRoot;
+            if (configuredRepositoryRoot != null)
             {
-                normalizedServerPathMappings[originalRepositoryRoot] = configuredMapping.Value;
+                // Source URLs may belong to a nested repo, unlike the outer document/grouping root.
+                // The bundle-only sibling src/ does not exist in the original checkout layout.
+                var configuredServerRoot = Paths.IsOrContains(configuredMapping.Key, compilerLogFilePath)
+                    ? configuredMapping.Key
+                    : compilerLogDirectory;
+                var relativePath = Path.GetRelativePath(configuredRepositoryRoot, configuredServerRoot);
+                originalServerRoot = Path.Combine(originalRepositoryRoot, relativePath);
             }
 
+            normalizedServerPathMappings[Paths.EnsureTrailingSlash(Path.GetFullPath(originalServerRoot))] = configuredMapping.Value;
             return normalizedServerPathMappings;
         }
 
