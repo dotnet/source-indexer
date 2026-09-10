@@ -13,6 +13,7 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
     <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic" />
     <PackageReference Include="MSBuild.StructuredLogger" />
+    <PackageReference Include="NuGet.Frameworks" />
   </ItemGroup>
 
 

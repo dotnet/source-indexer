@@ -1,5 +1,6 @@
 using System.IO;
 using System.Linq;
+using Microsoft.Build.Locator;
 using Microsoft.CodeAnalysis;
 using Microsoft.SourceBrowser.HtmlGenerator;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -11,6 +12,12 @@ namespace HtmlGenerator.Tests
     [TestClass]
     public class CompilerLogAssemblyNameTests
     {
+        [ClassInitialize]
+        public static void Initialize(TestContext context)
+        {
+            MSBuildLocator.RegisterDefaults();
+        }
+
         private static SolutionInfo CreateSolutionInfo(params string[] assemblyNames)
         {
             var projects = assemblyNames.Select(name =>
@@ -72,6 +79,95 @@ namespace HtmlGenerator.Tests
         }
 
         [TestMethod]
+        public void Compiler_source_count_takes_priority_over_injected_generated_documents()
+        {
+            var generatedHeavyProject = CreateProjectInfo("A.dll", documentCount: 10);
+            var implementation = CreateProjectInfo("A.dll", documentCount: 1);
+            var original = SolutionInfo.Create(
+                SolutionId.CreateNewId(),
+                VersionStamp.Default,
+                projects: new[] { generatedHeavyProject, implementation });
+
+            var normalized = SolutionGenerator.NormalizeCompilerLogAssemblyNames(
+                original,
+                projectScores: new[] { 1, 10 },
+                projectFilePaths: SolutionGenerator.CreateCompilerLogProjectPathMap(
+                    original, new[] { @"D:\repo\Generated.csproj", @"D:\repo\Implementation.csproj" }));
+
+            normalized.Projects.Select(p => p.Id)
+                .ShouldBe(new[] { implementation.Id, generatedHeavyProject.Id });
+
+            using var workspace = new AdhocWorkspace();
+            workspace.AddSolution(normalized);
+            workspace.CurrentSolution.Projects.Select(p => p.Id)
+                .ShouldBe(new[] { implementation.Id, generatedHeavyProject.Id });
+        }
+
+        [TestMethod]
+        [DataRow(2, 2, false)]
+        [DataRow(2, 2, true)]
+        [DataRow(1, 2, false)]
+        [DataRow(0, 2, false)]
+        [DataRow(2, 1, false)]
+        [DataRow(2, 0, false)]
+        [DataRow(2, 3, false)]
+        public void Compiler_log_scores_require_complete_aligned_metadata(int pathCount, int scoreCount, bool reversePaths)
+        {
+            var first = CreateProjectInfo("A.dll", documentCount: 1).WithFilePath("First.csproj");
+            var second = CreateProjectInfo("A.dll", documentCount: 10).WithFilePath("Second.csproj");
+            var solution = SolutionInfo.Create(
+                SolutionId.CreateNewId(), VersionStamp.Default, projects: new[] { first, second });
+            var paths = new[] { @"D:\repo\First.csproj", @"D:\repo\Second.csproj" }.Take(pathCount);
+            var pathMap = SolutionGenerator.CreateCompilerLogProjectPathMap(
+                solution, (reversePaths ? paths.Reverse() : paths).ToArray());
+
+            var normalized = SolutionGenerator.NormalizeCompilerLogAssemblyNames(
+                solution,
+                projectScores: new[] { 12_000, 11_000, 10_000 }.Take(scoreCount).ToArray(),
+                projectFilePaths: pathMap);
+
+            normalized.Projects.Select(project => project.Id).ShouldBe(
+                pathCount == 2 && scoreCount == 2 && !reversePaths
+                    ? new[] { first.Id, second.Id }
+                    : new[] { second.Id, first.Id });
+        }
+
+        [TestMethod]
+        [DataRow("ref")]
+        [DataRow("REF")]
+        [DataRow("stubs")]
+        [DataRow(@"cycle-breakers\Foo")]
+        public void Compiler_log_project_score_deprioritizes_reference_assemblies(string projectFolder)
+        {
+            SolutionGenerator.CalculateCompilerLogProjectScore(
+                    Path.Combine(@"D:\repo", projectFolder, "Foo.csproj"),
+                    "net11.0",
+                    sourceFileCount: 10_000)
+                .ShouldBe(int.MinValue);
+            SolutionGenerator.CalculateCompilerLogProjectScore(
+                    @"D:\repo\src\libraries\Foo\src\Foo.csproj",
+                    "net11.0",
+                    sourceFileCount: 100)
+                .ShouldBeGreaterThan(int.MinValue);
+        }
+
+        [TestMethod]
+        [DataRow("net10.0", 10_100)]
+        [DataRow("net11.0", 11_100)]
+        [DataRow("net11.0-linux", 11_700)]
+        [DataRow("net11.0-unix", 11_650)]
+        [DataRow("net11.0-windows10.0.19041.0", 11_600)]
+        [DataRow("net48", 4_900)]
+        [DataRow("netstandard2.1", 2_200)]
+        [DataRow(null, 100)]
+        [DataRow("invalid-framework-name", 100)]
+        public void Compiler_log_project_score_matches_binlog_weights(string targetFramework, int expected)
+        {
+            SolutionGenerator.CalculateCompilerLogProjectScore(
+                @"D:\repo\Foo.csproj", targetFramework, sourceFileCount: 100).ShouldBe(expected);
+        }
+
+        [TestMethod]
         public void Compiler_log_document_folders_match_BinLogToSln_link_behavior()
         {
             const string repositoryRoot = @"D:\a\_work\1\s";
@@ -99,7 +195,7 @@ namespace HtmlGenerator.Tests
                 projects: new[] { project });
             var normalized = SolutionGenerator.NormalizeCompilerLogAssemblyNames(
                 solution,
-                compilerLogRepositoryRoots: new[] { repositoryRoot });
+                compilerLogDocumentRoots: new[] { repositoryRoot });
             var documents = normalized.Projects.Single().Documents.ToDictionary(d => d.Name);
 
             documents["Local.cs"].Folders.ShouldBe(new[] { "Internal" });
@@ -128,6 +224,47 @@ namespace HtmlGenerator.Tests
                 @"D:\repo");
 
             normalized.ShouldBeSameAs(document);
+        }
+
+        [TestMethod]
+        public void Compiler_log_parent_traversal_is_normalized_to_repository_relative_path()
+        {
+            const string repositoryRoot = @"D:\a\_work\1\s";
+            const string projectFilePath =
+                repositoryRoot + @"\src\runtime\src\coreclr\System.Private.CoreLib\System.Private.CoreLib.csproj";
+            var projectId = ProjectId.CreateNewId();
+            var document = DocumentInfo.Create(
+                DocumentId.CreateNewId(projectId),
+                "String.cs",
+                folders: new[] { "..", "..", "..", "..", "libraries", "System.Private.CoreLib", "src", "System" },
+                filePath: repositoryRoot + @"\src\runtime\src\libraries\System.Private.CoreLib\src\System\String.cs");
+            var project = ProjectInfo.Create(
+                projectId,
+                VersionStamp.Default,
+                name: "System.Private.CoreLib",
+                assemblyName: "System.Private.CoreLib.dll",
+                language: LanguageNames.CSharp,
+                filePath: "System.Private.CoreLib.csproj",
+                documents: new[] { document });
+            var solution = SolutionInfo.Create(
+                SolutionId.CreateNewId(),
+                VersionStamp.Default,
+                projects: new[] { project });
+
+            var normalized = SolutionGenerator.NormalizeCompilerLogAssemblyNames(
+                solution,
+                compilerLogDocumentRoots: new[] { repositoryRoot },
+                projectFilePaths: SolutionGenerator.CreateCompilerLogProjectPathMap(solution, new[] { projectFilePath }));
+            var normalizedDocument = normalized.Projects.Single().Documents.Single();
+
+            normalizedDocument.Folders.ShouldBe(
+                new[] { "src", "runtime", "src", "libraries", "System.Private.CoreLib", "src", "System" });
+
+            using var workspace = new AdhocWorkspace();
+            workspace.AddSolution(normalized);
+            var roslynDocument = workspace.CurrentSolution.Projects.Single().Documents.Single();
+            Paths.GetRelativeFilePathInProject(roslynDocument, project.FilePath).ShouldBe(
+                @"src\runtime\src\libraries\System.Private.CoreLib\src\System\String.cs");
         }
 
         private static ProjectInfo CreateProjectInfo(string assemblyName, int documentCount)

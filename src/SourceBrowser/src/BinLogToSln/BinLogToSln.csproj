@@ -14,7 +14,6 @@
     <PackageReference Include="LibGit2Sharp" />
 	<PackageReference Include="Microsoft.CodeAnalysis" />
     <PackageReference Include="Mono.Options" />
-    <PackageReference Include="NuGet.Frameworks" />
   </ItemGroup>
 
   <ItemGroup>
